@@ -1104,9 +1104,11 @@ const (
 	ModeThemesSubmenu      ViewMode = "themes_submenu"
 	ModeBordersSubmenu     ViewMode = "borders_submenu"
 	ModeBackgroundsSubmenu ViewMode = "backgrounds_submenu"
-	ModeWallpaperSubmenu   ViewMode = "wallpaper_submenu" // CHANGED 2025-10-03 - Add wallpaper submenu for gslapper videos
+	ModeWallpaperSubmenu ViewMode = "wallpaper_submenu" // CHANGED 2025-10-03 - Add wallpaper submenu for gslapper videos
 	// CHANGED 2025-10-01 - Added release notes mode - Problem: User requested F5 release notes functionality
 	ModeReleaseNotes ViewMode = "release_notes"
+	// CHANGED 2025-10-10 - Added screensaver mode - Problem: Need screensaver with idle timeout
+	ModeScreensaver ViewMode = "screensaver"
 )
 
 type FocusState int
@@ -1187,6 +1189,10 @@ type model struct {
 
 	// CHANGED 2025-10-05 - Add error message for authentication failures - Problem: BUG #4 - Greeter exits on auth failure
 	errorMessage string
+
+	// CHANGED 2025-10-10 - Screensaver fields - Problem: Need screensaver mode with idle timeout
+	idleTimer       time.Time // Time when idle started
+	screensaverTime time.Time // Current time for screensaver display
 
 	// CHANGED 2025-10-07 19:05 - ASCII navigation fields for multi-variant support - Problem: User wants Page Up/Down to cycle ASCII variants
 	asciiArtIndex      int         // Current variant index (0-indexed)
@@ -1416,6 +1422,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pulseColor = (m.pulseColor + 1) % 100
 		m.borderFrame = (m.borderFrame + 1) % 20
 
+		// CHANGED 2025-10-10 - Update screensaver time and check for activation - Problem: Need screensaver mode
+		m.screensaverTime = time.Time(msg)
+
+		// Check for screensaver activation using configurable timeout
+		if m.mode == ModeLogin || m.mode == ModePassword {
+			ssConfig := loadScreensaverConfig()
+			idleDuration := time.Since(m.idleTimer)
+			if idleDuration >= time.Duration(ssConfig.IdleTimeout)*time.Minute && m.mode != ModeScreensaver {
+				m.mode = ModeScreensaver
+			}
+		}
+
 		// CHANGED 2025-10-04 - Update fire when enableFire is true - Problem: Support Fire + Rain/Matrix combination
 		if (m.enableFire || m.selectedBackground == "fire" || m.selectedBackground == "fire+rain") && m.fireEffect != nil {
 			m.fireEffect.Update(m.animationFrame)
@@ -1560,10 +1578,14 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 
 	switch msg.String() {
 	case "ctrl+c", "q":
-		if m.ipcClient != nil {
-			m.ipcClient.Close()
+		// CHANGED 2025-10-10 - Disable Ctrl+C in production mode - Problem: Ctrl+C kills kitty terminal hosting the greeter
+		// Only allow Ctrl+C/Q to quit in test mode (when ipcClient is nil)
+		if m.ipcClient == nil {
+			// Test mode - allow quit
+			return m, tea.Quit
 		}
-		return m, tea.Quit
+		// Production mode - ignore Ctrl+C/Q (security measure)
+		return m, nil
 
 	case "f1":
 		// CHANGED 2025-10-03 17:15 - Remapped F1 to Menu - Problem: User wanted F1=Menu, F2=Sessions, F3=Notes, F4=Power
@@ -2064,6 +2086,9 @@ func (m model) View() tea.View {
 	case ModeReleaseNotes:
 		// CHANGED 2025-10-01 14:15 - Added F5 release notes view rendering - Problem: User requested F5 release notes functionality
 		content = m.renderReleaseNotesView(termWidth, termHeight)
+	case ModeScreensaver:
+		// CHANGED 2025-10-10 - Added screensaver rendering - Problem: Need screensaver mode
+		content = renderScreensaverView(m, termWidth, termHeight)
 	default:
 		content = m.renderMainView(termWidth, termHeight)
 	}

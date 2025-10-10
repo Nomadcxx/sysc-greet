@@ -992,8 +992,8 @@ window-rule {
     opacity 0.90
 }
 
-// CRITICAL: Launch kitty with sysc-greet, then quit niri when it exits
-spawn-at-startup "sh" "-c" "kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
+// CHANGED 2025-10-10 - Use spawn-sh-at-startup like ReGreet - Problem: spawn-at-startup doesn't block, causing race on slow hardware
+spawn-sh-at-startup "kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
 
 // Empty binds block = no keybindings work (security for greeter)
 binds {
