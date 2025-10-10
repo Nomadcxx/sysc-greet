@@ -1,0 +1,57 @@
+// CHANGED 2025-10-05 - Niri config for greetd greeter session
+// Based on working example from https://github.com/YaLTeR/niri/discussions/1276
+// This config is ONLY used by greetd to show the greeter
+
+hotkey-overlay {
+    skip-at-startup
+}
+
+input {
+    keyboard {
+        xkb {
+            layout "us"
+        }
+        repeat-delay 400
+        repeat-rate 40
+    }
+
+    mouse {
+        // natural-scroll;
+    }
+
+    touchpad {
+        tap;
+        // natural-scroll;
+    }
+}
+
+// Auto-detect outputs (no specific output config needed)
+// Niri will use all connected displays
+
+layout {
+    gaps 0
+    center-focused-column "never"
+
+    // No focus ring needed for greeter
+    focus-ring {
+        off
+    }
+
+    // No border needed for greeter
+    border {
+        off
+    }
+}
+
+// Disable animations for faster startup
+animations {
+    off
+}
+
+// CRITICAL: Launch wrapper script that runs kitty (foreground) then quits niri
+// CHANGED 2025-10-05 - Use wrapper script instead of inline sh -c to ensure kitty runs in foreground
+spawn-at-startup "/etc/greetd/niri-launch-greeter.sh"
+
+// Empty binds block = no keybindings work (security for greeter)
+binds {
+}

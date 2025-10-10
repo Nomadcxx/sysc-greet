@@ -1,0 +1,36 @@
+# Binaries (in root of sysc-greet directory only)
+/sysc-greet
+/install-sysc-greet
+*.exe
+/main
+
+# Test files and binaries
+test-*
+*test*
+*debug*
+*.production-backup
+
+# Logs
+logs/
+*.log
+
+# Build artifacts
+*.o
+*.so
+*.a
+
+# Temporary files
+*.tmp
+*.bak
+*.save
+.cleanup-list
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~

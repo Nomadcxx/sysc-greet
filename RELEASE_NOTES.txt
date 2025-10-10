@@ -1,0 +1,63 @@
+  █████████  ███████████    █████████     █████████  ██████████
+ ███░░░░░███░░███░░░░░███  ███░░░░░███   ███░░░░░███░░███░░░░░█
+░███    ░░░  ░███    ░███ ░███    ░███  ███     ░░░  ░███  █ ░
+░░█████████  ░██████████  ░███████████ ░███          ░██████
+ ░░░░░░░░███ ░███░░░░░░   ░███░░░░░███ ░███          ░███░░█
+ ███    ░███ ░███         ░███    ░███ ░░███     ███ ░███ ░   █
+░░█████████  █████        █████   █████ ░░█████████  ██████████
+ ░░░░░░░░░  ░░░░░        ░░░░░   ░░░░░   ░░░░░░░░░  ░░░░░░░░░░
+ //////////////////////SEE YOU IN SPACE COWBOY///////////////
+
+🎨 Themes (9 total):
+  • Dracula, Catppuccin, Nord, Tokyo Night, Gruvbox
+  • Material, Solarized, Monochrome, TransIsHardJob
+  • Instant switching via F2 → Themes
+
+🔥 Background Animations:
+  • Fire - PSX DOOM-style fire effect with theme-aware color palettes
+  • Matrix Rain - Classic falling green characters
+  • Particle Field - Floating particle system
+  • Selectable via F2 → Backgrounds
+
+🖼️ Border Styles (7 total):
+  • Classic - Rounded borders with elegant styling
+  • Modern - Clean thick borders
+  • Minimal - Simple distraction-free borders
+  • ASCII-1 - Retro block character border
+  • ASCII-2 - Fancy gradient block border
+  • Wave - Animated wave border
+  • Pulse - Animated pulse border
+  • Selectable via F2 → Borders
+
+💾 Preference Caching:
+  • Automatically remembers your last selected:
+    - Theme
+    - Background animation
+    - Border style
+    - Session
+  • Stored in ~/.cache/bubble-greet/preferences
+  • Loads on startup for seamless experience
+
+⌨️ Key Bindings:
+  • F2 - Settings Menu (Themes/Borders/Backgrounds)
+  • F3 - Session Selection Dropdown
+  • F4 - Power Menu (Shutdown/Reboot)
+  • F5 - Release Notes (you are here!)
+  • Tab - Focus Navigation
+  • Enter - Continue/Submit
+  • Esc - Cancel/Go Back
+
+🔧 Technical Features:
+  • Built with Go and Bubble Tea TUI framework
+  • Styled with Lipgloss for beautiful terminal rendering
+  • PSX DOOM fire algorithm with heat propagation
+  • Modular architecture with internal packages
+  • greetd integration for display manager
+
+Thanks:
+  • Original tuigreet by apognu
+  • Bubble Tea framework by Charm
+  • Lipgloss styling library by Charm
+  • Go community
+
+Made with ❤️ for the terminal enthusiasts
