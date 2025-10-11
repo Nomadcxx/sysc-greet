@@ -321,7 +321,7 @@ func (m model) checkDependencies() tea.Cmd {
 			"xbps-install": {"/usr/bin/xbps-install", "/bin/xbps-install"},
 		}
 
-		// CHANGED 2025-10-02 00:50 - Prefer pacman over yay as default - Problem: User wants pacman as default, yay as fallback
+		// CHANGED 2025-10-02 00:50 - Prefer pacman over yay as default
 		var packageManager string
 		// Check in order of preference (prefer distro package managers, yay only for AUR)
 		for _, pmName := range []string{"pacman", "apt", "dnf", "zypper", "emerge", "apk", "xbps-install", "yay"} {
@@ -427,7 +427,7 @@ func (m model) installGreetd() tea.Cmd {
 			return stepCompleteMsg{false, fmt.Sprintf("Unsupported package manager: %s. Install greetd manually with your package manager.", m.packageManager)}
 		}
 
-		// CHANGED 2025-10-02 00:50 - Show live command output - Problem: User wants to see terminal output
+		// CHANGED 2025-10-02 00:50 - Show live command output
 
 
 		err := cmd.Run()

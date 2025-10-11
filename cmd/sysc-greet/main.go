@@ -163,8 +163,9 @@ func init() {
 	BorderFocus = Primary
 }
 
-// CHANGED 2025-10-01 - Theme support with proper color palettes - Problem: User wants themes to actually work
-func applyTheme(themeName string) {
+// CHANGED 2025-10-01 - Theme support with proper color palettes
+// CHANGED 2025-10-11 - Added testMode parameter - Problem: Need to avoid swww in test mode
+func applyTheme(themeName string, testMode bool) {
 	switch strings.ToLower(themeName) {
 	case "gruvbox":
 		// Gruvbox Dark theme
@@ -293,14 +294,14 @@ func applyTheme(themeName string) {
 	BorderFocus = Primary
 
 	// CHANGED 2025-10-10 - Set theme-aware wallpaper via swww - Problem: Multi-monitor needs themed backgrounds
-	setThemeWallpaper(themeName)
+	setThemeWallpaper(themeName, testMode)
 }
 
 // CHANGED 2025-10-10 - Set wallpaper for current theme using swww - Problem: Need themed backgrounds on all monitors
-func setThemeWallpaper(themeName string) {
-	// Only set wallpaper in production mode (not test mode)
-	if debugLog != nil {
-		logDebug("Attempting to set wallpaper for theme: %s", themeName)
+func setThemeWallpaper(themeName string, testMode bool) {
+	// CHANGED 2025-10-11 - Never run swww in test mode to avoid disrupting user's wallpapers during debugging
+	if testMode {
+		return
 	}
 
 	// Check if swww is available
@@ -315,31 +316,26 @@ func setThemeWallpaper(themeName string) {
 
 	// Check if wallpaper exists
 	if _, err := os.Stat(wallpaperPath); err != nil {
-		if debugLog != nil {
-			logDebug("Wallpaper not found: %s", wallpaperPath)
-		}
 		return
 	}
 
 	// Set wallpaper on all outputs using swww
 	// Use goroutine to avoid blocking the UI
 	go func() {
-		// First ensure swww-daemon is running
+		// First ensure swww-daemon is running (redirect all output to avoid UI pollution)
 		daemonCmd := exec.Command("swww-daemon")
+		daemonCmd.Stdout = nil
+		daemonCmd.Stderr = nil
 		_ = daemonCmd.Start() // Ignore error - daemon may already be running
 
 		// Give daemon a moment to start if it wasn't running
 		time.Sleep(100 * time.Millisecond)
 
-		// Set wallpaper on all monitors
+		// Set wallpaper on all monitors (redirect all output)
 		cmd := exec.Command("swww", "img", wallpaperPath, "--transition-type", "fade", "--transition-duration", "0.5")
-		if err := cmd.Run(); err != nil {
-			if debugLog != nil {
-				logDebug("Failed to set wallpaper: %v", err)
-			}
-		} else if debugLog != nil {
-			logDebug("Successfully set wallpaper: %s", wallpaperPath)
-		}
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+		_ = cmd.Run()
 	}()
 }
 
@@ -355,7 +351,7 @@ type ColorPalette struct {
 	Colors []string // Hex colors for the rainbow effect
 }
 
-// CHANGED 2025-10-02 05:30 - Fire effect implementation (PSX DOOM algorithm) - Problem: User wants fire background with theme color support
+// CHANGED 2025-10-02 05:30 - Fire effect implementation (PSX DOOM algorithm)
 
 var sessionPalettes = map[string]ColorPalette{
 	"GNOME": {
@@ -410,10 +406,10 @@ func renderWithFiglet4goFallback(text, fontPath string, debug bool) (string, err
 // Parse figlet font file directly with proper Unicode support
 // CHANGED 2025-09-29 - Core fix for Unicode block character rendering + encoding
 // Parse figlet font file directly with proper Unicode support
-// CHANGED 2025-09-30 15:18 - Added ASCII config loading system - Problem: User wants pre-made ASCII from .conf files instead of generated ones
+// CHANGED 2025-09-30 15:18 - Added ASCII config loading system
 
-// CHANGED 2025-10-01 - Enhanced ASCIIConfig with animation controls - Problem: User requested animation controls in .conf files and menu
-// CHANGED 2025-10-07 19:00 - Added multi-ASCII variant support - Problem: User wants to cycle through multiple ASCII arts per session
+// CHANGED 2025-10-01 - Enhanced ASCIIConfig with animation controls
+// CHANGED 2025-10-07 19:00 - Added multi-ASCII variant support
 type ASCIIConfig struct {
 	Name               string
 	ASCII              string   // DEPRECATED: Use ASCIIVariants instead
@@ -552,7 +548,7 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 	return config, nil
 }
 
-// CHANGED 2025-10-07 19:10 - Support multi-variant ASCII with cycling and height normalization - Problem: User wants Page Up/Down to cycle variants
+// CHANGED 2025-10-07 19:10 - Support multi-variant ASCII with cycling and height normalization
 // Get ASCII art for current session
 func (m model) getSessionASCII() string {
 	if m.selectedSession == nil {
@@ -615,7 +611,7 @@ func (m model) getSessionASCII() string {
 		}
 	}
 
-	// CHANGED 2025-10-01 15:25 - Disable animations, use static primary color - Problem: User reports animations make ASCII look fucked up
+	// CHANGED 2025-10-01 15:25 - Disable animations, use static primary color
 	// Apply static primary color to ASCII art
 	lines := strings.Split(currentASCII, "\n")
 	var coloredLines []string
@@ -636,7 +632,7 @@ func (m model) getSessionASCII() string {
 
 // Get color palette for a session type
 // CHANGED 2025-09-29 - Added configurable palette support with fallback to defaults
-// CHANGED 2025-10-01 - Enhanced animation system with multiple styles - Problem: User requested sophisticated animation controls
+// CHANGED 2025-10-01 - Enhanced animation system with multiple styles
 func applyASCIIAnimation(text string, animationOffset float64, palette ColorPalette, config ASCIIConfig) string {
 	// Apply animation speed multiplier
 	adjustedOffset := animationOffset * config.AnimationSpeed
@@ -665,7 +661,7 @@ func applyASCIIAnimation(text string, animationOffset float64, palette ColorPale
 
 // Apply rainbow colors with animation using custom palette (lolcat-inspired)
 // CHANGED 2025-09-29 - Custom rainbow implementation with configurable palettes
-// CHANGED 2025-09-30 14:25 - Replaced lolcat rainbow with smooth gradient - Problem: User requested removal of "gay and lame" rainbow animation
+// CHANGED 2025-09-30 14:25 - Replaced lolcat rainbow with smooth gradient
 func applySmoothGradient(text string, animationOffset float64, palette ColorPalette) string {
 	lines := strings.Split(text, "\n")
 	var coloredLines []string
@@ -764,7 +760,7 @@ func parseHexColor(hex string) (uint8, uint8, uint8) {
 	return uint8(r), uint8(g), uint8(b)
 }
 
-// CHANGED 2025-10-01 - Added sophisticated animation styles - Problem: User requested multiple animation types with directional control
+// CHANGED 2025-10-01 - Added sophisticated animation styles
 func applyWaveAnimation(text string, animationOffset float64, palette ColorPalette, direction string) string {
 	lines := strings.Split(text, "\n")
 	var coloredLines []string
@@ -1156,7 +1152,7 @@ const (
 	ModeBordersSubmenu     ViewMode = "borders_submenu"
 	ModeBackgroundsSubmenu ViewMode = "backgrounds_submenu"
 	ModeWallpaperSubmenu ViewMode = "wallpaper_submenu" // CHANGED 2025-10-03 - Add wallpaper submenu for gslapper videos
-	// CHANGED 2025-10-01 - Added release notes mode - Problem: User requested F5 release notes functionality
+	// CHANGED 2025-10-01 - Added release notes mode
 	ModeReleaseNotes ViewMode = "release_notes"
 	// CHANGED 2025-10-10 - Added screensaver mode - Problem: Need screensaver with idle timeout
 	ModeScreensaver ViewMode = "screensaver"
@@ -1205,7 +1201,7 @@ type model struct {
 	currentTheme           string
 	borderAnimationEnabled bool
 	selectedFont           string
-	// CHANGED 2025-10-01 - Added animation control fields - Problem: User requested animation controls in menu
+	// CHANGED 2025-10-01 - Added animation control fields
 	selectedAnimationStyle     string
 	selectedAnimationSpeed     float64
 	selectedAnimationDirection string
@@ -1235,17 +1231,19 @@ type model struct {
 	lastMatrixWidth  int
 	lastMatrixHeight int
 
-	// CHANGED 2025-10-04 - Separate flags for multiple backgrounds - Problem: User wants Fire + Rain/Matrix enabled simultaneously
+	// CHANGED 2025-10-04 - Separate flags for multiple backgrounds
 	enableFire bool
 
 	// CHANGED 2025-10-05 - Add error message for authentication failures - Problem: BUG #4 - Greeter exits on auth failure
 	errorMessage string
 
 	// CHANGED 2025-10-10 - Screensaver fields - Problem: Need screensaver mode with idle timeout
-	idleTimer       time.Time // Time when idle started
-	screensaverTime time.Time // Current time for screensaver display
+	idleTimer         time.Time // Time when idle started
+	screensaverTime   time.Time // Current time for screensaver display
+	screensaverPrint  *animations.PrintEffect // CHANGED 2025-10-11 - Print effect animation for screensaver
+	screensaverActive bool      // CHANGED 2025-10-11 - Track if screensaver just activated - Problem: Need to trigger animation on start
 
-	// CHANGED 2025-10-07 19:05 - ASCII navigation fields for multi-variant support - Problem: User wants Page Up/Down to cycle ASCII variants
+	// CHANGED 2025-10-07 19:05 - ASCII navigation fields for multi-variant support
 	asciiArtIndex      int         // Current variant index (0-indexed)
 	asciiArtCount      int         // Total variants available
 	asciiMaxHeight     int         // Max height for normalization
@@ -1263,7 +1261,7 @@ func doTick() tea.Cmd {
 	})
 }
 
-func initialModel(config Config) model {
+func initialModel(config Config, screensaverMode bool) model {
 	// Setup username input with proper styling
 	ti := textinput.New()
 	ti.Prompt = ""      // CHANGED 2025-10-02 04:02 - Remove prompt, will be added by layout - Problem: Duplicate "Username:" in ASCII-1
@@ -1377,8 +1375,14 @@ func initialModel(config Config) model {
 	// Set initial focus
 	ti.Focus()
 
-	// CHANGED 2025-10-01 15:01 - Apply Dracula theme at initialization - Problem: User wants Dracula as default
-	applyTheme("dracula")
+	// CHANGED 2025-10-01 15:01 - Apply Dracula theme at initialization
+	applyTheme("dracula", config.TestMode)
+
+	// CHANGED 2025-10-11 - Determine initial mode - Problem: Need to start in screensaver for testing
+	initialMode := ModeLogin
+	if screensaverMode {
+		initialMode = ModeScreensaver
+	}
 
 	m := model{
 		usernameInput:       ti,
@@ -1389,7 +1393,7 @@ func initialModel(config Config) model {
 		sessionIndex:        sessionIndex,
 		ipcClient:           ipcClient,
 		theme:               currentTheme,
-		mode:                ModeLogin,
+		mode:                initialMode,
 		config:              config,
 		issueContent:        issueContent,
 		startTime:           time.Now(),
@@ -1403,7 +1407,7 @@ func initialModel(config Config) model {
 		pulseColor:          0,
 		borderFrame:         0,
 		// CHANGED 2025-09-30 15:38 - Initialize default border and background settings - Problem: New fields need default values
-		// CHANGED 2025-10-01 15:00 - Set Dracula as default theme and disable border animation - Problem: User wants static borders and Dracula theme
+		// CHANGED 2025-10-01 15:00 - Set Dracula as default theme and disable border animation
 		selectedBorderStyle:    "classic",
 		selectedBackground:     "none",
 		currentTheme:           "dracula",
@@ -1416,6 +1420,9 @@ func initialModel(config Config) model {
 		selectedAnimationDirection: "right",
 		animationStyleOptions:      []string{"gradient", "wave", "pulse", "rainbow", "matrix", "typewriter", "glow", "static"},
 		animationDirectionOptions:  []string{"right", "left", "up", "down", "center-out"},
+		// CHANGED 2025-10-10 - Initialize screensaver timers - Problem: Uninitialized timers cause immediate screensaver activation
+		idleTimer:       time.Now(),
+		screensaverTime: time.Now(),
 		// CHANGED 2025-10-02 05:40 - Initialize fire effect with default size - Problem: Fire needs initialization
 		fireEffect: animations.NewFireEffect(80, 30, animations.GetDefaultFirePalette()),
 		// CHANGED 2025-10-08 - Initialize rain effect with default size - Problem: Rain needs initialization
@@ -1430,7 +1437,7 @@ func initialModel(config Config) model {
 		if prefs, err := cache.LoadPreferences(); err == nil && prefs != nil {
 			if prefs.Theme != "" {
 				m.currentTheme = prefs.Theme
-				applyTheme(prefs.Theme)
+				applyTheme(prefs.Theme, m.config.TestMode)
 			}
 			if prefs.Background != "" {
 				m.selectedBackground = prefs.Background
@@ -1448,6 +1455,17 @@ func initialModel(config Config) model {
 					}
 				}
 			}
+		}
+	}
+
+	// CHANGED 2025-10-11 - Initialize print effect if starting in screensaver mode - Problem: Need animation when testing screensaver directly
+	if screensaverMode {
+		ssConfig := loadScreensaverConfig()
+		if ssConfig.AnimateOnStart && ssConfig.AnimationType == "print" && len(ssConfig.ASCIIVariants) > 0 {
+			selectedASCII := ssConfig.ASCIIVariants[0]
+			charDelay := time.Duration(ssConfig.AnimationSpeed) * time.Millisecond
+			m.screensaverPrint = animations.NewPrintEffect(selectedASCII, charDelay)
+			m.screensaverActive = true
 		}
 	}
 
@@ -1476,12 +1494,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// CHANGED 2025-10-10 - Update screensaver time and check for activation - Problem: Need screensaver mode
 		m.screensaverTime = time.Time(msg)
 
+		// CHANGED 2025-10-11 - Tick print effect animation if in screensaver mode - Problem: Need to advance typewriter animation
+		if m.mode == ModeScreensaver && m.screensaverPrint != nil {
+			m.screensaverPrint.Tick(m.screensaverTime)
+		}
+
 		// Check for screensaver activation using configurable timeout
 		if m.mode == ModeLogin || m.mode == ModePassword {
 			ssConfig := loadScreensaverConfig()
 			idleDuration := time.Since(m.idleTimer)
 			if idleDuration >= time.Duration(ssConfig.IdleTimeout)*time.Minute && m.mode != ModeScreensaver {
 				m.mode = ModeScreensaver
+				m.screensaverActive = true // CHANGED 2025-10-11 - Mark screensaver as just activated - Problem: Need to trigger animation
+
+				// CHANGED 2025-10-11 - Initialize print effect animation if enabled
+				if ssConfig.AnimateOnStart && ssConfig.AnimationType == "print" {
+					// Get the ASCII variant to animate
+					variantIndex := 0 // Start with first variant
+					if len(ssConfig.ASCIIVariants) > 0 {
+						selectedASCII := ssConfig.ASCIIVariants[variantIndex]
+						charDelay := time.Duration(ssConfig.AnimationSpeed) * time.Millisecond
+						m.screensaverPrint = animations.NewPrintEffect(selectedASCII, charDelay)
+					}
+				}
 			}
 		}
 
@@ -1639,7 +1674,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		return m, nil
 
 	case "f1":
-		// CHANGED 2025-10-03 17:15 - Remapped F1 to Menu - Problem: User wanted F1=Menu, F2=Sessions, F3=Notes, F4=Power
+		// CHANGED 2025-10-03 17:15 - Remapped F1 to Menu
 		// Main menu
 		if m.mode == ModeLogin || m.mode == ModePassword {
 			m.mode = ModeMenu
@@ -1657,7 +1692,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		}
 
 	case "f2":
-		// CHANGED 2025-10-03 17:15 - Remapped F2 to Sessions - Problem: User wanted F1=Menu, F2=Sessions, F3=Notes, F4=Power
+		// CHANGED 2025-10-03 17:15 - Remapped F2 to Sessions
 		// Toggle session dropdown
 		if m.mode == ModeLogin || m.mode == ModePassword {
 			m.sessionDropdownOpen = !m.sessionDropdownOpen
@@ -1665,7 +1700,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		}
 
 	case "f3":
-		// CHANGED 2025-10-03 17:15 - Remapped F3 to Notes - Problem: User wanted F1=Menu, F2=Sessions, F3=Notes, F4=Power
+		// CHANGED 2025-10-03 17:15 - Remapped F3 to Notes
 		// Release notes popup
 		if m.mode == ModeLogin || m.mode == ModePassword {
 			if m.config.Debug {
@@ -1678,7 +1713,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		}
 
 	case "f4":
-		// CHANGED 2025-10-03 17:15 - F4 remains Power - Problem: User wanted F1=Menu, F2=Sessions, F3=Notes, F4=Power
+		// CHANGED 2025-10-03 17:15 - F4 remains Power
 		// Power menu
 		if m.mode == ModeLogin || m.mode == ModePassword {
 			if m.config.Debug {
@@ -1739,7 +1774,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			}
 			m.menuIndex = 0
 			return m, nil
-		// CHANGED 2025-10-01 14:18 - Add escape handling for release notes - Problem: User needs to return from F5 release notes view
+		// CHANGED 2025-10-01 14:18 - Add escape handling for release notes
 		case ModeReleaseNotes:
 			// Return to login mode
 			m.mode = ModeLogin
@@ -1811,7 +1846,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			return m, nil
 		}
 
-	// CHANGED 2025-10-07 19:15 - Add Page Up/Down handlers for ASCII variant cycling - Problem: User wants to cycle through ASCII art variants
+	// CHANGED 2025-10-07 19:15 - Add Page Up/Down handlers for ASCII variant cycling
 	case "pgup", "page up":
 		if m.mode == ModeLogin || m.mode == ModePassword {
 			if m.selectedSession != nil {
@@ -1941,7 +1976,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					themeName := strings.TrimPrefix(selectedOption, "Theme: ")
 					m.currentTheme = themeName
 					// Apply theme immediately
-					applyTheme(themeName)
+					applyTheme(themeName, m.config.TestMode)
 					// CHANGED 2025-10-03 - Save theme preference - Problem: Theme selection not persisted
 					// CHANGED 2025-10-03 - Skip saving in test mode - Problem: Don't persist during testing
 					if !m.config.TestMode {
@@ -1961,7 +1996,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				return m, nil
 
 			case ModeBordersSubmenu:
-				// CHANGED 2025-10-01 15:29 - Restored ASCII border handling - Problem: User wants ASCII borders back
+				// CHANGED 2025-10-01 15:29 - Restored ASCII border handling
 				switch selectedOption {
 				case "Style: Classic":
 					m.selectedBorderStyle = "classic"
@@ -2000,7 +2035,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				return m, nil
 
 			case ModeBackgroundsSubmenu:
-				// CHANGED 2025-10-04 - Toggle backgrounds instead of replacing - Problem: User wants Fire + Rain/Matrix enabled together
+				// CHANGED 2025-10-04 - Toggle backgrounds instead of replacing
 				// Strip checkbox prefix to get actual option name
 				optionName := strings.TrimPrefix(selectedOption, "[✓] ")
 				optionName = strings.TrimPrefix(optionName, "[ ] ")
@@ -2135,7 +2170,7 @@ func (m model) View() tea.View {
 		// CHANGED 2025-10-03 18:00 - Removed ModeVideoWallpapersSubmenu from rendering - Problem: Dead code cleanup
 		content = m.renderMenuView(termWidth, termHeight)
 	case ModeReleaseNotes:
-		// CHANGED 2025-10-01 14:15 - Added F5 release notes view rendering - Problem: User requested F5 release notes functionality
+		// CHANGED 2025-10-01 14:15 - Added F5 release notes view rendering
 		content = m.renderReleaseNotesView(termWidth, termHeight)
 	case ModeScreensaver:
 		// CHANGED 2025-10-10 - Added screensaver rendering - Problem: Need screensaver mode
@@ -2257,10 +2292,10 @@ func ensureFullTerminalCoverage(content string, termWidth, termHeight int) strin
 	return strings.Join(lines, "\n")
 }
 
-// CHANGED 2025-10-01 - Replaced WM-named themes with common themes - Problem: User wants gruvbox, material, nord etc instead of WM names
+// CHANGED 2025-10-01 - Replaced WM-named themes with common themes
 // CHANGED 2025-10-03 17:40 - Moved navigation functions to menu.go and wallpaper.go - Problem: Keep main.go clean and modular
 
-// CHANGED 2025-09-30 15:25 - Complete dual border redesign - Problem: User wants dual border layout with help text in outer border
+// CHANGED 2025-09-30 15:25 - Complete dual border redesign
 func (m model) renderMainView(termWidth, termHeight int) string {
 	return m.renderDualBorderLayout(termWidth, termHeight)
 }
@@ -2385,7 +2420,7 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 
 	var outerSections []string
 
-	// CHANGED 2025-10-03 16:35 - Removed bubble-greet title text - Problem: User requested removal of green title
+	// CHANGED 2025-10-03 16:35 - Removed bubble-greet title text
 	// Title removed per user request
 
 	// Time if enabled
@@ -2682,7 +2717,7 @@ func (m model) getSessionASCIIMonochrome() string {
 	return asciiConfig.ASCII
 }
 
-// CHANGED 2025-09-30 15:30 - Implement actual border style functionality - Problem: User's border selections didn't do anything
+// CHANGED 2025-09-30 15:30 - Implement actual border style functionality
 
 // Get inner border style based on user selection
 func (m model) getInnerBorderStyle() lipgloss.Border {
@@ -2788,14 +2823,14 @@ func (m model) getOuterBorderColor() color.Color {
 	}
 }
 
-// CHANGED 2025-09-30 15:35 - Implement background animations - Problem: User wants Matrix rain, particles, etc. in background
+// CHANGED 2025-09-30 15:35 - Implement background animations
 func (m model) applyBackgroundAnimation(content string, width, height int) string {
 	switch m.selectedBackground {
 	case "fire": // CHANGED 2025-10-02 06:05 - Add fire effect rendering - Problem: Fire needs to be rendered as background
 		return m.addFireEffect(content, width, height)
 	case "matrix":
 		return m.addMatrixEffect(content, width, height)
-	case "ascii-rain": // CHANGED 2025-10-08 - Add ascii rain effect - Problem: User wants ascii rain background
+	case "ascii-rain": // CHANGED 2025-10-08 - Add ascii rain effect
 		return m.addAsciiRain(content, width, height)
 	case "none":
 		fallthrough
@@ -3339,8 +3374,8 @@ func (m model) renderMenuView(termWidth, termHeight int) string {
 	return menu
 }
 
-// CHANGED 2025-10-01 14:17 - Added F5 release notes view rendering function - Problem: User requested F5 release notes popup functionality
-// CHANGED 2025-10-01 15:15 - Updated with NOTES_POPUP.txt format - Problem: User wants specific format with ASCII art header
+// CHANGED 2025-10-01 14:17 - Added F5 release notes view rendering function
+// CHANGED 2025-10-01 15:15 - Updated with NOTES_POPUP.txt format
 func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
 	// CHANGED 2025-10-03 16:35 - Rewrite to match NOTES popup format - Problem: Needed popup-style rendering like Menu/Power
 
@@ -3441,8 +3476,8 @@ func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
 func (m model) renderMainHelp() string {
 	switch m.mode {
 	case ModeLogin, ModePassword:
-		// CHANGED 2025-10-03 17:15 - Reorder function keys to F1-F4 logical sequence - Problem: User wanted Menu=F1, Sessions=F2, Notes=F3, Power=F4
-		// CHANGED 2025-10-07 19:20 - Add Page Up/Down navigation for ASCII variants - Problem: User wants to cycle ASCII art
+		// CHANGED 2025-10-03 17:15 - Reorder function keys to F1-F4 logical sequence
+		// CHANGED 2025-10-07 19:20 - Add Page Up/Down navigation for ASCII variants
 		if m.sessionDropdownOpen {
 			return "↑↓ Navigate • ⇞⇟ ASCII • Enter Select • Esc Close • Tab Focus • F1 Menu • F2 Sessions • F3 Notes • F4 Power"
 		}
@@ -3475,7 +3510,7 @@ func (m model) getFocusColor(target FocusState) color.Color {
 }
 
 func (m model) getSessionArt(sessionName string) string {
-	// CHANGED 2025-09-30 15:20 - Use pre-made ASCII from config files - Problem: User wants clean ASCII from .conf files instead of generated figlet
+	// CHANGED 2025-09-30 15:20 - Use pre-made ASCII from config files
 	return m.getSessionASCII()
 }
 
@@ -3496,7 +3531,7 @@ func (m model) authenticate(username, password string) tea.Cmd {
 			return err
 		}
 
-		// CHANGED 2025-10-05 - Handle Error response from CreateSession - Problem: User might not exist or other early errors
+		// CHANGED 2025-10-05 - Handle Error response from CreateSession
 		if errResp, ok := resp.(ipc.Error); ok {
 			return fmt.Errorf("authentication failed: %s - %s", errResp.ErrorType, errResp.Description)
 		}
@@ -3599,8 +3634,11 @@ func main() {
 	// Define command-line flags with config file values as defaults
 	config := fileConfig
 
+	var screensaverTestMode bool // CHANGED 2025-10-11 - Add screensaver test mode flag - Problem: Need quick way to test screensaver
+
 	flag.BoolVar(&config.TestMode, "test", false, "Enable test mode (no actual authentication)")
 	flag.BoolVar(&config.Debug, "debug", false, "Enable debug output")
+	flag.BoolVar(&screensaverTestMode, "screensaver", false, "Start directly in screensaver mode for testing")
 	flag.StringVar(&config.Greeting, "greeting", "", "Custom greeting message")
 	flag.BoolVar(&config.ShowTime, "time", false, "Display current time")
 	flag.BoolVar(&config.ShowIssue, "issue", false, "Display system issue file")
@@ -3664,7 +3702,7 @@ func main() {
 		}
 	}
 
-	p := tea.NewProgram(initialModel(config), opts...)
+	p := tea.NewProgram(initialModel(config, screensaverTestMode), opts...)
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)

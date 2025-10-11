@@ -3,6 +3,7 @@ package ui
 import (
 	"regexp"
 	"strings"
+	"unicode/utf8"
 )
 
 // StripAnsi removes ANSI escape sequences from a string
@@ -16,7 +17,7 @@ func StripAnsi(s string) string {
 func CenterText(text string, width int) string {
 	// Strip ANSI codes for length calculation
 	stripped := StripAnsi(text)
-	textLen := len(stripped)
+	textLen := utf8.RuneCountInString(stripped)
 
 	if textLen >= width {
 		return text
@@ -28,7 +29,7 @@ func CenterText(text string, width int) string {
 
 // GetVisibleWidth returns the visible width of a string (excluding ANSI codes)
 func GetVisibleWidth(s string) int {
-	return len(StripAnsi(s))
+	return utf8.RuneCountInString(StripAnsi(s))
 }
 
 // TruncateString truncates a string to a maximum width, preserving ANSI codes

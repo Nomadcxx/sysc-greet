@@ -14,11 +14,14 @@ import (
 
 // ScreensaverConfig holds screensaver configuration
 type ScreensaverConfig struct {
-	IdleTimeout   int      // Idle timeout in minutes
-	TimeFormat    string   // Time format string
-	DateFormat    string   // Date format string
-	ASCIIVariants []string // Multiple ASCII art variants
-	ClockSize     string   // Clock size: "small", "medium", "large"
+	IdleTimeout      int      // Idle timeout in minutes
+	TimeFormat       string   // Time format string
+	DateFormat       string   // Date format string
+	ASCIIVariants    []string // Multiple ASCII art variants
+	ClockSize        string   // Clock size: "small", "medium", "large"
+	AnimateOnStart   bool     // Enable animation when screensaver starts
+	AnimationType    string   // Animation type: "print", "none"
+	AnimationSpeed   int      // Animation speed in milliseconds per character
 }
 
 // loadScreensaverConfig loads screensaver configuration
@@ -30,11 +33,14 @@ func loadScreensaverConfig() ScreensaverConfig {
 //  SEE YOU SPACE COWBOY //`
 
 	config := ScreensaverConfig{
-		IdleTimeout:   5,
-		TimeFormat:    "15:04:05",
-		DateFormat:    "Monday, January 2, 2006",
-		ASCIIVariants: []string{defaultASCII},
-		ClockSize:     "medium",
+		IdleTimeout:    5,
+		TimeFormat:     "3:04:05 PM",
+		DateFormat:     "Monday, January 2, 2006",
+		ASCIIVariants:  []string{defaultASCII},
+		ClockSize:      "medium",
+		AnimateOnStart: true,
+		AnimationType:  "print",
+		AnimationSpeed: 20,
 	}
 
 	// Try to load from config file
@@ -124,6 +130,14 @@ func loadScreensaverConfig() ScreensaverConfig {
 			config.DateFormat = value
 		case "clock_size":
 			config.ClockSize = value
+		case "animate_on_start":
+			config.AnimateOnStart = (strings.ToLower(value) == "true")
+		case "animation_type":
+			config.AnimationType = value
+		case "animation_speed":
+			if speed, err := strconv.Atoi(value); err == nil {
+				config.AnimationSpeed = speed
+			}
 		}
 	}
 
@@ -140,95 +154,86 @@ func loadScreensaverConfig() ScreensaverConfig {
 	return config
 }
 
-// CHANGED 2025-10-10 - Large ASCII digit patterns for clock display - Problem: Need large clock like clock-tui
-var largeDigits = map[rune][][]string{
+// Large ASCII digits generated with figlet kompaktblk font
+var largeDigits = map[rune][]string{
 	'0': {
-		{"███", "███", "███"},
-		{"█ █", "█ █", "█ █"},
-		{"█ █", "█ █", "█ █"},
-		{"█ █", "█ █", "█ █"},
-		{"███", "███", "███"},
+		"▄▀▀█▄ ",
+		"█▄▀ █ ",
+		" ▀▀▀  ",
 	},
 	'1': {
-		{"  █", "  █", "  █"},
-		{" ██", " ██", " ██"},
-		{"  █", "  █", "  █"},
-		{"  █", "  █", "  █"},
-		{"███", "███", "███"},
+		" ▄█   ",
+		"  █   ",
+		"▀▀▀▀▀ ",
 	},
 	'2': {
-		{"███", "███", "███"},
-		{"  █", "  █", "  █"},
-		{"███", "███", "███"},
-		{"█  ", "█  ", "█  "},
-		{"███", "███", "███"},
+		"▀▀▀▀█ ",
+		"█▀▀▀▀ ",
+		"▀▀▀▀▀ ",
 	},
 	'3': {
-		{"███", "███", "███"},
-		{"  █", "  █", "  █"},
-		{"███", "███", "███"},
-		{"  █", "  █", "  █"},
-		{"███", "███", "███"},
+		"▀▀▀▀▄ ",
+		"  ▀▀▄ ",
+		"▀▀▀▀  ",
 	},
 	'4': {
-		{"█ █", "█ █", "█ █"},
-		{"█ █", "█ █", "█ █"},
-		{"███", "███", "███"},
-		{"  █", "  █", "  █"},
-		{"  █", "  █", "  █"},
+		"█   █ ",
+		"▀▀▀▀█ ",
+		"    ▀ ",
 	},
 	'5': {
-		{"███", "███", "███"},
-		{"█  ", "█  ", "█  "},
-		{"███", "███", "███"},
-		{"  █", "  █", "  █"},
-		{"███", "███", "███"},
+		"█▀▀▀▀ ",
+		"▀▀▀▀█ ",
+		"▀▀▀▀▀ ",
 	},
 	'6': {
-		{"███", "███", "███"},
-		{"█  ", "█  ", "█  "},
-		{"███", "███", "███"},
-		{"█ █", "█ █", "█ █"},
-		{"███", "███", "███"},
+		"█▀▀▀▀ ",
+		"█▀▀▀█ ",
+		"▀▀▀▀▀ ",
 	},
 	'7': {
-		{"███", "███", "███"},
-		{"  █", "  █", "  █"},
-		{"  █", "  █", "  █"},
-		{"  █", "  █", "  █"},
-		{"  █", "  █", "  █"},
+		"▀▀▀▀█ ",
+		"   █▀ ",
+		"   ▀  ",
 	},
 	'8': {
-		{"███", "███", "███"},
-		{"█ █", "█ █", "█ █"},
-		{"███", "███", "███"},
-		{"█ █", "█ █", "█ █"},
-		{"███", "███", "███"},
+		"█▀▀▀█ ",
+		"█▀▀▀█ ",
+		"▀▀▀▀▀ ",
 	},
 	'9': {
-		{"███", "███", "███"},
-		{"█ █", "█ █", "█ █"},
-		{"███", "███", "███"},
-		{"  █", "  █", "  █"},
-		{"███", "███", "███"},
+		"█▀▀▀█ ",
+		"▀▀▀▀█ ",
+		"▀▀▀▀▀ ",
 	},
 	':': {
-		{"   ", "   ", "   "},
-		{" █ ", " █ ", " █ "},
-		{"   ", "   ", "   "},
-		{" █ ", " █ ", " █ "},
-		{"   ", "   ", "   "},
+		"  ▄   ",
+		"      ",
+		"  ▄   ",
 	},
 	' ': {
-		{"   ", "   ", "   "},
-		{"   ", "   ", "   "},
-		{"   ", "   ", "   "},
-		{"   ", "   ", "   "},
-		{"   ", "   ", "   "},
+		"      ",
+		"      ",
+		"      ",
+	},
+	'A': {
+		"▄▀▀▀▄ ",
+		"█▀▀▀█ ",
+		"▀   ▀ ",
+	},
+	'M': {
+		"█▀▄▀█ ",
+		"█   █ ",
+		"▀   ▀ ",
+	},
+	'P': {
+		"█▀▀▀▄ ",
+		"█▀▀▀  ",
+		"▀     ",
 	},
 }
 
-// CHANGED 2025-10-10 - Medium ASCII digit patterns - Problem: Need configurable clock sizes
+// Medium ASCII digit patterns for clock display
 var mediumDigits = map[rune][][]string{
 	'0': {
 		{"██", "██"},
@@ -304,55 +309,71 @@ var mediumDigits = map[rune][][]string{
 	},
 }
 
-// CHANGED 2025-10-10 - Render large ASCII clock - Problem: Need large clock display
+// renderLargeClock renders time string using ASCII digit patterns
 func renderLargeClock(timeStr string, size string) []string {
-	var digits map[rune][][]string
-	var sizeIndex int
-
 	switch size {
 	case "large":
-		digits = largeDigits
-		sizeIndex = 2 // Use third variant (widest)
+		// Get the height from first digit
+		if len(largeDigits['0']) == 0 {
+			return []string{timeStr}
+		}
+		height := len(largeDigits['0'])
+
+		// Build each line of the clock
+		var lines []string
+		for row := 0; row < height; row++ {
+			var line strings.Builder
+			for _, ch := range timeStr {
+				digitLines, ok := largeDigits[ch]
+				if !ok {
+					// Unknown character, use space
+					digitLines = largeDigits[' ']
+				}
+				if row < len(digitLines) {
+					line.WriteString(digitLines[row])
+				}
+			}
+			lines = append(lines, line.String())
+		}
+		return lines
+
 	case "medium":
-		digits = mediumDigits
-		sizeIndex = 1 // Use second variant
+		// Get the height from first digit
+		if len(mediumDigits['0']) == 0 {
+			return []string{timeStr}
+		}
+		height := len(mediumDigits['0'])
+
+		// Build each line of the clock
+		var lines []string
+		for row := 0; row < height; row++ {
+			var line strings.Builder
+			for _, ch := range timeStr {
+				digitLines, ok := mediumDigits[ch]
+				if !ok {
+					// Unknown character, use space
+					digitLines = mediumDigits[' ']
+				}
+				if row < len(digitLines) && 1 < len(digitLines[row]) {
+					line.WriteString(digitLines[row][1]) // Use second variant
+					line.WriteString(" ")                // Space between digits
+				}
+			}
+			lines = append(lines, line.String())
+		}
+		return lines
+
 	default:
 		// Small - just return the plain string
 		return []string{timeStr}
 	}
-
-	// Get the height of digits
-	if len(digits['0']) == 0 {
-		return []string{timeStr}
-	}
-	height := len(digits['0'])
-
-	// Build each line of the clock
-	var lines []string
-	for row := 0; row < height; row++ {
-		var line strings.Builder
-		for _, ch := range timeStr {
-			digitLines, ok := digits[ch]
-			if !ok {
-				// Unknown character, use space
-				digitLines = digits[' ']
-			}
-			if row < len(digitLines) && sizeIndex < len(digitLines[row]) {
-				line.WriteString(digitLines[row][sizeIndex])
-				line.WriteString(" ") // Space between digits
-			}
-		}
-		lines = append(lines, line.String())
-	}
-
-	return lines
 }
 
-// CHANGED 2025-10-10 - Implement ASCII cycling, large clock, and theme colors - Problem: Need cycling + theme-aware screensaver
+// renderScreensaverView renders the screensaver with ASCII art, clock, and date
 func renderScreensaverView(m model, termWidth, termHeight int) string {
 	config := loadScreensaverConfig()
 
-	// CHANGED 2025-10-10 - Get theme-specific colors - Problem: Screensaver should respect current theme like animations
+	// Get theme-specific color palette
 	palette := animations.GetScreensaverPalette(m.currentTheme)
 	// palette: [background, ascii_primary, ascii_secondary, clock_primary, clock_secondary, date_color]
 
@@ -360,9 +381,9 @@ func renderScreensaverView(m model, termWidth, termHeight int) string {
 	asciiStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(palette[1]))
 	clockStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(palette[3])).Bold(true)
 	dateStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(palette[5]))
+	printHeadStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(palette[2])).Bold(true)
 
-	// CHANGED 2025-10-10 - Cycle through ASCII variants every 5 minutes - Problem: User requested ASCII cycling
-	// Calculate which ASCII variant to show based on elapsed time since screensaver started
+	// Cycle through ASCII variants every 5 minutes
 	minutesElapsed := int(time.Since(m.idleTimer).Minutes())
 	variantIndex := (minutesElapsed / 5) % len(config.ASCIIVariants)
 	selectedASCII := config.ASCIIVariants[variantIndex]
@@ -370,18 +391,40 @@ func renderScreensaverView(m model, termWidth, termHeight int) string {
 	// Get current time and date
 	currentTime := m.screensaverTime
 	timeStr := currentTime.Format(config.TimeFormat)
-	dateStr := currentTime.Format(config.DateFormat)
+	// Pad single-digit hours for consistent width in 12-hour format
+	if strings.Contains(config.TimeFormat, "3:04") && len(timeStr) > 0 && timeStr[0] != '1' && timeStr[1] == ':' {
+		timeStr = " " + timeStr
+	}
+	dateStr := strings.ToUpper(currentTime.Format(config.DateFormat))
 
-	// CHANGED 2025-10-10 - Render large clock with theme colors - Problem: User wants larger clock like clock-tui
 	clockLines := renderLargeClock(timeStr, config.ClockSize)
 
 	// Build content lines: ASCII art, blank line, clock, date
 	var contentLines []string
 
-	// Add ASCII art lines (split by newline) with theme color
-	asciiLines := strings.Split(selectedASCII, "\n")
-	for _, line := range asciiLines {
-		contentLines = append(contentLines, asciiStyle.Render(line))
+	// Show print effect animation if enabled and in progress
+	if config.AnimateOnStart && config.AnimationType == "print" && m.screensaverPrint != nil && !m.screensaverPrint.IsComplete() {
+		// Animation in progress - show partially revealed ASCII
+		visibleLines := m.screensaverPrint.GetVisibleLines()
+		for _, line := range visibleLines {
+			// Apply styling with print head highlighted
+			styledLine := asciiStyle.Render(line)
+			// Highlight the print head character if present
+			if strings.Contains(line, "█") {
+				// Replace print head with styled version
+				parts := strings.Split(line, "█")
+				if len(parts) == 2 {
+					styledLine = asciiStyle.Render(parts[0]) + printHeadStyle.Render("█") + asciiStyle.Render(parts[1])
+				}
+			}
+			contentLines = append(contentLines, styledLine)
+		}
+	} else {
+		// No animation or animation complete - show full ASCII
+		asciiLines := strings.Split(selectedASCII, "\n")
+		for _, line := range asciiLines {
+			contentLines = append(contentLines, asciiStyle.Render(line))
+		}
 	}
 	contentLines = append(contentLines, "") // Blank line
 
@@ -394,40 +437,13 @@ func renderScreensaverView(m model, termWidth, termHeight int) string {
 	// Add date with theme color
 	contentLines = append(contentLines, dateStyle.Render(dateStr))
 
-	// Calculate vertical centering
-	totalLines := len(contentLines)
-	verticalPadding := (termHeight - totalLines) / 2
-	if verticalPadding < 0 {
-		verticalPadding = 0
-	}
+	// Join all content with center alignment
+	content := lipgloss.JoinVertical(lipgloss.Center, contentLines...)
 
-	// Build the full screen content
-	var lines []string
+	// Use lipgloss Place to center both horizontally and vertically
+	centeredContent := lipgloss.Place(termWidth, termHeight, lipgloss.Center, lipgloss.Center, content)
 
-	// Add top padding
-	for i := 0; i < verticalPadding; i++ {
-		lines = append(lines, "")
-	}
-
-	// CHANGED 2025-10-10 - Improved centering for multi-line content - Problem: Verify ASCII and time centered
-	for _, line := range contentLines {
-		// Center each line horizontally using lipgloss width for proper styled text
-		lineWidth := lipgloss.Width(line)
-		horizontalPadding := (termWidth - lineWidth) / 2
-		if horizontalPadding > 0 {
-			centeredLine := strings.Repeat(" ", horizontalPadding) + line
-			lines = append(lines, centeredLine)
-		} else {
-			lines = append(lines, line)
-		}
-	}
-
-	// Add bottom padding
-	for i := len(lines); i < termHeight; i++ {
-		lines = append(lines, "")
-	}
-
-	return strings.Join(lines, "\n")
+	return centeredContent
 }
 
 // handleScreensaverInput handles input in screensaver mode

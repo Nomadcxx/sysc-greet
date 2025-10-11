@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// CHANGED 2025-10-03 18:10 - Created ticker.go for animated ticker effects - Problem: User wants Crush-style loading animation
+// CHANGED 2025-10-03 18:10 - Created ticker.go for animated ticker effects
 
 // TickerAnimation provides animated loading/thinking effect
 type TickerAnimation struct {
@@ -98,7 +98,7 @@ func (r *RoastingTicker) UpdateWM(wmName string) {
 }
 
 // splitRoasts splits a roast string on │ separator and cleans up
-// CHANGED 2025-10-03 20:15 - Randomize roast order - Problem: User wants random roasts not sequential
+// CHANGED 2025-10-03 20:15 - Randomize roast order
 func splitRoasts(roastText string) []string {
 	// Split on │ separator
 	parts := strings.Split(roastText, "│")
@@ -135,7 +135,7 @@ func splitRoasts(roastText string) []string {
 }
 
 // GetScrollingText returns the scrolling text for given width
-// CHANGED 2025-10-03 19:30 - Cycle through individual roast phrases - Problem: User seeing multiple roasts at once
+// CHANGED 2025-10-03 19:30 - Cycle through individual roast phrases
 func (r *RoastingTicker) GetScrollingText(width int) string {
 	// Safety check
 	if len(r.roasts) == 0 {
@@ -206,7 +206,7 @@ func (r *RoastingTicker) GetScrollingText(width int) string {
 }
 
 // WM roast messages - funny quotes about each window manager
-// CHANGED 2025-10-03 18:40 - Expanded roasts with community feedback - Problem: User wants savage GNOME/KDE roasting
+// CHANGED 2025-10-03 18:40 - Expanded roasts with community feedback
 func getRoastForWM(wmName string) string {
 	roasts := map[string]string{
 		// GNOME - The Great Destroyer

@@ -46,7 +46,7 @@ func (m model) navigateToBordersSubmenu() (tea.Model, tea.Cmd) {
 }
 
 // navigateToBackgroundsSubmenu switches to the backgrounds submenu
-// CHANGED 2025-10-04 - Show checkbox status for enabled backgrounds - Problem: User wants to enable both Fire and Ticker
+// CHANGED 2025-10-04 - Show checkbox status for enabled backgrounds
 func (m model) navigateToBackgroundsSubmenu() (tea.Model, tea.Cmd) {
 	// Build menu with checkbox indicators
 	fireEnabled := m.selectedBackground == "fire" || m.enableFire
