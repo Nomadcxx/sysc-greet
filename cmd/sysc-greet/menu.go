@@ -36,6 +36,8 @@ func (m model) navigateToBordersSubmenu() (tea.Model, tea.Cmd) {
 		"Style: Minimal",
 		"Style: ASCII-1",
 		"Style: ASCII-2",
+		"Style: ASCII-3",
+		"Style: ASCII-4",
 		"Animation: Wave",
 		"Animation: Pulse",
 		"Animation: Off",
