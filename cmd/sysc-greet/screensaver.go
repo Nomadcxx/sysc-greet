@@ -12,23 +12,27 @@ import (
 
 // ScreensaverConfig holds screensaver configuration
 type ScreensaverConfig struct {
-	IdleTimeout int    // Idle timeout in minutes
-	TimeFormat  string // Time format string
-	DateFormat  string // Date format string
-	ASCII       string // ASCII art
+	IdleTimeout   int      // Idle timeout in minutes
+	TimeFormat    string   // Time format string
+	DateFormat    string   // Date format string
+	ASCIIVariants []string // Multiple ASCII art variants
+	ClockSize     string   // Clock size: "small", "medium", "large"
 }
 
 // loadScreensaverConfig loads screensaver configuration
 func loadScreensaverConfig() ScreensaverConfig {
-	// Default config
-	config := ScreensaverConfig{
-		IdleTimeout: 5,
-		TimeFormat:  "15:04:05",
-		DateFormat:  "Monday, January 2, 2006",
-		ASCII: `▄▀▀▀▀ █   █ ▄▀▀▀▀ ▄▀▀▀▀    ▄▀    ▄▀
+	// Default config with one ASCII variant
+	defaultASCII := `▄▀▀▀▀ █   █ ▄▀▀▀▀ ▄▀▀▀▀    ▄▀    ▄▀
  ▀▀▀▄ ▀▀▀▀█  ▀▀▀▄ █      ▄▀    ▄▀
 ▀▀▀▀  ▀▀▀▀▀ ▀▀▀▀   ▀▀▀▀ ▀     ▀
-//  SEE YOU SPACE COWBOY //`,
+//  SEE YOU SPACE COWBOY //`
+
+	config := ScreensaverConfig{
+		IdleTimeout:   5,
+		TimeFormat:    "15:04:05",
+		DateFormat:    "Monday, January 2, 2006",
+		ASCIIVariants: []string{defaultASCII},
+		ClockSize:     "medium",
 	}
 
 	// Try to load from config file
@@ -53,32 +57,49 @@ func loadScreensaverConfig() ScreensaverConfig {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	var asciiLines []string
+	var currentASCII []string
 	inASCII := false
 
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Skip comments and empty lines
-		if strings.HasPrefix(strings.TrimSpace(line), "#") || strings.TrimSpace(line) == "" {
+		// Skip comments (but not inside ASCII sections)
+		if !inASCII && (strings.HasPrefix(strings.TrimSpace(line), "#") || strings.TrimSpace(line) == "") {
 			continue
 		}
 
-		// Check if we're starting ASCII section
-		if strings.HasPrefix(line, "ascii_1=") {
+		// Check if we're starting a new ASCII section (ascii_1=, ascii_2=, etc.)
+		if strings.HasPrefix(line, "ascii_") && strings.Contains(line, "=") {
+			// Save previous ASCII if we have one
+			if len(currentASCII) > 0 {
+				config.ASCIIVariants = append(config.ASCIIVariants, strings.Join(currentASCII, "\n"))
+				currentASCII = []string{}
+			}
 			inASCII = true
-			// Check if there's content on same line
-			content := strings.TrimPrefix(line, "ascii_1=")
-			if content != "" {
-				asciiLines = append(asciiLines, content)
+			// Check if there's content on same line after =
+			parts := strings.SplitN(line, "=", 2)
+			if len(parts) == 2 && parts[1] != "" {
+				currentASCII = append(currentASCII, parts[1])
 			}
 			continue
 		}
 
-		// If in ASCII section, collect lines
+		// If in ASCII section, collect lines until we hit a config key
 		if inASCII {
-			asciiLines = append(asciiLines, line)
-			continue
+			// Check if this line is a config key (idle_timeout=, etc.)
+			if strings.Contains(line, "=") && !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
+				// This is a config line, end ASCII section
+				inASCII = false
+				if len(currentASCII) > 0 {
+					config.ASCIIVariants = append(config.ASCIIVariants, strings.Join(currentASCII, "\n"))
+					currentASCII = []string{}
+				}
+				// Continue to parse this line as config
+			} else {
+				// Still in ASCII section
+				currentASCII = append(currentASCII, line)
+				continue
+			}
 		}
 
 		// Parse config lines
@@ -99,37 +120,271 @@ func loadScreensaverConfig() ScreensaverConfig {
 			config.TimeFormat = value
 		case "date_format":
 			config.DateFormat = value
+		case "clock_size":
+			config.ClockSize = value
 		}
 	}
 
-	if len(asciiLines) > 0 {
-		config.ASCII = strings.Join(asciiLines, "\n")
+	// Save final ASCII variant if we have one
+	if len(currentASCII) > 0 {
+		config.ASCIIVariants = append(config.ASCIIVariants, strings.Join(currentASCII, "\n"))
+	}
+
+	// If we loaded variants from file, replace default
+	if len(config.ASCIIVariants) > 1 {
+		config.ASCIIVariants = config.ASCIIVariants[1:] // Remove default, keep loaded variants
 	}
 
 	return config
 }
 
-// renderScreensaverView displays the screensaver with ASCII art and clock
+// CHANGED 2025-10-10 - Large ASCII digit patterns for clock display - Problem: Need large clock like clock-tui
+var largeDigits = map[rune][][]string{
+	'0': {
+		{"███", "███", "███"},
+		{"█ █", "█ █", "█ █"},
+		{"█ █", "█ █", "█ █"},
+		{"█ █", "█ █", "█ █"},
+		{"███", "███", "███"},
+	},
+	'1': {
+		{"  █", "  █", "  █"},
+		{" ██", " ██", " ██"},
+		{"  █", "  █", "  █"},
+		{"  █", "  █", "  █"},
+		{"███", "███", "███"},
+	},
+	'2': {
+		{"███", "███", "███"},
+		{"  █", "  █", "  █"},
+		{"███", "███", "███"},
+		{"█  ", "█  ", "█  "},
+		{"███", "███", "███"},
+	},
+	'3': {
+		{"███", "███", "███"},
+		{"  █", "  █", "  █"},
+		{"███", "███", "███"},
+		{"  █", "  █", "  █"},
+		{"███", "███", "███"},
+	},
+	'4': {
+		{"█ █", "█ █", "█ █"},
+		{"█ █", "█ █", "█ █"},
+		{"███", "███", "███"},
+		{"  █", "  █", "  █"},
+		{"  █", "  █", "  █"},
+	},
+	'5': {
+		{"███", "███", "███"},
+		{"█  ", "█  ", "█  "},
+		{"███", "███", "███"},
+		{"  █", "  █", "  █"},
+		{"███", "███", "███"},
+	},
+	'6': {
+		{"███", "███", "███"},
+		{"█  ", "█  ", "█  "},
+		{"███", "███", "███"},
+		{"█ █", "█ █", "█ █"},
+		{"███", "███", "███"},
+	},
+	'7': {
+		{"███", "███", "███"},
+		{"  █", "  █", "  █"},
+		{"  █", "  █", "  █"},
+		{"  █", "  █", "  █"},
+		{"  █", "  █", "  █"},
+	},
+	'8': {
+		{"███", "███", "███"},
+		{"█ █", "█ █", "█ █"},
+		{"███", "███", "███"},
+		{"█ █", "█ █", "█ █"},
+		{"███", "███", "███"},
+	},
+	'9': {
+		{"███", "███", "███"},
+		{"█ █", "█ █", "█ █"},
+		{"███", "███", "███"},
+		{"  █", "  █", "  █"},
+		{"███", "███", "███"},
+	},
+	':': {
+		{"   ", "   ", "   "},
+		{" █ ", " █ ", " █ "},
+		{"   ", "   ", "   "},
+		{" █ ", " █ ", " █ "},
+		{"   ", "   ", "   "},
+	},
+	' ': {
+		{"   ", "   ", "   "},
+		{"   ", "   ", "   "},
+		{"   ", "   ", "   "},
+		{"   ", "   ", "   "},
+		{"   ", "   ", "   "},
+	},
+}
+
+// CHANGED 2025-10-10 - Medium ASCII digit patterns - Problem: Need configurable clock sizes
+var mediumDigits = map[rune][][]string{
+	'0': {
+		{"██", "██"},
+		{"█ █", "█ █"},
+		{"█ █", "█ █"},
+		{"██", "██"},
+	},
+	'1': {
+		{" █", " █"},
+		{"██", "██"},
+		{" █", " █"},
+		{"██", "██"},
+	},
+	'2': {
+		{"██", "██"},
+		{" █", " █"},
+		{"█ ", "█ "},
+		{"██", "██"},
+	},
+	'3': {
+		{"██", "██"},
+		{" █", " █"},
+		{" █", " █"},
+		{"██", "██"},
+	},
+	'4': {
+		{"█ █", "█ █"},
+		{"██", "██"},
+		{" █", " █"},
+		{" █", " █"},
+	},
+	'5': {
+		{"██", "██"},
+		{"█ ", "█ "},
+		{" █", " █"},
+		{"██", "██"},
+	},
+	'6': {
+		{"██", "██"},
+		{"█ ", "█ "},
+		{"█ █", "█ █"},
+		{"██", "██"},
+	},
+	'7': {
+		{"██", "██"},
+		{" █", " █"},
+		{" █", " █"},
+		{" █", " █"},
+	},
+	'8': {
+		{"██", "██"},
+		{"█ █", "█ █"},
+		{"█ █", "█ █"},
+		{"██", "██"},
+	},
+	'9': {
+		{"██", "██"},
+		{"█ █", "█ █"},
+		{" █", " █"},
+		{"██", "██"},
+	},
+	':': {
+		{"  ", "  "},
+		{"█ ", "█ "},
+		{"█ ", "█ "},
+		{"  ", "  "},
+	},
+	' ': {
+		{"  ", "  "},
+		{"  ", "  "},
+		{"  ", "  "},
+		{"  ", "  "},
+	},
+}
+
+// CHANGED 2025-10-10 - Render large ASCII clock - Problem: Need large clock display
+func renderLargeClock(timeStr string, size string) []string {
+	var digits map[rune][][]string
+	var sizeIndex int
+
+	switch size {
+	case "large":
+		digits = largeDigits
+		sizeIndex = 2 // Use third variant (widest)
+	case "medium":
+		digits = mediumDigits
+		sizeIndex = 1 // Use second variant
+	default:
+		// Small - just return the plain string
+		return []string{timeStr}
+	}
+
+	// Get the height of digits
+	if len(digits['0']) == 0 {
+		return []string{timeStr}
+	}
+	height := len(digits['0'])
+
+	// Build each line of the clock
+	var lines []string
+	for row := 0; row < height; row++ {
+		var line strings.Builder
+		for _, ch := range timeStr {
+			digitLines, ok := digits[ch]
+			if !ok {
+				// Unknown character, use space
+				digitLines = digits[' ']
+			}
+			if row < len(digitLines) && sizeIndex < len(digitLines[row]) {
+				line.WriteString(digitLines[row][sizeIndex])
+				line.WriteString(" ") // Space between digits
+			}
+		}
+		lines = append(lines, line.String())
+	}
+
+	return lines
+}
+
+// CHANGED 2025-10-10 - Implement ASCII cycling and large clock - Problem: Need cycling every 5 min + large clock display
 func renderScreensaverView(m model, termWidth, termHeight int) string {
-	// Load screensaver config
 	config := loadScreensaverConfig()
+
+	// CHANGED 2025-10-10 - Cycle through ASCII variants every 5 minutes - Problem: User requested ASCII cycling
+	// Calculate which ASCII variant to show based on elapsed time since screensaver started
+	minutesElapsed := int(time.Since(m.idleTimer).Minutes())
+	variantIndex := (minutesElapsed / 5) % len(config.ASCIIVariants)
+	selectedASCII := config.ASCIIVariants[variantIndex]
 
 	// Get current time and date
 	currentTime := m.screensaverTime
 	timeStr := currentTime.Format(config.TimeFormat)
 	dateStr := currentTime.Format(config.DateFormat)
 
-	// Center the content vertically and horizontally
-	contentLines := []string{
-		config.ASCII,
-		"",
-		timeStr,
-		dateStr,
-	}
+	// CHANGED 2025-10-10 - Render large clock - Problem: User wants larger clock like clock-tui
+	clockLines := renderLargeClock(timeStr, config.ClockSize)
+
+	// Build content lines: ASCII art, blank line, clock, date
+	var contentLines []string
+
+	// Add ASCII art lines (split by newline)
+	asciiLines := strings.Split(selectedASCII, "\n")
+	contentLines = append(contentLines, asciiLines...)
+	contentLines = append(contentLines, "") // Blank line
+
+	// Add clock lines
+	contentLines = append(contentLines, clockLines...)
+	contentLines = append(contentLines, "") // Blank line
+
+	// Add date
+	contentLines = append(contentLines, dateStr)
 
 	// Calculate vertical centering
 	totalLines := len(contentLines)
 	verticalPadding := (termHeight - totalLines) / 2
+	if verticalPadding < 0 {
+		verticalPadding = 0
+	}
 
 	// Build the full screen content
 	var lines []string
@@ -139,9 +394,9 @@ func renderScreensaverView(m model, termWidth, termHeight int) string {
 		lines = append(lines, "")
 	}
 
-	// Add content lines (centered horizontally)
+	// CHANGED 2025-10-10 - Improved centering for multi-line content - Problem: Verify ASCII and time centered
 	for _, line := range contentLines {
-		// Center each line horizontally
+		// Center each line horizontally using rune length for proper Unicode support
 		lineWidth := len([]rune(line))
 		horizontalPadding := (termWidth - lineWidth) / 2
 		if horizontalPadding > 0 {
