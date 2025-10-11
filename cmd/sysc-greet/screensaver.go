@@ -7,7 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Nomadcxx/sysc-greet/internal/animations"
 	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // ScreensaverConfig holds screensaver configuration
@@ -346,9 +348,18 @@ func renderLargeClock(timeStr string, size string) []string {
 	return lines
 }
 
-// CHANGED 2025-10-10 - Implement ASCII cycling and large clock - Problem: Need cycling every 5 min + large clock display
+// CHANGED 2025-10-10 - Implement ASCII cycling, large clock, and theme colors - Problem: Need cycling + theme-aware screensaver
 func renderScreensaverView(m model, termWidth, termHeight int) string {
 	config := loadScreensaverConfig()
+
+	// CHANGED 2025-10-10 - Get theme-specific colors - Problem: Screensaver should respect current theme like animations
+	palette := animations.GetScreensaverPalette(m.currentTheme)
+	// palette: [background, ascii_primary, ascii_secondary, clock_primary, clock_secondary, date_color]
+
+	// Create lipgloss styles using theme colors
+	asciiStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(palette[1]))
+	clockStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(palette[3])).Bold(true)
+	dateStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(palette[5]))
 
 	// CHANGED 2025-10-10 - Cycle through ASCII variants every 5 minutes - Problem: User requested ASCII cycling
 	// Calculate which ASCII variant to show based on elapsed time since screensaver started
@@ -361,23 +372,27 @@ func renderScreensaverView(m model, termWidth, termHeight int) string {
 	timeStr := currentTime.Format(config.TimeFormat)
 	dateStr := currentTime.Format(config.DateFormat)
 
-	// CHANGED 2025-10-10 - Render large clock - Problem: User wants larger clock like clock-tui
+	// CHANGED 2025-10-10 - Render large clock with theme colors - Problem: User wants larger clock like clock-tui
 	clockLines := renderLargeClock(timeStr, config.ClockSize)
 
 	// Build content lines: ASCII art, blank line, clock, date
 	var contentLines []string
 
-	// Add ASCII art lines (split by newline)
+	// Add ASCII art lines (split by newline) with theme color
 	asciiLines := strings.Split(selectedASCII, "\n")
-	contentLines = append(contentLines, asciiLines...)
+	for _, line := range asciiLines {
+		contentLines = append(contentLines, asciiStyle.Render(line))
+	}
 	contentLines = append(contentLines, "") // Blank line
 
-	// Add clock lines
-	contentLines = append(contentLines, clockLines...)
+	// Add clock lines with theme color
+	for _, line := range clockLines {
+		contentLines = append(contentLines, clockStyle.Render(line))
+	}
 	contentLines = append(contentLines, "") // Blank line
 
-	// Add date
-	contentLines = append(contentLines, dateStr)
+	// Add date with theme color
+	contentLines = append(contentLines, dateStyle.Render(dateStr))
 
 	// Calculate vertical centering
 	totalLines := len(contentLines)
@@ -396,8 +411,8 @@ func renderScreensaverView(m model, termWidth, termHeight int) string {
 
 	// CHANGED 2025-10-10 - Improved centering for multi-line content - Problem: Verify ASCII and time centered
 	for _, line := range contentLines {
-		// Center each line horizontally using rune length for proper Unicode support
-		lineWidth := len([]rune(line))
+		// Center each line horizontally using lipgloss width for proper styled text
+		lineWidth := lipgloss.Width(line)
 		horizontalPadding := (termWidth - lineWidth) / 2
 		if horizontalPadding > 0 {
 			centeredLine := strings.Repeat(" ", horizontalPadding) + line
