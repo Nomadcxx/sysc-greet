@@ -68,7 +68,7 @@ type Client struct {
 }
 
 // NewClient creates a new IPC client connected to greetd
-// CHANGED 2025-10-02 03:00 - Use GREETD_SOCK environment variable - Problem: greetd sets socket path dynamically
+// Use GREETD_SOCK environment variable
 func NewClient() (*Client, error) {
 	socketPath := os.Getenv("GREETD_SOCK")
 	if socketPath == "" {
@@ -181,7 +181,7 @@ func (c *Client) PostAuthMessageResponse(response *string) error {
 }
 
 // StartSession starts the session with the given command and environment
-// CHANGED 2025-10-09 21:00 - Wait for greetd's response to StartSession - Problem: Infinite loop on slow machines
+// Wait for greetd's response to StartSession
 // According to greetd protocol, we must wait for greetd to confirm session start before greeter exits
 func (c *Client) StartSession(cmd []string, env []string) error {
 	req := StartSession{

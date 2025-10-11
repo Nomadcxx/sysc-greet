@@ -34,7 +34,7 @@ const (
 	stepSelectInstallType
 	stepCheckDependencies
 	stepInstallGreetd
-	stepInstallGslapper // CHANGED 2025-10-03 - Add gslapper installation step - Problem: Need video wallpaper support
+	stepInstallGslapper // CHANGED 2025-10-03 - Add gslapper installation step
 	stepBuildBinary
 	stepInstallBinary
 	stepInstallConfigs
@@ -70,9 +70,9 @@ type model struct {
 	configPath        string
 	selectedOption    int
 	options           []string
-	greetdFromSource  bool     // CHANGED 2025-10-02 00:35 - Track if greetd needs source build
-	liveOutput        []string // CHANGED 2025-10-02 01:15 - Store live command output lines
-	currentCommand    string   // CHANGED 2025-10-02 01:15 - Current command being run
+	greetdFromSource  bool     // Track if greetd needs source build
+	liveOutput        []string // Store live command output lines
+	currentCommand    string   // Current command being run
 }
 
 type stepCompleteMsg struct {
@@ -131,12 +131,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selectedOption++
 			}
 		case "r", "R":
-			// CHANGED 2025-10-02 00:45 - Quick retry on error
+			// Quick retry on error
 			if len(m.options) > 0 && m.options[0] == "Retry" {
 				return m.proceedWithStep()
 			}
 		case "s", "S":
-			// CHANGED 2025-10-02 00:45 - Quick skip on error
+			// Quick skip on error
 			if len(m.options) > 0 {
 				return m.advanceStep()
 			}
@@ -151,7 +151,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case commandOutputMsg:
-		// CHANGED 2025-10-02 01:15 - Handle streaming command output
+		// Handle streaming command output
 		m.liveOutput = append(m.liveOutput, msg.line)
 		// Keep only last 10 lines
 		if len(m.liveOutput) > 10 {
@@ -160,7 +160,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case dependencyCheckMsg:
-		// CHANGED 2025-10-02 00:20 - Handle dependency check with state updates - Problem: Model state lost in closure
+		// Handle dependency check with state updates
 		m.packageManager = msg.packageManager
 		m.greetdInstalled = msg.greetdInstalled
 		m.tuigreetInstalled = msg.tuigreetInstalled
@@ -179,7 +179,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.advanceStep()
 		} else {
 			m.errors = append(m.errors, "✗ "+msg.message)
-			// CHANGED 2025-10-02 00:40 - Offer source build for greetd failures
+			// Offer source build for greetd failures
 			if m.step == stepInstallGreetd && !m.greetdFromSource && strings.Contains(msg.message, "not available") {
 				m.options = []string{"Build from source", "Skip", "Abort"}
 				m.selectedOption = 0
@@ -202,7 +202,7 @@ func (m model) handleEnter() (tea.Model, tea.Cmd) {
 		m.installType = installType(m.selectedOption)
 		return m.advanceStep()
 	default:
-		// CHANGED 2025-10-02 00:45 - Handle error menu options
+		// Handle error menu options
 		if len(m.options) > 0 {
 			switch m.options[m.selectedOption] {
 			case "Retry":
@@ -235,13 +235,13 @@ func (m model) proceedWithStep() (tea.Model, tea.Cmd) {
 			m.messages = append(m.messages, "✓ greetd already installed, skipping")
 			return m.advanceStep()
 		}
-		// CHANGED 2025-10-02 00:40 - Try source build if package install fails
+		// Try source build if package install fails
 		if m.greetdFromSource {
 			return m, m.buildGreetdFromSource()
 		}
 		return m, m.installGreetd()
 	case stepInstallGslapper:
-		// CHANGED 2025-10-03 - Install gslapper for video wallpapers - Problem: Need video wallpaper dependency
+		// CHANGED 2025-10-03 - Install gslapper for video wallpapers
 		return m, m.installGslapper()
 	case stepBuildBinary:
 		return m, m.buildBinary()
@@ -297,19 +297,19 @@ func (m model) checkDependencies() tea.Cmd {
 		_, err = exec.LookPath("tuigreet")
 		tuigreetInstalled := (err == nil)
 
-		// CHANGED 2025-10-04 - Check for kitty terminal - Problem: Need kitty for truecolor support
+		// CHANGED 2025-10-04 - Check for kitty terminal
 		_, err = exec.LookPath("kitty")
 		kittyInstalled := (err == nil)
 
-		// CHANGED 2025-10-05 - Check for niri compositor - Problem: Need niri to run greeter
+		// CHANGED 2025-10-05 - Check for niri compositor
 		_, err = exec.LookPath("niri")
 		niriInstalled := (err == nil)
 
-		// CHANGED 2025-10-10 - Check for swww wallpaper daemon - Problem: Need swww for themed wallpapers
+		// CHANGED 2025-10-10 - Check for swww wallpaper daemon
 		_, err = exec.LookPath("swww")
 		swwwInstalled := (err == nil)
 
-		// CHANGED 2025-10-02 00:30 - Expanded distro support - Problem: More distros needed
+		// Expanded distro support
 		packageManagers := map[string][]string{
 			"pacman":       {"/usr/bin/pacman", "/usr/sbin/pacman", "/bin/pacman", "/sbin/pacman"},
 			"yay":          {"/usr/bin/yay", "/usr/sbin/yay", "/bin/yay", "/sbin/yay"},
@@ -321,7 +321,7 @@ func (m model) checkDependencies() tea.Cmd {
 			"xbps-install": {"/usr/bin/xbps-install", "/bin/xbps-install"},
 		}
 
-		// CHANGED 2025-10-02 00:50 - Prefer pacman over yay as default
+		// Prefer pacman over yay as default
 		var packageManager string
 		// Check in order of preference (prefer distro package managers, yay only for AUR)
 		for _, pmName := range []string{"pacman", "apt", "dnf", "zypper", "emerge", "apk", "xbps-install", "yay"} {
@@ -349,19 +349,19 @@ func (m model) checkDependencies() tea.Cmd {
 		if tuigreetInstalled {
 			msg += ", tuigreet ✓ (will replace)"
 		}
-		// CHANGED 2025-10-04 - Show kitty status - Problem: Need kitty for truecolor
+		// CHANGED 2025-10-04 - Show kitty status
 		if kittyInstalled {
 			msg += ", kitty ✓"
 		} else {
 			msg += ", kitty ✗ (install: pacman -S kitty)"
 		}
-		// CHANGED 2025-10-05 - Show niri status - Problem: Need niri compositor
+		// CHANGED 2025-10-05 - Show niri status
 		if niriInstalled {
 			msg += ", niri ✓"
 		} else {
 			msg += ", niri ✗ (install: pacman -S niri)"
 		}
-		// CHANGED 2025-10-10 - Show swww status - Problem: Need swww for themed wallpapers
+		// CHANGED 2025-10-10 - Show swww status
 		if swwwInstalled {
 			msg += ", swww ✓"
 		} else {
@@ -388,13 +388,13 @@ func (m model) installGreetd() tea.Cmd {
 			return stepCompleteMsg{false, "No supported package manager found. Install greetd manually."}
 		}
 
-		// CHANGED 2025-10-02 00:25 - Improved package manager support and error handling
+		// Improved package manager support and error handling
 		var cmd *exec.Cmd
 		var pkgName string = "greetd"
 
 		switch m.packageManager {
 		case "yay":
-			// CHANGED 2025-10-02 00:45 - Try official repos first, then AUR
+			// Try official repos first, then AUR
 			// Check if greetd is in official repos
 			checkCmd := exec.Command("pacman", "-Si", pkgName)
 			if checkCmd.Run() == nil {
@@ -427,12 +427,12 @@ func (m model) installGreetd() tea.Cmd {
 			return stepCompleteMsg{false, fmt.Sprintf("Unsupported package manager: %s. Install greetd manually with your package manager.", m.packageManager)}
 		}
 
-		// CHANGED 2025-10-02 00:50 - Show live command output
+		// Show live command output
 
 
 		err := cmd.Run()
 		if err != nil {
-			// CHANGED 2025-10-02 00:35 - Offer source build fallback - Problem: greetd not in all repos
+			// Offer source build fallback
 			errMsg := fmt.Sprintf("greetd installation failed with %s. Will attempt to build from source...", m.packageManager)
 			return stepCompleteMsg{false, errMsg}
 		}
@@ -443,7 +443,7 @@ func (m model) installGreetd() tea.Cmd {
 
 func (m model) buildGreetdFromSource() tea.Cmd {
 	return func() tea.Msg {
-		// CHANGED 2025-10-02 00:35 - Build greetd from source - Problem: Not in all package repos
+		// Build greetd from source
 
 		// Check for Rust/Cargo
 		if _, err := exec.LookPath("cargo"); err != nil {
@@ -493,7 +493,7 @@ func (m model) buildGreetdFromSource() tea.Cmd {
 	}
 }
 
-// CHANGED 2025-10-03 - Install gslapper for video wallpaper support - Problem: Need video wallpaper dependency
+// CHANGED 2025-10-03 - Install gslapper for video wallpaper support
 func (m model) installGslapper() tea.Cmd {
 	return func() tea.Msg {
 		// Check if gslapper is already installed
@@ -615,8 +615,8 @@ func (m model) buildGslapperFromSource() tea.Msg {
 
 func (m model) buildBinary() tea.Cmd {
 	return func() tea.Msg {
-		// CHANGED 2025-10-04 - Build entire package directory not just main.go - Problem: Missing menu.go and wallpaper.go functions
-		// CHANGED 2025-10-04 - Disable VCS stamping - Problem: Not a git repo yet, build fails with VCS error
+		// CHANGED 2025-10-04 - Build entire package directory not just main.go
+		// CHANGED 2025-10-04 - Disable VCS stamping
 		cmd := exec.Command("go", "build", "-buildvcs=false", "-o", "sysc-greet", "./cmd/sysc-greet/")
 		output, err := cmd.CombinedOutput()
 
@@ -641,7 +641,7 @@ func (m model) installBinary() tea.Cmd {
 
 func (m model) installConfigs() tea.Cmd {
 	return func() tea.Msg {
-		// CHANGED 2025-10-02 01:35 - Install both ascii_configs AND fonts - Problem: Fonts missing, ASCII won't render
+		// Install both ascii_configs AND fonts
 
 		// Create config directory
 		cmd := exec.Command("mkdir", "-p", m.configPath+"/ascii_configs")
@@ -667,14 +667,14 @@ func (m model) installConfigs() tea.Cmd {
 			return stepCompleteMsg{false, fmt.Sprintf("Failed to copy fonts: %v", err)}
 		}
 
-		// CHANGED 2025-10-09 21:15 - Copy only kitty.conf - Problem: start-greeter.sh removed, niri config directly launches kitty
+		// Copy only kitty.conf
 		// Copy kitty config
 		cmd = exec.Command("cp", "config/kitty-greeter.conf", "/etc/greetd/kitty.conf")
 		if err := cmd.Run(); err != nil {
 			return stepCompleteMsg{false, fmt.Sprintf("Failed to copy kitty.conf: %v", err)}
 		}
 
-		// CHANGED 2025-10-04 - Copy Assets directory for bundled videos - Problem: Need Fireplace/Particle videos
+		// CHANGED 2025-10-04 - Copy Assets directory for bundled videos
 		// Copy Assets directory if it exists
 		if _, err := os.Stat("Assets"); err == nil {
 			cmd = exec.Command("mkdir", "-p", m.configPath+"/Assets")
@@ -687,7 +687,7 @@ func (m model) installConfigs() tea.Cmd {
 			}
 		}
 
-		// CHANGED 2025-10-10 - Generate and install theme wallpapers - Problem: Need themed backgrounds for multi-monitor
+		// CHANGED 2025-10-10 - Generate and install theme wallpapers
 		// Create wallpapers directory
 		cmd = exec.Command("mkdir", "-p", m.configPath+"/wallpapers")
 		if err := cmd.Run(); err != nil {
@@ -746,7 +746,7 @@ func (m model) setupCache() tea.Cmd {
 			return stepCompleteMsg{false, "Failed to set cache ownership"}
 		}
 
-		// CHANGED 2025-10-06 - Fix greeter home permissions - Problem: kitty can't create .cache without write access
+		// CHANGED 2025-10-06 - Fix greeter home permissions
 		// Set ownership of greeter home directory
 		cmd = exec.Command("chown", "-R", "greeter:greeter", "/var/lib/greeter")
 		if err := cmd.Run(); err != nil {
@@ -763,7 +763,7 @@ func (m model) setupCache() tea.Cmd {
 	}
 }
 
-// CHANGED 2025-10-06 - Multi-environment monitor detection - Problem: Need to detect monitors across Wayland/X11/TTY
+// CHANGED 2025-10-06 - Multi-environment monitor detection
 type Monitor struct {
 	Name       string
 	Width      int
@@ -970,8 +970,8 @@ func parseDRM() []Monitor {
 
 func (m model) configureGreetd() tea.Cmd {
 	return func() tea.Msg {
-		// CHANGED 2025-10-06 - Remove monitor auto-detection, let niri handle it - Problem: Detection during install is unreliable
-		// CHANGED 2025-10-05 - Use niri compositor instead of weston - Problem: weston autolaunch doesn't work, caused boot loops
+		// CHANGED 2025-10-06 - Remove monitor auto-detection, let niri handle it
+		// CHANGED 2025-10-05 - Use niri compositor instead of weston
 		// Based on working example from https://github.com/YaLTeR/niri/discussions/1276
 
 		// Write niri greeter config (no hardcoded monitor settings - niri auto-detects)
@@ -1002,7 +1002,7 @@ input {
     }
 }
 
-// CHANGED 2025-10-10 - Use swww for theme-aware wallpapers - Problem: Need themed backgrounds matching greeter theme
+// CHANGED 2025-10-10 - Use swww for theme-aware wallpapers
 // Layer rule for swww wallpaper daemon
 layer-rule {
     match namespace="^wallpaper$"
@@ -1033,10 +1033,10 @@ window-rule {
     opacity 0.90
 }
 
-// CHANGED 2025-10-10 - Start swww-daemon for wallpaper management - Problem: Need themed wallpapers on all monitors
+// CHANGED 2025-10-10 - Start swww-daemon for wallpaper management
 spawn-at-startup "swww-daemon"
 
-// CHANGED 2025-10-10 - Use spawn-sh-at-startup like ReGreet - Problem: spawn-at-startup doesn't block, causing race on slow hardware
+// CHANGED 2025-10-10 - Use spawn-sh-at-startup like ReGreet
 spawn-sh-at-startup "kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
 
 // Empty binds block = no keybindings work (security for greeter)
@@ -1070,7 +1070,7 @@ user = "greeter"
 func (m model) enableService() tea.Cmd {
 	return func() tea.Msg {
 
-		// CHANGED 2025-10-02 01:10 - Automatically handle service conflicts - Problem: ly/sddm symlink blocks enable
+		// Automatically handle service conflicts
 		// Check if display-manager.service symlink exists
 		symlinkPath := "/etc/systemd/system/display-manager.service"
 		if _, err := os.Lstat(symlinkPath); err == nil {
@@ -1081,7 +1081,7 @@ func (m model) enableService() tea.Cmd {
 			}
 		}
 
-		// CHANGED 2025-10-02 01:25 - Don't stop display manager, just warn - Problem: Stopping kills user's session!
+		// Don't stop display manager, just warn
 		// DON'T stop - let user reboot to activate new greeter
 		// The old display manager will be disabled on next boot
 
@@ -1104,7 +1104,7 @@ func (m model) View() string {
 	var content strings.Builder
 
 	// ASCII Header - CHANGED 2025-10-01 17:35 - Pad shorter lines to match longest line
-	// CHANGED 2025-10-01 19:05 - Pad all lines to 49 chars to prevent Align() mangling - Problem: Lipgloss centers each line independently
+	// Pad all lines to 49 chars to prevent Align() mangling
 	headerLines := []string{
 		"  █████████  █████ █████  █████████    █████████ ",
 		" ███░░░░░███░░███ ░░███  ███░░░░░███  ███░░░░░███",
@@ -1121,7 +1121,7 @@ func (m model) View() string {
 		Foreground(Primary).
 		Bold(true)
 
-	// CHANGED 2025-10-01 19:00 - Simple rendering without centering, let title/step handle it - Problem: PlaceHorizontal adds too much padding
+	// Simple rendering without centering, let title/step handle it
 	for _, line := range headerLines {
 		content.WriteString(headerStyle.Render(line))
 		content.WriteString("\n")
@@ -1185,7 +1185,7 @@ func (m model) View() string {
 	}
 
 	// Wrap everything in background
-	// CHANGED 2025-10-01 19:00 - Restore Align(Center) for proper centering - Problem: PlaceHorizontal broke layout
+	// Restore Align(Center) for proper centering
 	bgStyle := lipgloss.NewStyle().
 		Background(BgBase).
 		Foreground(FgPrimary).
@@ -1321,7 +1321,7 @@ repository. This is required for sysc-greet to function.
 Please wait...`, status, pm)
 
 	case stepInstallGslapper:
-		// CHANGED 2025-10-03 - Add gslapper step content - Problem: Need video wallpaper support
+		// CHANGED 2025-10-03 - Add gslapper step content
 		pm := "source build"
 		if m.packageManager == "yay" || m.packageManager == "pacman" {
 			pm = "AUR (or source fallback)"

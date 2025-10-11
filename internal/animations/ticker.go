@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// CHANGED 2025-10-03 18:10 - Created ticker.go for animated ticker effects
+// Created ticker.go for animated ticker effects
 
 // TickerAnimation provides animated loading/thinking effect
 type TickerAnimation struct {
@@ -64,9 +64,9 @@ type RoastingTicker struct {
 	offset      int
 	lastUpdate  time.Time
 	frameDur    time.Duration
-	roasts      []string      // CHANGED 2025-10-03 19:30 - Array of individual roast phrases
+	roasts      []string      // Array of individual roast phrases
 	currentWM   string
-	roastIndex  int           // CHANGED 2025-10-03 19:30 - Which roast we're currently showing
+	roastIndex  int           // Which roast we're currently showing
 	paused      bool
 	pauseUntil  time.Time
 }
@@ -98,7 +98,7 @@ func (r *RoastingTicker) UpdateWM(wmName string) {
 }
 
 // splitRoasts splits a roast string on │ separator and cleans up
-// CHANGED 2025-10-03 20:15 - Randomize roast order
+// Randomize roast order
 func splitRoasts(roastText string) []string {
 	// Split on │ separator
 	parts := strings.Split(roastText, "│")
@@ -135,7 +135,7 @@ func splitRoasts(roastText string) []string {
 }
 
 // GetScrollingText returns the scrolling text for given width
-// CHANGED 2025-10-03 19:30 - Cycle through individual roast phrases
+// Cycle through individual roast phrases
 func (r *RoastingTicker) GetScrollingText(width int) string {
 	// Safety check
 	if len(r.roasts) == 0 {
@@ -191,7 +191,7 @@ func (r *RoastingTicker) GetScrollingText(width int) string {
 
 	result := paddedText[start:end]
 
-	// CHANGED 2025-10-03 19:45 - Force exact width, truncate if needed - Problem: Text wrapping to 2 lines
+	// Force exact width, truncate if needed
 	// Ensure exactly width characters (pad or truncate)
 	runes := []rune(result)
 	if len(runes) > width {
@@ -206,7 +206,7 @@ func (r *RoastingTicker) GetScrollingText(width int) string {
 }
 
 // WM roast messages - funny quotes about each window manager
-// CHANGED 2025-10-03 18:40 - Expanded roasts with community feedback
+// Expanded roasts with community feedback
 func getRoastForWM(wmName string) string {
 	roasts := map[string]string{
 		// GNOME - The Great Destroyer
@@ -309,7 +309,7 @@ func getRoastForWM(wmName string) string {
 		"Gamescope": "Gamescope: For when you game more than you configure │ ",
 	}
 
-	// CHANGED 2025-10-03 20:10 - Improved WM name matching with regex cleanup - Problem: "Plasma (Wayland) (Wayland)" not matching KDE
+	// Improved WM name matching with regex cleanup
 	// Clean up the WM name - remove parentheses, "Session", "on", etc.
 	cleanedName := wmName
 	cleanedName = strings.ReplaceAll(cleanedName, "(Wayland)", "")

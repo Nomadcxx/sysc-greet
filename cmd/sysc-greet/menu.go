@@ -4,7 +4,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
-// CHANGED 2025-10-03 17:30 - Created menu.go for modular menu handling - Problem: Keep main.go clean and organized
+// Created menu.go for modular menu handling
 
 // navigateToThemesSubmenu switches to the themes submenu
 func (m model) navigateToThemesSubmenu() (tea.Model, tea.Cmd) {
@@ -72,4 +72,4 @@ func formatCheckbox(label string, checked bool) string {
 	return "[ ] " + label
 }
 
-// CHANGED 2025-10-03 17:50 - Removed navigateToVideoWallpapersSubmenu - Problem: Legacy code no longer used after Wallpaper menu added
+// Removed navigateToVideoWallpapersSubmenu

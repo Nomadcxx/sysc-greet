@@ -198,7 +198,7 @@ func GetRainPalette(themeName string) []string {
 	}
 }
 
-// CHANGED 2025-10-10 - Screensaver palette for theme-aware colors - Problem: Screensaver should respect current theme
+// CHANGED 2025-10-10 - Screensaver palette for theme-aware colors
 // GetScreensaverPalette returns theme-specific colors for screensaver elements
 // Returns: [background, ascii_primary, ascii_secondary, clock_primary, clock_secondary, date_color]
 func GetScreensaverPalette(themeName string) []string {

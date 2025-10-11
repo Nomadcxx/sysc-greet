@@ -10,7 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
-// CHANGED 2025-10-03 17:30 - Created wallpaper.go for wallpaper/gslapper handling - Problem: Keep main.go clean and organized
+// Created wallpaper.go for wallpaper/gslapper handling
 
 // navigateToWallpaperSubmenu scans wallpapers directory and builds menu
 func (m model) navigateToWallpaperSubmenu() (tea.Model, tea.Cmd) {
@@ -66,7 +66,7 @@ func launchGslapperWallpaper(wallpaperFilename string) {
 		wallpaperPath = wallpaperPaths[0]
 	}
 
-	// CHANGED 2025-10-04 - Fixed gslapper flags - Problem: Used invalid -w flag, correct syntax is: gslapper [options] monitor video.mp4
+	// CHANGED 2025-10-04 - Fixed gslapper flags
 	go func() {
 		// Kill any existing gslapper process
 		killCmd := exec.Command("pkill", "-f", "gslapper")
@@ -122,7 +122,7 @@ func (m model) handleWallpaperSelection(selectedOption string) (tea.Model, tea.C
 	return m, nil
 }
 
-// CHANGED 2025-10-04 - Add function to launch asset videos for Fireplace/Particle effects - Problem: Need bundled video backgrounds
+// CHANGED 2025-10-04 - Add function to launch asset videos for Fireplace/Particle effects
 // launchAssetVideo launches a video from Assets directory with gslapper
 func launchAssetVideo(filename string) {
 	// Check if file exists in Assets directory

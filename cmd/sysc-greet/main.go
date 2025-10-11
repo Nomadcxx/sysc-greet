@@ -29,7 +29,7 @@ import (
 	"github.com/mbndr/figlet4go"
 )
 
-// CHANGED 2025-10-06 - Add debug logging to file - Problem: Need persistent logs to debug greeter issues
+// CHANGED 2025-10-06 - Add debug logging to file
 var debugLog *log.Logger
 
 func initDebugLog() {
@@ -48,7 +48,7 @@ func logDebug(format string, args ...interface{}) {
 	}
 }
 
-// CHANGED 2025-10-02 01:45 - TTY-safe colors with profile detection - Problem: Hex colors fail on TTY
+// TTY-safe colors with profile detection
 var (
 	// Detect color profile once at startup
 	colorProfile = colorprofile.Detect(os.Stdout, os.Environ())
@@ -79,7 +79,7 @@ var (
 )
 
 func init() {
-	// CHANGED 2025-10-02 01:45 - Initialize colors with TTY fallbacks
+	// Initialize colors with TTY fallbacks
 	// Dark background - fallback to black on TTY
 	BgBase = complete(
 		lipgloss.Color("0"),       // ANSI black
@@ -164,12 +164,12 @@ func init() {
 }
 
 // CHANGED 2025-10-01 - Theme support with proper color palettes
-// CHANGED 2025-10-11 - Added testMode parameter - Problem: Need to avoid swww in test mode
+// CHANGED 2025-10-11 - Added testMode parameter
 func applyTheme(themeName string, testMode bool) {
 	switch strings.ToLower(themeName) {
 	case "gruvbox":
 		// Gruvbox Dark theme
-		// CHANGED 2025-10-01 21:55 - All backgrounds same to prevent bleed
+		// All backgrounds same to prevent bleed
 		BgBase = lipgloss.Color("#282828")
 		BgElevated = BgBase
 		BgSubtle = BgBase
@@ -206,7 +206,7 @@ func applyTheme(themeName string, testMode bool) {
 
 	case "dracula":
 		// Dracula theme
-		// CHANGED 2025-10-01 21:55 - All backgrounds same to prevent bleed - Problem: Different bg colors cause visible difference
+		// All backgrounds same to prevent bleed
 		BgBase = lipgloss.Color("#282a36")
 		BgElevated = BgBase
 		BgSubtle = BgBase
@@ -254,7 +254,7 @@ func applyTheme(themeName string, testMode bool) {
 		FgMuted = lipgloss.Color("#93a1a1")
 
 	case "monochrome":
-		// CHANGED 2025-10-02 03:48 - Monochrome theme (black/white/gray)
+		// Monochrome theme (black/white/gray)
 		BgBase = lipgloss.Color("#1a1a1a") // Dark background
 		BgElevated = BgBase
 		BgSubtle = BgBase
@@ -293,11 +293,11 @@ func applyTheme(themeName string, testMode bool) {
 	// Update border colors based on new primary
 	BorderFocus = Primary
 
-	// CHANGED 2025-10-10 - Set theme-aware wallpaper via swww - Problem: Multi-monitor needs themed backgrounds
+	// CHANGED 2025-10-10 - Set theme-aware wallpaper via swww
 	setThemeWallpaper(themeName, testMode)
 }
 
-// CHANGED 2025-10-10 - Set wallpaper for current theme using swww - Problem: Need themed backgrounds on all monitors
+// CHANGED 2025-10-10 - Set wallpaper for current theme using swww
 func setThemeWallpaper(themeName string, testMode bool) {
 	// CHANGED 2025-10-11 - Never run swww in test mode to avoid disrupting user's wallpapers during debugging
 	if testMode {
@@ -351,7 +351,7 @@ type ColorPalette struct {
 	Colors []string // Hex colors for the rainbow effect
 }
 
-// CHANGED 2025-10-02 05:30 - Fire effect implementation (PSX DOOM algorithm)
+// Fire effect implementation (PSX DOOM algorithm)
 
 var sessionPalettes = map[string]ColorPalette{
 	"GNOME": {
@@ -384,7 +384,7 @@ var sessionPalettes = map[string]ColorPalette{
 	},
 }
 
-// CHANGED 2025-10-01 14:50 - Helper function to strip ANSI codes for width calculation - Problem: ASCII borders showing literal ANSI codes
+// Helper function to strip ANSI codes for width calculation
 var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
 func stripANSI(str string) string {
@@ -393,7 +393,7 @@ func stripANSI(str string) string {
 
 // ASCII art generator with proper Unicode block character support
 // CHANGED 2025-09-29 - Fixed Unicode block character handling issue in figlet4go
-// CHANGED 2025-09-30 15:21 - Removed old session art generation - Problem: Now using pre-made ASCII from config files
+// Removed old session art generation
 
 // CHANGED 2025-09-30 - Use real figlet binary instead of broken custom parser
 // Fallback to figlet4go
@@ -406,10 +406,10 @@ func renderWithFiglet4goFallback(text, fontPath string, debug bool) (string, err
 // Parse figlet font file directly with proper Unicode support
 // CHANGED 2025-09-29 - Core fix for Unicode block character rendering + encoding
 // Parse figlet font file directly with proper Unicode support
-// CHANGED 2025-09-30 15:18 - Added ASCII config loading system
+// Added ASCII config loading system
 
 // CHANGED 2025-10-01 - Enhanced ASCIIConfig with animation controls
-// CHANGED 2025-10-07 19:00 - Added multi-ASCII variant support
+// Added multi-ASCII variant support
 type ASCIIConfig struct {
 	Name               string
 	ASCII              string   // DEPRECATED: Use ASCIIVariants instead
@@ -421,7 +421,7 @@ type ASCIIConfig struct {
 	AnimationDirection string  // "left", "right", "up", "down", "center-out", "random"
 }
 
-// CHANGED 2025-10-07 19:00 - Parse multiple ASCII variants (ascii_1, ascii_2, etc.) - Problem: Support cycling through variants
+// Parse multiple ASCII variants (ascii_1, ascii_2, etc.)
 // Load ASCII configuration from file
 func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 	var config ASCIIConfig
@@ -455,7 +455,7 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 				// Save previous variant if exists
 				if inASCII && len(currentVariantLines) > 0 {
 					variant := strings.Join(currentVariantLines, "\n")
-					// CHANGED 2025-10-07 19:00 - Trim trailing newlines for height consistency
+					// Trim trailing newlines for height consistency
 					variant = strings.TrimRight(variant, "\n")
 					config.ASCIIVariants = append(config.ASCIIVariants, variant)
 
@@ -548,7 +548,7 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 	return config, nil
 }
 
-// CHANGED 2025-10-07 19:10 - Support multi-variant ASCII with cycling and height normalization
+// Support multi-variant ASCII with cycling and height normalization
 // Get ASCII art for current session
 func (m model) getSessionASCII() string {
 	if m.selectedSession == nil {
@@ -576,7 +576,7 @@ func (m model) getSessionASCII() string {
 	}
 
 	// Try to load ASCII config for this session
-	// CHANGED 2025-10-07 19:10 - Fixed path to use sysc-greet instead of bubble-greet - Problem: Wrong project name
+	// Fixed path to use sysc-greet instead of bubble-greet
 	configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
 	asciiConfig, err := loadASCIIConfig(configPath)
 	if err != nil {
@@ -600,7 +600,7 @@ func (m model) getSessionASCII() string {
 
 	currentASCII := asciiConfig.ASCIIVariants[variantIndex]
 
-	// CHANGED 2025-10-07 19:10 - Height normalization: pad smaller variants to match max height - Problem: Borders jump when cycling
+	// Height normalization: pad smaller variants to match max height
 	maxHeight := asciiConfig.MaxASCIIHeight
 	currentHeight := len(strings.Split(currentASCII, "\n"))
 
@@ -611,7 +611,7 @@ func (m model) getSessionASCII() string {
 		}
 	}
 
-	// CHANGED 2025-10-01 15:25 - Disable animations, use static primary color
+	// Disable animations, use static primary color
 	// Apply static primary color to ASCII art
 	lines := strings.Split(currentASCII, "\n")
 	var coloredLines []string
@@ -621,8 +621,8 @@ func (m model) getSessionASCII() string {
 			coloredLines = append(coloredLines, line)
 			continue
 		}
-		// CHANGED 2025-10-02 00:05 - Add Background to prevent bleeding through - Problem: ASCII needs explicit background
-		// CHANGED 2025-10-02 11:46 - Reverted: fire is inside now, always use background - Problem: Fire is inner content, not background
+		// Add Background to prevent bleeding through
+		// Reverted: fire is inside now, always use background
 		style := lipgloss.NewStyle().Foreground(Primary).Background(BgBase)
 		coloredLines = append(coloredLines, style.Render(line))
 	}
@@ -661,7 +661,7 @@ func applyASCIIAnimation(text string, animationOffset float64, palette ColorPale
 
 // Apply rainbow colors with animation using custom palette (lolcat-inspired)
 // CHANGED 2025-09-29 - Custom rainbow implementation with configurable palettes
-// CHANGED 2025-09-30 14:25 - Replaced lolcat rainbow with smooth gradient
+// Replaced lolcat rainbow with smooth gradient
 func applySmoothGradient(text string, animationOffset float64, palette ColorPalette) string {
 	lines := strings.Split(text, "\n")
 	var coloredLines []string
@@ -731,7 +731,7 @@ func applySmoothGradient(text string, animationOffset float64, palette ColorPale
 	return strings.Join(coloredLines, "\n")
 }
 
-// CHANGED 2025-09-30 14:25 - Added color interpolation for smooth gradients - Problem: Needed smooth color transitions instead of discrete color cycling
+// Added color interpolation for smooth gradients
 func interpolateColors(color1, color2 string, factor float64) string {
 	// Parse hex colors
 	r1, g1, b1 := parseHexColor(color1)
@@ -745,7 +745,7 @@ func interpolateColors(color1, color2 string, factor float64) string {
 	return fmt.Sprintf("#%02x%02x%02x", r, g, b)
 }
 
-// CHANGED 2025-09-30 14:25 - Added hex color parsing helper - Problem: Needed to parse hex colors for interpolation
+// Added hex color parsing helper
 func parseHexColor(hex string) (uint8, uint8, uint8) {
 	hex = strings.TrimPrefix(hex, "#")
 	if len(hex) != 6 {
@@ -1078,7 +1078,7 @@ func applyStaticColors(text string, palette ColorPalette) string {
 // CHANGED 2025-09-29 - Added config file parsing for fonts and palettes
 func loadConfig(configPath string) (Config, error) {
 	config := Config{
-		FontPath: "/usr/share/bubble-greet/fonts/dos_rebel.flf", // CHANGED 2025-10-02 01:35 - Absolute path
+		FontPath: "/usr/share/bubble-greet/fonts/dos_rebel.flf", // Absolute path
 		Palettes: make(map[string]ColorPalette),
 	}
 
@@ -1147,14 +1147,14 @@ const (
 	ModeLoading  ViewMode = "loading"
 	ModePower    ViewMode = "power"
 	ModeMenu     ViewMode = "menu"
-	// CHANGED 2025-09-30 14:40 - Added new menu modes for structured menu system - Problem: Need hierarchical menu with submenus
+	// Added new menu modes for structured menu system
 	ModeThemesSubmenu      ViewMode = "themes_submenu"
 	ModeBordersSubmenu     ViewMode = "borders_submenu"
 	ModeBackgroundsSubmenu ViewMode = "backgrounds_submenu"
 	ModeWallpaperSubmenu ViewMode = "wallpaper_submenu" // CHANGED 2025-10-03 - Add wallpaper submenu for gslapper videos
 	// CHANGED 2025-10-01 - Added release notes mode
 	ModeReleaseNotes ViewMode = "release_notes"
-	// CHANGED 2025-10-10 - Added screensaver mode - Problem: Need screensaver with idle timeout
+	// CHANGED 2025-10-10 - Added screensaver mode
 	ModeScreensaver ViewMode = "screensaver"
 )
 
@@ -1194,7 +1194,7 @@ type model struct {
 	// Menu system
 	menuOptions []string
 	menuIndex   int
-	// CHANGED 2025-09-30 15:10 - Added fields for functional menu system - Problem: Need to track all user preferences and apply them
+	// Added fields for functional menu system
 	customASCIIText        string
 	selectedBorderStyle    string
 	selectedBackground     string
@@ -1216,12 +1216,12 @@ type model struct {
 	pulseColor     int
 	borderFrame    int
 
-	// CHANGED 2025-10-02 05:35 - Fire effect instance - Problem: Need to maintain fire state across frames
+	// Fire effect instance
 	fireEffect     *animations.FireEffect
 	lastFireWidth  int
 	lastFireHeight int
 
-	// CHANGED 2025-10-08 - Rain effect instance - Problem: Need to maintain rain state across frames
+	// CHANGED 2025-10-08 - Rain effect instance
 	rainEffect     *animations.RainEffect
 	lastRainWidth  int
 	lastRainHeight int
@@ -1234,16 +1234,16 @@ type model struct {
 	// CHANGED 2025-10-04 - Separate flags for multiple backgrounds
 	enableFire bool
 
-	// CHANGED 2025-10-05 - Add error message for authentication failures - Problem: BUG #4 - Greeter exits on auth failure
+	// CHANGED 2025-10-05 - Add error message for authentication failures
 	errorMessage string
 
-	// CHANGED 2025-10-10 - Screensaver fields - Problem: Need screensaver mode with idle timeout
+	// CHANGED 2025-10-10 - Screensaver fields
 	idleTimer         time.Time // Time when idle started
 	screensaverTime   time.Time // Current time for screensaver display
 	screensaverPrint  *animations.PrintEffect // CHANGED 2025-10-11 - Print effect animation for screensaver
-	screensaverActive bool      // CHANGED 2025-10-11 - Track if screensaver just activated - Problem: Need to trigger animation on start
+	screensaverActive bool      // CHANGED 2025-10-11 - Track if screensaver just activated
 
-	// CHANGED 2025-10-07 19:05 - ASCII navigation fields for multi-variant support
+	// ASCII navigation fields for multi-variant support
 	asciiArtIndex      int         // Current variant index (0-indexed)
 	asciiArtCount      int         // Total variants available
 	asciiMaxHeight     int         // Max height for normalization
@@ -1255,7 +1255,7 @@ type powerSelectedMsg string
 type tickMsg time.Time
 
 func doTick() tea.Cmd {
-	// CHANGED 2025-10-04 - Reduced tick interval to 30ms for smoother ticker animation - Problem: Ticker speed bottlenecked by UI refresh rate
+	// CHANGED 2025-10-04 - Reduced tick interval to 30ms for smoother ticker animation
 	return tea.Tick(time.Millisecond*30, func(t time.Time) tea.Msg {
 		return tickMsg(t)
 	})
@@ -1264,19 +1264,19 @@ func doTick() tea.Cmd {
 func initialModel(config Config, screensaverMode bool) model {
 	// Setup username input with proper styling
 	ti := textinput.New()
-	ti.Prompt = ""      // CHANGED 2025-10-02 04:02 - Remove prompt, will be added by layout - Problem: Duplicate "Username:" in ASCII-1
-	ti.Placeholder = "" // CHANGED 2025-10-02 04:08 - Remove placeholder - Problem: Shows italic "E" in empty field
-	// CHANGED 2025-10-01 23:00 - Updated for textinput v2 API - Problem: v2 uses Focused/Blurred StyleState
+	ti.Prompt = ""      // Remove prompt, will be added by layout
+	ti.Placeholder = "" // Remove placeholder
+	// Updated for textinput v2 API
 	ti.Styles.Focused.Prompt = lipgloss.NewStyle().Foreground(Primary).Bold(true)
 	ti.Styles.Focused.Text = lipgloss.NewStyle().Foreground(FgPrimary)
 	ti.Styles.Focused.Placeholder = lipgloss.NewStyle().Foreground(FgMuted).Italic(true)
 
 	// Setup password input
 	pi := textinput.New()
-	pi.Prompt = ""      // CHANGED 2025-10-02 04:02 - Remove prompt, will be added by layout - Problem: Duplicate "Password:" in ASCII-1
-	pi.Placeholder = "" // CHANGED 2025-10-02 04:08 - Remove placeholder - Problem: Shows italic "E" in empty field
+	pi.Prompt = ""      // Remove prompt, will be added by layout
+	pi.Placeholder = "" // Remove placeholder
 	pi.EchoMode = textinput.EchoPassword
-	// CHANGED 2025-10-01 23:00 - Updated for textinput v2 API - Problem: v2 uses Focused/Blurred StyleState
+	// Updated for textinput v2 API
 	pi.Styles.Focused.Prompt = lipgloss.NewStyle().Foreground(Primary).Bold(true)
 	pi.Styles.Focused.Text = lipgloss.NewStyle().Foreground(FgPrimary)
 	pi.Styles.Focused.Placeholder = lipgloss.NewStyle().Foreground(FgMuted).Italic(true)
@@ -1310,7 +1310,7 @@ func initialModel(config Config, screensaverMode bool) model {
 	var sessionIndex int
 
 	if !config.TestMode {
-		// CHANGED 2025-10-05 - Proper IPC client error handling - Problem: Silent failure causes nil pointer panic
+		// CHANGED 2025-10-05 - Proper IPC client error handling
 		logDebug("Attempting to create IPC client...")
 		client, err := ipc.NewClient()
 		if err != nil {
@@ -1375,10 +1375,10 @@ func initialModel(config Config, screensaverMode bool) model {
 	// Set initial focus
 	ti.Focus()
 
-	// CHANGED 2025-10-01 15:01 - Apply Dracula theme at initialization
+	// Apply Dracula theme at initialization
 	applyTheme("dracula", config.TestMode)
 
-	// CHANGED 2025-10-11 - Determine initial mode - Problem: Need to start in screensaver for testing
+	// CHANGED 2025-10-11 - Determine initial mode
 	initialMode := ModeLogin
 	if screensaverMode {
 		initialMode = ModeScreensaver
@@ -1406,33 +1406,33 @@ func initialModel(config Config, screensaverMode bool) model {
 		animationFrame:      0,
 		pulseColor:          0,
 		borderFrame:         0,
-		// CHANGED 2025-09-30 15:38 - Initialize default border and background settings - Problem: New fields need default values
-		// CHANGED 2025-10-01 15:00 - Set Dracula as default theme and disable border animation
+		// Initialize default border and background settings
+		// Set Dracula as default theme and disable border animation
 		selectedBorderStyle:    "classic",
 		selectedBackground:     "none",
 		currentTheme:           "dracula",
 		borderAnimationEnabled: false,
-		selectedFont:           "/usr/share/bubble-greet/fonts/dos_rebel.flf", // CHANGED 2025-10-02 01:35 - Absolute path
+		selectedFont:           "/usr/share/bubble-greet/fonts/dos_rebel.flf", // Absolute path
 		customASCIIText:        "",
-		// CHANGED 2025-10-01 - Initialize animation control defaults - Problem: New animation fields need default values
+		// CHANGED 2025-10-01 - Initialize animation control defaults
 		selectedAnimationStyle:     "gradient",
 		selectedAnimationSpeed:     1.0,
 		selectedAnimationDirection: "right",
 		animationStyleOptions:      []string{"gradient", "wave", "pulse", "rainbow", "matrix", "typewriter", "glow", "static"},
 		animationDirectionOptions:  []string{"right", "left", "up", "down", "center-out"},
-		// CHANGED 2025-10-10 - Initialize screensaver timers - Problem: Uninitialized timers cause immediate screensaver activation
+		// CHANGED 2025-10-10 - Initialize screensaver timers
 		idleTimer:       time.Now(),
 		screensaverTime: time.Now(),
-		// CHANGED 2025-10-02 05:40 - Initialize fire effect with default size - Problem: Fire needs initialization
+		// Initialize fire effect with default size
 		fireEffect: animations.NewFireEffect(80, 30, animations.GetDefaultFirePalette()),
-		// CHANGED 2025-10-08 - Initialize rain effect with default size - Problem: Rain needs initialization
+		// CHANGED 2025-10-08 - Initialize rain effect with default size
 		rainEffect: animations.NewRainEffect(80, 30, animations.GetRainPalette("default")),
 		// Initialize matrix effect with default size
 		matrixEffect: animations.NewMatrixEffect(80, 30, animations.GetMatrixPalette("default")),
 	}
 
-	// CHANGED 2025-10-03 - Load cached preferences including session - Problem: Need to persist user preferences across sessions
-	// CHANGED 2025-10-03 - Skip cache in test mode - Problem: Need fresh start when testing to avoid broken themes/borders
+	// CHANGED 2025-10-03 - Load cached preferences including session
+	// CHANGED 2025-10-03 - Skip cache in test mode
 	if !m.config.TestMode {
 		if prefs, err := cache.LoadPreferences(); err == nil && prefs != nil {
 			if prefs.Theme != "" {
@@ -1458,7 +1458,7 @@ func initialModel(config Config, screensaverMode bool) model {
 		}
 	}
 
-	// CHANGED 2025-10-11 - Initialize print effect if starting in screensaver mode - Problem: Need animation when testing screensaver directly
+	// CHANGED 2025-10-11 - Initialize print effect if starting in screensaver mode
 	if screensaverMode {
 		ssConfig := loadScreensaverConfig()
 		if ssConfig.AnimateOnStart && ssConfig.AnimationType == "print" && len(ssConfig.ASCIIVariants) > 0 {
@@ -1491,10 +1491,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pulseColor = (m.pulseColor + 1) % 100
 		m.borderFrame = (m.borderFrame + 1) % 20
 
-		// CHANGED 2025-10-10 - Update screensaver time and check for activation - Problem: Need screensaver mode
+		// CHANGED 2025-10-10 - Update screensaver time and check for activation
 		m.screensaverTime = time.Time(msg)
 
-		// CHANGED 2025-10-11 - Tick print effect animation if in screensaver mode - Problem: Need to advance typewriter animation
+		// CHANGED 2025-10-11 - Tick print effect animation if in screensaver mode
 		if m.mode == ModeScreensaver && m.screensaverPrint != nil {
 			m.screensaverPrint.Tick(m.screensaverTime)
 		}
@@ -1505,7 +1505,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			idleDuration := time.Since(m.idleTimer)
 			if idleDuration >= time.Duration(ssConfig.IdleTimeout)*time.Minute && m.mode != ModeScreensaver {
 				m.mode = ModeScreensaver
-				m.screensaverActive = true // CHANGED 2025-10-11 - Mark screensaver as just activated - Problem: Need to trigger animation
+				m.screensaverActive = true // CHANGED 2025-10-11 - Mark screensaver as just activated
 
 				// CHANGED 2025-10-11 - Initialize print effect animation if enabled
 				if ssConfig.AnimateOnStart && ssConfig.AnimationType == "print" {
@@ -1520,12 +1520,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		// CHANGED 2025-10-04 - Update fire when enableFire is true - Problem: Support Fire + Rain/Matrix combination
+		// CHANGED 2025-10-04 - Update fire when enableFire is true
 		if (m.enableFire || m.selectedBackground == "fire" || m.selectedBackground == "fire+rain") && m.fireEffect != nil {
 			m.fireEffect.Update(m.animationFrame)
 		}
 
-		// CHANGED 2025-10-08 - Update rain when ascii-rain is selected - Problem: Need to update rain effect
+		// CHANGED 2025-10-08 - Update rain when ascii-rain is selected
 		if m.selectedBackground == "ascii-rain" && m.rainEffect != nil {
 			m.rainEffect.Update(m.animationFrame)
 		}
@@ -1559,8 +1559,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if err := cache.SaveSelectedSession(session); err != nil && m.config.Debug {
 				logDebug(" Failed to save session: %v", err)
 			}
-			// CHANGED 2025-10-03 - Save session preference - Problem: Session selection not persisted in preferences
-			// CHANGED 2025-10-03 - Skip saving in test mode - Problem: Don't persist during testing
+			// CHANGED 2025-10-03 - Save session preference
+			// CHANGED 2025-10-03 - Skip saving in test mode
 			if !m.config.TestMode {
 				cache.SavePreferences(cache.UserPreferences{
 					Theme:       m.currentTheme,
@@ -1599,13 +1599,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case string:
 		if msg == "success" {
-			// CHANGED 2025-10-09 21:00 - Removed delay workaround - Problem: Proper fix is in IPC layer
+			// Removed delay workaround
 			// Now we properly wait for greetd's success response in StartSession() before returning
 			// This ensures greetd has finished session initialization regardless of hardware speed
 			fmt.Println("Session started successfully")
 			return m, tea.Quit
 		} else {
-			// CHANGED 2025-10-05 - Store error message and return to password mode - Problem: BUG #4 - Greeter was exiting on non-success messages
+			// CHANGED 2025-10-05 - Store error message and return to password mode
 			m.errorMessage = msg
 			m.mode = ModePassword
 			m.passwordInput.SetValue("") // Clear password field
@@ -1614,7 +1614,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, textinput.Blink
 		}
 	case error:
-		// CHANGED 2025-10-05 - Store error message and return to password mode - Problem: BUG #4 - Greeter was exiting on auth errors
+		// CHANGED 2025-10-05 - Store error message and return to password mode
 		m.errorMessage = msg.Error()
 		m.mode = ModePassword
 		m.passwordInput.SetValue("") // Clear password field
@@ -1641,7 +1641,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.passwordInput, cmd = m.passwordInput.Update(msg)
 			cmds = append(cmds, cmd)
-			// CHANGED 2025-10-05 - Clear error message when user starts typing - Problem: Error should disappear when retry begins
+			// CHANGED 2025-10-05 - Clear error message when user starts typing
 			if m.errorMessage != "" && len(m.passwordInput.Value()) > 0 {
 				m.errorMessage = ""
 			}
@@ -1656,7 +1656,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
-	// CHANGED 2025-10-01 23:00 - Updated for tea.KeyMsg v2 API - Problem: Type and Runes fields no longer exist
+	// Updated for tea.KeyMsg v2 API
 	if m.config.Debug {
 		keyStr := msg.String()
 		fmt.Fprintf(os.Stderr, "KEY DEBUG: String='%s'\n", keyStr)
@@ -1664,7 +1664,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 
 	switch msg.String() {
 	case "ctrl+c", "q":
-		// CHANGED 2025-10-10 - Disable Ctrl+C in production mode - Problem: Ctrl+C kills kitty terminal hosting the greeter
+		// CHANGED 2025-10-10 - Disable Ctrl+C in production mode
 		// Only allow Ctrl+C/Q to quit in test mode (when ipcClient is nil)
 		if m.ipcClient == nil {
 			// Test mode - allow quit
@@ -1674,7 +1674,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		return m, nil
 
 	case "f1":
-		// CHANGED 2025-10-03 17:15 - Remapped F1 to Menu
+		// Remapped F1 to Menu
 		// Main menu
 		if m.mode == ModeLogin || m.mode == ModePassword {
 			m.mode = ModeMenu
@@ -1692,7 +1692,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		}
 
 	case "f2":
-		// CHANGED 2025-10-03 17:15 - Remapped F2 to Sessions
+		// Remapped F2 to Sessions
 		// Toggle session dropdown
 		if m.mode == ModeLogin || m.mode == ModePassword {
 			m.sessionDropdownOpen = !m.sessionDropdownOpen
@@ -1700,7 +1700,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		}
 
 	case "f3":
-		// CHANGED 2025-10-03 17:15 - Remapped F3 to Notes
+		// Remapped F3 to Notes
 		// Release notes popup
 		if m.mode == ModeLogin || m.mode == ModePassword {
 			if m.config.Debug {
@@ -1713,7 +1713,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		}
 
 	case "f4":
-		// CHANGED 2025-10-03 17:15 - F4 remains Power
+		// F4 remains Power
 		// Power menu
 		if m.mode == ModeLogin || m.mode == ModePassword {
 			if m.config.Debug {
@@ -1761,7 +1761,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			// CHANGED 2025-09-30 - Add escape from menu
 			m.mode = ModeLogin
 			return m, nil
-		// CHANGED 2025-09-30 14:50 - Add escape handling for submenus - Problem: Need to navigate back from submenus to main menu
+		// Add escape handling for submenus
 		case ModeThemesSubmenu, ModeBordersSubmenu, ModeBackgroundsSubmenu, ModeWallpaperSubmenu:
 			// Go back to main menu
 			m.mode = ModeMenu
@@ -1774,7 +1774,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			}
 			m.menuIndex = 0
 			return m, nil
-		// CHANGED 2025-10-01 14:18 - Add escape handling for release notes
+		// Add escape handling for release notes
 		case ModeReleaseNotes:
 			// Return to login mode
 			m.mode = ModeLogin
@@ -1803,7 +1803,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			}
 			return m, nil
 		} else if m.mode == ModeMenu || m.mode == ModeThemesSubmenu || m.mode == ModeBordersSubmenu || m.mode == ModeBackgroundsSubmenu || m.mode == ModeWallpaperSubmenu {
-			// CHANGED 2025-10-03 17:55 - Removed ModeVideoWallpapersSubmenu from navigation - Problem: Dead code cleanup
+			// Removed ModeVideoWallpapersSubmenu from navigation
 			if m.menuIndex > 0 {
 				m.menuIndex--
 			}
@@ -1831,7 +1831,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				m.powerIndex++
 			}
 		} else if m.mode == ModeMenu || m.mode == ModeThemesSubmenu || m.mode == ModeBordersSubmenu || m.mode == ModeBackgroundsSubmenu || m.mode == ModeWallpaperSubmenu {
-			// CHANGED 2025-10-03 17:55 - Removed ModeVideoWallpapersSubmenu from navigation - Problem: Dead code cleanup
+			// Removed ModeVideoWallpapersSubmenu from navigation
 			if m.menuIndex < len(m.menuOptions)-1 {
 				m.menuIndex++
 			}
@@ -1846,7 +1846,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			return m, nil
 		}
 
-	// CHANGED 2025-10-07 19:15 - Add Page Up/Down handlers for ASCII variant cycling
+	// Add Page Up/Down handlers for ASCII variant cycling
 	case "pgup", "page up":
 		if m.mode == ModeLogin || m.mode == ModePassword {
 			if m.selectedSession != nil {
@@ -1927,7 +1927,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			return m, func() tea.Msg { return sessionSelectedMsg(session) }
 		}
 
-		// CHANGED 2025-09-30 14:52 - Add submenu selection handling - Problem: Handle main menu and all submenu selections
+		// Add submenu selection handling
 		if m.mode == ModeMenu {
 			selectedOption := m.menuOptions[m.menuIndex]
 			switch selectedOption {
@@ -1968,7 +1968,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				return m, nil
 			}
 
-			// CHANGED 2025-09-30 15:12 - Implement actual submenu functionality - Problem: Submenus were just placeholders doing nothing
+			// Implement actual submenu functionality
 			switch m.mode {
 			case ModeThemesSubmenu:
 				// Parse theme selection and apply it
@@ -1977,8 +1977,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.currentTheme = themeName
 					// Apply theme immediately
 					applyTheme(themeName, m.config.TestMode)
-					// CHANGED 2025-10-03 - Save theme preference - Problem: Theme selection not persisted
-					// CHANGED 2025-10-03 - Skip saving in test mode - Problem: Don't persist during testing
+					// CHANGED 2025-10-03 - Save theme preference
+					// CHANGED 2025-10-03 - Skip saving in test mode
 					if !m.config.TestMode {
 						sessionName := ""
 						if m.selectedSession != nil {
@@ -1996,7 +1996,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				return m, nil
 
 			case ModeBordersSubmenu:
-				// CHANGED 2025-10-01 15:29 - Restored ASCII border handling
+				// Restored ASCII border handling
 				switch selectedOption {
 				case "Style: Classic":
 					m.selectedBorderStyle = "classic"
@@ -2017,8 +2017,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				case "Animation: Off":
 					m.borderAnimationEnabled = false
 				}
-				// CHANGED 2025-10-03 - Save border preference - Problem: Border selection not persisted
-				// CHANGED 2025-10-03 - Skip saving in test mode - Problem: Don't persist during testing
+				// CHANGED 2025-10-03 - Save border preference
+				// CHANGED 2025-10-03 - Skip saving in test mode
 				if !m.config.TestMode {
 					sessionName := ""
 					if m.selectedSession != nil {
@@ -2068,8 +2068,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" {
 					m.selectedBackground = "none"
 				}
-				// CHANGED 2025-10-03 - Save background preference - Problem: Background selection not persisted
-				// CHANGED 2025-10-03 - Skip saving in test mode - Problem: Don't persist during testing
+				// CHANGED 2025-10-03 - Save background preference
+				// CHANGED 2025-10-03 - Skip saving in test mode
 				if !m.config.TestMode {
 					sessionName := ""
 					if m.selectedSession != nil {
@@ -2082,11 +2082,11 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						Session:     sessionName,
 					})
 				}
-				// CHANGED 2025-10-06 - Refresh menu to update checkboxes - Problem: Checkboxes not updating after toggle
+				// CHANGED 2025-10-06 - Refresh menu to update checkboxes
 				newModel, cmd := m.navigateToBackgroundsSubmenu()
 				return newModel.(model), cmd
 			case ModeWallpaperSubmenu:
-				// CHANGED 2025-10-03 17:35 - Use modular wallpaper handler - Problem: Keep main.go clean
+				// Use modular wallpaper handler
 				newModel, cmd := m.handleWallpaperSelection(selectedOption)
 				return newModel.(model), cmd
 			}
@@ -2149,7 +2149,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 	return m, nil
 }
 
-// CHANGED 2025-10-01 22:45 - Return tea.View with BackgroundColor set - Problem: Terminal background shows through, causing color bleeding
+// Return tea.View with BackgroundColor set
 func (m model) View() tea.View {
 	// Use full terminal dimensions
 	termWidth := m.width
@@ -2164,16 +2164,16 @@ func (m model) View() tea.View {
 	var content string
 	switch m.mode {
 	case ModePower:
-		// CHANGED 2025-10-03 19:00 - Fixed missing power menu rendering - Problem: F4 power menu showed blank screen
+		// Fixed missing power menu rendering
 		content = m.renderPowerView(termWidth, termHeight)
 	case ModeMenu, ModeThemesSubmenu, ModeBordersSubmenu, ModeBackgroundsSubmenu, ModeWallpaperSubmenu:
-		// CHANGED 2025-10-03 18:00 - Removed ModeVideoWallpapersSubmenu from rendering - Problem: Dead code cleanup
+		// Removed ModeVideoWallpapersSubmenu from rendering
 		content = m.renderMenuView(termWidth, termHeight)
 	case ModeReleaseNotes:
-		// CHANGED 2025-10-01 14:15 - Added F5 release notes view rendering
+		// Added F5 release notes view rendering
 		content = m.renderReleaseNotesView(termWidth, termHeight)
 	case ModeScreensaver:
-		// CHANGED 2025-10-10 - Added screensaver rendering - Problem: Need screensaver mode
+		// CHANGED 2025-10-10 - Added screensaver rendering
 		content = renderScreensaverView(m, termWidth, termHeight)
 	default:
 		content = m.renderMainView(termWidth, termHeight)
@@ -2182,14 +2182,14 @@ func (m model) View() tea.View {
 	var view tea.View
 
 	// Check if fire background is enabled
-	// CHANGED 2025-10-06 - Removed wallpaper check - Problem: Wallpapers shouldn't enable fire
-	// CHANGED 2025-10-06 - Only show fire on main login screen, not in menus - Problem: Fire hidden behind menu content
-	// CHANGED 2025-10-08 - Add ascii-rain background support - Problem: Need to handle ascii-rain background
+	// CHANGED 2025-10-06 - Removed wallpaper check
+	// CHANGED 2025-10-06 - Only show fire on main login screen, not in menus
+	// CHANGED 2025-10-08 - Add ascii-rain background support
 	hasFireBackground := (m.enableFire || m.selectedBackground == "fire" || m.selectedBackground == "fire+rain") && m.mode == ModeLogin
 	hasRainBackground := (m.selectedBackground == "ascii-rain") && m.mode == ModeLogin
 
 	if hasFireBackground {
-		// CHANGED 2025-10-06 - Use multi-layer approach: fire at bottom, centered UI on top - Problem: Need to center UI while keeping fire at bottom
+		// CHANGED 2025-10-06 - Use multi-layer approach: fire at bottom, centered UI on top
 		fireHeight := (termHeight * 2) / 5 // Bottom 40% of terminal
 		fireY := termHeight - fireHeight
 
@@ -2210,7 +2210,7 @@ func (m model) View() tea.View {
 		view.BackgroundColor = BgBase
 		return view
 	} else if hasRainBackground {
-		// CHANGED 2025-10-08 - Render ascii-rain as full background - Problem: Need to handle ascii-rain background
+		// CHANGED 2025-10-08 - Render ascii-rain as full background
 		// Render rain as full background
 		backgroundContent := m.addAsciiRain("", termWidth, termHeight)
 
@@ -2246,14 +2246,14 @@ func (m model) View() tea.View {
 		return view
 	}
 
-	// CHANGED 2025-10-06 - Use X/Y positioning instead of Place() to avoid ghosting - Problem: lipgloss.Place() causes ghosting in fullscreen kitty
+	// CHANGED 2025-10-06 - Use X/Y positioning instead of Place() to avoid ghosting
 	// Calculate center position manually (CRUSH approach)
 	contentWidth := lipgloss.Width(content)
 	contentHeight := lipgloss.Height(content)
 	x := (termWidth - contentWidth) / 2
 	y := (termHeight - contentHeight) / 2
 
-	// CHANGED 2025-10-09 20:40 - Removed ticker fullscreen check - Problem: Ticker deleted, no longer needed
+	// Removed ticker fullscreen check
 	// Use layer X/Y positioning instead of Place()
 	view.Layer = lipgloss.NewCanvas(lipgloss.NewLayer(content).X(x).Y(y))
 	view.BackgroundColor = BgBase
@@ -2293,16 +2293,16 @@ func ensureFullTerminalCoverage(content string, termWidth, termHeight int) strin
 }
 
 // CHANGED 2025-10-01 - Replaced WM-named themes with common themes
-// CHANGED 2025-10-03 17:40 - Moved navigation functions to menu.go and wallpaper.go - Problem: Keep main.go clean and modular
+// Moved navigation functions to menu.go and wallpaper.go
 
-// CHANGED 2025-09-30 15:25 - Complete dual border redesign
+// Complete dual border redesign
 func (m model) renderMainView(termWidth, termHeight int) string {
 	return m.renderDualBorderLayout(termWidth, termHeight)
 }
 
 // New dual border layout system
 func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
-	// CHANGED 2025-10-02 03:42 - Route ASCII-1 and ASCII-2 styles
+	// Route ASCII-1 and ASCII-2 styles
 	if m.selectedBorderStyle == "ascii1" {
 		return m.renderASCII1BorderLayout(termWidth, termHeight)
 	}
@@ -2313,16 +2313,16 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	// Contains: WM ASCII art, session dropdown, username/password fields
 
 	// Calculate inner content area
-	// CHANGED 2025-10-01 19:10 - Use reasonable max width like installer - Problem: termWidth-8 too large, pushes ASCII outside border
+	// Use reasonable max width like installer
 	innerWidth := min(100, termWidth-8) // Reasonable width for content area
 	var innerSections []string
 
 	// WM/Session ASCII art - prominent display
-	// CHANGED 2025-10-01 15:27 - Fix centering, art is already colored - Problem: ASCII aligned right and double-styled
+	// Fix centering, art is already colored
 	if m.selectedSession != nil {
 		art := m.getSessionArt(m.selectedSession.Name)
 		if art != "" {
-			// CHANGED 2025-10-01 19:30 - JoinVertical(Center) handles centering, just add art - Problem: Width() was causing bleeding
+			// JoinVertical(Center) handles centering, just add art
 			// Art is already colored, JoinVertical(Center) will center each line
 			innerSections = append(innerSections, art)
 			// Remove automatic spacing and add consistent 2-line spacing
@@ -2334,12 +2334,12 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	innerSections = append(innerSections, "", "")
 
 	// Main form (session selector, username, password) in bordered box
-	// CHANGED 2025-10-01 19:35 - Wrap form in border for left alignment - Problem: JoinVertical(Center) centers form fields
-	// CHANGED 2025-10-01 20:05 - Reverted Width() addition - Problem: Width broke entire middle section alignment
-	// CHANGED 2025-10-01 20:40 - Add fixed width to form content with Place - Problem: Variable content width breaks border alignment
+	// Wrap form in border for left alignment
+	// Reverted Width() addition
+	// Add fixed width to form content with Place
 	formContentWidth := innerWidth - 20
 	formContent := m.renderMainForm(formContentWidth)
-	// CHANGED 2025-10-06 - Removed Place() - Problem: Place() causes ghosting and duplicate borders
+	// CHANGED 2025-10-06 - Removed Place()
 	fixedFormContent := formContent
 	formBorderStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -2350,7 +2350,7 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	formBorder := formBorderStyle.Render(fixedFormContent)
 	innerSections = append(innerSections, formBorder)
 
-	// CHANGED 2025-10-01 15:40 - Simplified border title as first line - Problem: String manipulation breaking border rendering
+	// Simplified border title as first line
 	// Create inner border container with user-selected style
 	innerBorderColor := m.getInnerBorderColor()
 
@@ -2366,7 +2366,7 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	}
 	dashes := strings.Repeat("─", dashCount)
 
-	// CHANGED 2025-10-06 - Re-added Align() for title centering WITHIN fixed width - Problem: Title needs to be centered in inner border
+	// CHANGED 2025-10-06 - Re-added Align() for title centering WITHIN fixed width
 	// NOTE: This Align() is safe because it's within a fixed Width() container, not used with Place()
 	titleLine = lipgloss.NewStyle().
 		Foreground(innerBorderColor).
@@ -2383,10 +2383,10 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 
 	contentWithTitle = append(contentWithTitle, innerSections...)
 
-	// CHANGED 2025-10-01 19:30 - Revert to Center, ASCII already has explicit centering - Problem: Left join pushed ASCII right
+	// Revert to Center, ASCII already has explicit centering
 	innerContent := lipgloss.JoinVertical(lipgloss.Center, contentWithTitle...)
 
-	// CHANGED 2025-10-02 11:42 - Reverted: always use normal styling since fire is now inside - Problem: Fire is inner content now, not background
+	// Reverted: always use normal styling since fire is now inside
 	innerBorderStyle := lipgloss.NewStyle().
 		Border(m.getInnerBorderStyle()).
 		BorderForeground(innerBorderColor).
@@ -2396,9 +2396,9 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 
 	innerBox := innerBorderStyle.Render(innerContent)
 
-	// CHANGED 2025-10-02 11:49 - Fire at bottom, so no outer border - Problem: Fire is fullscreen at bottom, no room for outer border
-	// CHANGED 2025-10-08 - Also remove outer border for ascii-rain - Problem: Ascii-rain needs fullscreen rendering
-	// CHANGED 2025-10-08 - Also remove outer border for ticker - Problem: Ticker needs fullscreen rendering like fire and rain
+	// Fire at bottom, so no outer border
+	// CHANGED 2025-10-08 - Also remove outer border for ascii-rain
+	// CHANGED 2025-10-08 - Also remove outer border for ticker
 	// Add matrix to backgrounds that remove outer border
 	if m.selectedBackground == "fire" || m.selectedBackground == "ascii-rain" || m.selectedBackground == "matrix" || m.selectedBackground == "ticker" || m.selectedBackground == "fire+rain" {
 		helpText := m.renderMainHelp()
@@ -2415,17 +2415,17 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	// Contains: Inner border + help text at bottom
 
 	// Calculate outer content area
-	// CHANGED 2025-10-06 - Reduced margin to make outer border closer to edges - Problem: Outer border too small, too far from edges
+	// CHANGED 2025-10-06 - Reduced margin to make outer border closer to edges
 	outerWidth := termWidth - 8 // Small margin from terminal edges
 
 	var outerSections []string
 
-	// CHANGED 2025-10-03 16:35 - Removed bubble-greet title text
+	// Removed bubble-greet title text
 	// Title removed per user request
 
 	// Time if enabled
 	if m.config.ShowTime {
-		// CHANGED 2025-10-01 20:25 - Manual centering without lipgloss Align - Problem: lipgloss Align causes bleeding and doesn't center properly
+		// Manual centering without lipgloss Align
 		timeStyle := lipgloss.NewStyle().
 			Foreground(FgSecondary)
 		currentTime := time.Now().Format("15:04:05 Mon Jan 02, 2006")
@@ -2435,7 +2435,7 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 
 	outerSections = append(outerSections, "") // spacing
 
-	// CHANGED 2025-10-06 - Removed Place() - Problem: Place() causes ghosting and duplicate borders
+	// CHANGED 2025-10-06 - Removed Place()
 	// Just append innerBox without centering - View() will handle positioning
 	outerSections = append(outerSections, innerBox)
 
@@ -2444,8 +2444,8 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 
 	// Create outer border container with user-selected style
 	outerBorderColor := m.getOuterBorderColor()
-	// CHANGED 2025-10-01 19:50 - Remove Align to prevent bleeding with Background - Problem: Background+Align causes bleed around centered text
-	// CHANGED 2025-10-01 22:00 - Add BgBase back to both - Problem: Terminal default background shows through differently
+	// Remove Align to prevent bleeding with Background
+	// Add BgBase back to both
 	// CHANGED 2025-10-06 - Calculate both horizontal AND vertical padding to expand outer border to terminal edges
 	innerBoxWidth := lipgloss.Width(innerBox)
 	innerBoxHeight := lipgloss.Height(outerContent)
@@ -2470,7 +2470,7 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 
 	outerBox := outerBorderStyle.Render(outerContent)
 
-	// CHANGED 2025-10-01 19:25 - Move help text BELOW outer border - Problem: Help text was inside border
+	// Move help text BELOW outer border
 	// Help text at bottom, below outer border
 	helpText := m.renderMainHelp()
 	helpStyle := lipgloss.NewStyle().
@@ -2480,11 +2480,11 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	// Join outer box and help text vertically
 	contentWithHelp := lipgloss.JoinVertical(lipgloss.Center, outerBox, "", helpStyle.Render(helpText))
 
-	// CHANGED 2025-10-06 - Return content without Place(), let View() handle centering - Problem: Place() creates uncolored padding causing ghosting
+	// CHANGED 2025-10-06 - Return content without Place(), let View() handle centering
 	return contentWithHelp
 }
 
-// CHANGED 2025-10-02 03:45 - ASCII-1: Just a border style, uses current theme colors
+// ASCII-1: Just a border style, uses current theme colors
 func (m model) renderASCII1BorderLayout(termWidth, termHeight int) string {
 	// Custom ASCII art border using block characters
 	asciiBorder := lipgloss.Border{
@@ -2501,7 +2501,7 @@ func (m model) renderASCII1BorderLayout(termWidth, termHeight int) string {
 	// THE GOODS container style - uses theme colors
 	goodsWidth := 100
 
-	// CHANGED 2025-10-06 - Reduced vertical padding - Problem: Too much vertical space
+	// CHANGED 2025-10-06 - Reduced vertical padding
 	// Use fixed smaller vertical padding instead of calculated
 	goodsStyle := lipgloss.NewStyle().
 		Border(asciiBorder).
@@ -2516,7 +2516,7 @@ func (m model) renderASCII1BorderLayout(termWidth, termHeight int) string {
 	if m.selectedSession != nil {
 		art := m.getSessionASCII() // Use normal colored ASCII, not monochrome
 		if art != "" {
-			// CHANGED 2025-10-03 16:25 - Center ASCII art within border - Problem: ASCII art was left-aligned in ASCII-1 border
+			// Center ASCII art within border
 			// Center the ASCII art within the available width
 			artStyle := lipgloss.NewStyle().
 				Width(goodsWidth - 8).
@@ -2560,7 +2560,7 @@ func (m model) renderASCII1BorderLayout(termWidth, termHeight int) string {
 	passwordRow := lipgloss.JoinHorizontal(lipgloss.Left, passwordLabel, " ", m.passwordInput.View())
 	sections = append(sections, passwordRow)
 
-	// CHANGED 2025-10-05 - Display error message below password field - Problem: BUG #4 - User needs to see auth errors
+	// CHANGED 2025-10-05 - Display error message below password field
 	if m.errorMessage != "" {
 		errorStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FF5555")). // Red color
@@ -2576,7 +2576,7 @@ func (m model) renderASCII1BorderLayout(termWidth, termHeight int) string {
 	borderedGoods := goodsStyle.Render(goodsContent)
 
 	// Help text
-	// CHANGED 2025-10-06 - Removed Width(termWidth) - Problem: Full-width help text stretches border to screen edges
+	// CHANGED 2025-10-06 - Removed Width(termWidth)
 	helpText := "F2=Menu | F3=Sessions | F4=Power | F5=Release Notes | Enter=Login | ESC=Back"
 	helpStyle := lipgloss.NewStyle().
 		Foreground(FgMuted) // Theme muted color
@@ -2589,7 +2589,7 @@ func (m model) renderASCII1BorderLayout(termWidth, termHeight int) string {
 		helpStyle.Render(helpText),
 	)
 
-	// CHANGED 2025-10-06 - Return content without Place(), let View() handle centering - Problem: Place() creates uncolored padding
+	// CHANGED 2025-10-06 - Return content without Place(), let View() handle centering
 	return finalContent
 }
 
@@ -2604,7 +2604,7 @@ func (m model) renderASCIIBorderFallback(termWidth, termHeight int) string {
 	}
 	content += "└" + strings.Repeat("─", 60) + "┘"
 
-	// CHANGED 2025-10-06 - Return content without Place(), let View() handle centering - Problem: Place() creates uncolored padding
+	// CHANGED 2025-10-06 - Return content without Place(), let View() handle centering
 	style := lipgloss.NewStyle().Foreground(monoMedium)
 	return style.Render(content)
 }
@@ -2613,14 +2613,14 @@ func (m model) renderASCIIBorderFallback(termWidth, termHeight int) string {
 func (m model) renderMonochromeForm(width int) string {
 	monoWhite := lipgloss.Color("#ffffff")
 	monoLight := lipgloss.Color("#cccccc")
-	// CHANGED 2025-10-01 23:50 - Use BgBase instead of monoDark to prevent bleeding - Problem: Different background color causes visible bleed
+	// Use BgBase instead of monoDark to prevent bleeding
 	monoDark := BgBase
 
 	var sections []string
 
 	// Session selector with monochrome styling
 	if len(m.sessions) > 0 {
-		// CHANGED 2025-10-01 19:15 - Remove Width() and Align(Center) - Problem: Should be left-aligned like other fields
+		// Remove Width() and Align(Center)
 		sessionStyle := lipgloss.NewStyle().
 			Foreground(monoWhite).
 			Background(monoDark).
@@ -2652,7 +2652,7 @@ func (m model) renderMonochromeForm(width int) string {
 	m.passwordInput.Styles.Focused.Text = lipgloss.NewStyle().Foreground(monoWhite)
 	sections = append(sections, passwordStyle.Render(m.passwordInput.View()))
 
-	// CHANGED 2025-10-05 - Display error message in monochrome style - Problem: BUG #4 - Error display for all themes
+	// CHANGED 2025-10-05 - Display error message in monochrome style
 	if m.errorMessage != "" {
 		errorStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#FF5555")).
@@ -2664,7 +2664,7 @@ func (m model) renderMonochromeForm(width int) string {
 	return strings.Join(sections, "\n")
 }
 
-// CHANGED 2025-10-01 - Monochrome ASCII art for ASCII border style - Problem: ASCII border needs monochrome theme
+// CHANGED 2025-10-01 - Monochrome ASCII art for ASCII border style
 func (m model) getSessionASCIIMonochrome() string {
 	if m.selectedSession == nil {
 		return ""
@@ -2698,7 +2698,7 @@ func (m model) getSessionASCIIMonochrome() string {
 		return sessionName
 	}
 
-	// CHANGED 2025-10-01 14:47 - Always apply monochrome animation - Problem: ASCII not displaying without colors in config
+	// Always apply monochrome animation
 	// Create monochrome palette
 	monoPalette := ColorPalette{
 		Name:   "monochrome",
@@ -2717,7 +2717,7 @@ func (m model) getSessionASCIIMonochrome() string {
 	return asciiConfig.ASCII
 }
 
-// CHANGED 2025-09-30 15:30 - Implement actual border style functionality
+// Implement actual border style functionality
 
 // Get inner border style based on user selection
 func (m model) getInnerBorderStyle() lipgloss.Border {
@@ -2732,7 +2732,7 @@ func (m model) getInnerBorderStyle() lipgloss.Border {
 			Bottom: " ",
 			Left:   " ",
 			Right:  " ",
-		} // CHANGED 2025-10-03 16:20 - Use single space border for truly minimal look - Problem: NormalBorder looked identical to Modern
+		} // Use single space border for truly minimal look
 	case "ascii":
 		return lipgloss.HiddenBorder() // ASCII borders handle their own rendering
 	case "wave":
@@ -2745,9 +2745,9 @@ func (m model) getInnerBorderStyle() lipgloss.Border {
 			TopRight:    "╮",
 			BottomLeft:  "╰",
 			BottomRight: "╯",
-		} // CHANGED 2025-10-03 16:20 - Use wavy characters for wave border - Problem: Looked identical to pulse
+		} // Use wavy characters for wave border
 	case "pulse":
-		return lipgloss.DoubleBorder() // CHANGED 2025-10-03 16:20 - Use double border for pulse - Problem: Looked identical to wave
+		return lipgloss.DoubleBorder() // Use double border for pulse
 	default:
 		return lipgloss.RoundedBorder() // Default
 	}
@@ -2759,15 +2759,15 @@ func (m model) getOuterBorderStyle() lipgloss.Border {
 	case "classic":
 		return lipgloss.DoubleBorder()
 	case "modern":
-		return lipgloss.ThickBorder() // CHANGED 2025-10-03 16:20 - Use thick outer for modern double-border look - Problem: Hidden outer made modern look minimal
+		return lipgloss.ThickBorder() // Use thick outer for modern double-border look
 	case "minimal":
-		return lipgloss.HiddenBorder() // CHANGED 2025-10-03 16:20 - Hide outer for clean minimal look - Problem: Was using empty Border{}
+		return lipgloss.HiddenBorder() // Hide outer for clean minimal look
 	case "ascii":
 		return lipgloss.HiddenBorder() // ASCII style uses only custom border
 	case "wave":
-		return lipgloss.RoundedBorder() // CHANGED 2025-10-03 16:20 - Rounded outer for wave - Problem: DoubleBorder looked identical to pulse
+		return lipgloss.RoundedBorder() // Rounded outer for wave
 	case "pulse":
-		return lipgloss.ThickBorder() // CHANGED 2025-10-03 16:20 - Thick outer for pulse - Problem: DoubleBorder looked identical to wave
+		return lipgloss.ThickBorder() // Thick outer for pulse
 	default:
 		return lipgloss.DoubleBorder() // Default
 	}
@@ -2782,12 +2782,12 @@ func (m model) getInnerBorderColor() color.Color {
 
 	switch m.selectedBorderStyle {
 	case "wave":
-		// CHANGED 2025-10-03 16:20 - Wave cycles through all theme colors smoothly - Problem: Looked identical to pulse
+		// Wave cycles through all theme colors smoothly
 		// Wave animation - smooth color transitions through full palette
 		colors := []color.Color{Primary, Secondary, Accent, Warning}
 		return colors[(m.animationFrame/2)%len(colors)]
 	case "pulse":
-		// CHANGED 2025-10-03 16:20 - Pulse alternates between bright and dim - Problem: Looked identical to wave
+		// Pulse alternates between bright and dim
 		// Pulse animation - brightness oscillation (bright/dim/bright/dim)
 		if m.animationFrame%8 < 4 {
 			return Primary // Bright phase
@@ -2808,12 +2808,12 @@ func (m model) getOuterBorderColor() color.Color {
 
 	switch m.selectedBorderStyle {
 	case "wave":
-		// CHANGED 2025-10-03 16:20 - Complementary wave offset from inner - Problem: Needed distinct outer animation
+		// Complementary wave offset from inner
 		// Complementary wave for outer border (offset from inner)
 		colors := []color.Color{Secondary, Accent, Warning, Primary}
 		return colors[(m.animationFrame/2+2)%len(colors)] // Offset by 2 for complementary effect
 	case "pulse":
-		// CHANGED 2025-10-03 16:20 - Outer stays subtle during pulse - Problem: Needed to complement inner pulse
+		// Outer stays subtle during pulse
 		// Subtle static color for outer border during pulse
 		return FgSecondary // Keep outer border constant while inner pulses
 	default:
@@ -2823,10 +2823,10 @@ func (m model) getOuterBorderColor() color.Color {
 	}
 }
 
-// CHANGED 2025-09-30 15:35 - Implement background animations
+// Implement background animations
 func (m model) applyBackgroundAnimation(content string, width, height int) string {
 	switch m.selectedBackground {
-	case "fire": // CHANGED 2025-10-02 06:05 - Add fire effect rendering - Problem: Fire needs to be rendered as background
+	case "fire": // Add fire effect rendering
 		return m.addFireEffect(content, width, height)
 	case "matrix":
 		return m.addMatrixEffect(content, width, height)
@@ -2839,7 +2839,7 @@ func (m model) applyBackgroundAnimation(content string, width, height int) strin
 	}
 }
 
-// CHANGED 2025-10-02 06:25 - Matrix rain with theme color support - Problem: Hardcoded green doesn't respect themes
+// Matrix rain with theme color support
 func (m model) addMatrixRain(content string, width, height int) string {
 	// Simple matrix rain simulation
 	matrixChars := []rune{'0', '1', '░', '▒', '▓', '█'}
@@ -2869,15 +2869,15 @@ func (m model) addMatrixRain(content string, width, height int) string {
 	return strings.Join(lines, "\n")
 }
 
-// CHANGED 2025-10-02 06:30 - Particle field with theme color support - Problem: Hardcoded Catppuccin colors don't respect themes
+// Particle field with theme color support
 
-// CHANGED 2025-10-02 06:10 - Fire effect background rendering - Problem: Fire needs proper integration with content overlay
+// Fire effect background rendering
 func (m model) addFireEffect(content string, width, height int) string {
 	if m.fireEffect == nil {
 		return content
 	}
 
-	// CHANGED 2025-10-06 - Only resize if dimensions actually changed - Problem: Calling Resize() every frame causes ghosting/flickering
+	// CHANGED 2025-10-06 - Only resize if dimensions actually changed
 	// Store last dimensions to avoid unnecessary reinits
 	if m.lastFireWidth != width || m.lastFireHeight != height {
 		m.fireEffect.Resize(width, height)
@@ -2898,13 +2898,13 @@ func (m model) addFireEffect(content string, width, height int) string {
 	return fireBackground
 }
 
-// CHANGED 2025-10-08 - Rain effect background rendering - Problem: Ascii rain needs proper integration with content overlay
+// CHANGED 2025-10-08 - Rain effect background rendering
 func (m model) addAsciiRain(content string, width, height int) string {
 	if m.rainEffect == nil {
 		return content
 	}
 
-	// CHANGED 2025-10-08 - Only resize if dimensions actually changed - Problem: Calling Resize() every frame causes ghosting/flickering
+	// CHANGED 2025-10-08 - Only resize if dimensions actually changed
 	// Store last dimensions to avoid unnecessary reinits
 	if m.lastRainWidth != width || m.lastRainHeight != height {
 		m.rainEffect.Resize(width, height)
@@ -2931,7 +2931,7 @@ func (m model) addMatrixEffect(content string, width, height int) string {
 		return content
 	}
 
-	// Only resize if dimensions actually changed - Problem: Calling Resize() every frame causes ghosting/flickering
+	// Only resize if dimensions actually changed
 	// Store last dimensions to avoid unnecessary reinits
 	if m.lastMatrixWidth != width || m.lastMatrixHeight != height {
 		m.matrixEffect.Resize(width, height)
@@ -2952,7 +2952,7 @@ func (m model) addMatrixEffect(content string, width, height int) string {
 	return matrixBackground
 }
 func (m model) getBackgroundColor() color.Color {
-	// CHANGED 2025-10-01 21:30 - Always return BgBase to prevent bleeding - Problem: Different colors cause visible bleed
+	// Always return BgBase to prevent bleeding
 	return BgBase
 }
 
@@ -2975,7 +2975,7 @@ func (m model) renderMainForm(width int) string {
 			Width(10).
 			Render("Username:")
 
-		// CHANGED 2025-10-01 22:35 - Remove Foreground, use BgBase only - Problem: Foreground on wrapper causes bleeding
+		// Remove Foreground, use BgBase only
 		inputStyle := lipgloss.NewStyle().
 			Background(BgBase).
 			Padding(0, 1)
@@ -2997,7 +2997,7 @@ func (m model) renderMainForm(width int) string {
 			Width(10).
 			Render("Password:")
 
-		// CHANGED 2025-10-01 22:35 - Remove Foreground, use BgBase only - Problem: Foreground on wrapper causes bleeding
+		// Remove Foreground, use BgBase only
 		inputStyle := lipgloss.NewStyle().
 			Background(BgBase).
 			Padding(0, 1)
@@ -3030,7 +3030,7 @@ func (m model) renderMainForm(width int) string {
 		}
 		parts = append(parts, passwordRow)
 
-		// CHANGED 2025-10-05 - Display error message below password in main form - Problem: BUG #4 - Error display
+		// CHANGED 2025-10-05 - Display error message below password in main form
 		if m.errorMessage != "" {
 			errorStyle := lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#FF5555")).
@@ -3072,7 +3072,7 @@ func (m model) renderSessionSelector(width int) string {
 			borderColor = BorderFocus
 		}
 
-		// CHANGED 2025-10-02 04:42 - Use Inline(true) to prevent border from adding height - Problem: Border causes vertical misalignment
+		// Use Inline(true) to prevent border from adding height
 		sessionStyle := lipgloss.NewStyle().
 			Foreground(FgPrimary).
 			Background(BgBase).
@@ -3113,7 +3113,7 @@ func (m model) renderSessionSelector(width int) string {
 		indicatorStyle,
 	)
 
-	// CHANGED 2025-10-02 12:21 - Minimal spacing, show dropdown when open - Problem: Too much vertical gap
+	// Minimal spacing, show dropdown when open
 	if m.sessionDropdownOpen && len(m.sessions) > 0 {
 		return lipgloss.JoinVertical(lipgloss.Left, sessionRow, m.renderSessionDropdown(width))
 	}
@@ -3149,14 +3149,14 @@ func (m model) renderSessionDropdown(width int) string {
 
 		var sessionStyle lipgloss.Style
 		if i == m.sessionIndex {
-			// CHANGED 2025-10-01 22:35 - Use BgBase only - Problem: Different backgrounds cause bleeding
+			// Use BgBase only
 			sessionStyle = lipgloss.NewStyle().
 				Foreground(Primary).
 				Background(BgBase).
 				Bold(true).
 				Padding(0, 1)
 		} else {
-			// CHANGED 2025-10-01 22:35 - Use BgBase only - Problem: Different backgrounds cause bleeding
+			// Use BgBase only
 			sessionStyle = lipgloss.NewStyle().
 				Foreground(FgSecondary).
 				Background(BgBase).
@@ -3179,9 +3179,9 @@ func (m model) renderSessionDropdown(width int) string {
 	dropdown := lipgloss.JoinVertical(lipgloss.Left, dropdownContent...)
 
 	// Add border to dropdown
-	// CHANGED 2025-10-01 18:00 - Remove Width() to prevent background bleeding - Problem: Background color extending beyond dropdown content
-	// CHANGED 2025-10-01 21:30 - Use BgBase explicitly - Problem: All backgrounds must be identical
-	// CHANGED 2025-10-02 04:00 - Add left margin to align with session text - Problem: Dropdown not aligned with Session: label
+	// Remove Width() to prevent background bleeding
+	// Use BgBase explicitly
+	// Add left margin to align with session text
 	dropdownStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(BorderFocus).
@@ -3207,7 +3207,7 @@ func (m model) renderPowerView(termWidth, termHeight int) string {
 	for i, option := range m.powerOptions {
 		var style lipgloss.Style
 		if i == m.powerIndex {
-			// CHANGED 2025-10-01 22:35 - Use BgBase only - Problem: Different backgrounds cause bleeding
+			// Use BgBase only
 			style = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(Danger).
@@ -3232,7 +3232,7 @@ func (m model) renderPowerView(termWidth, termHeight int) string {
 	innerContent := lipgloss.JoinVertical(lipgloss.Center, content...)
 
 	// Create bordered power menu
-	// CHANGED 2025-10-01 21:30 - Use BgBase explicitly - Problem: All backgrounds must be identical
+	// Use BgBase explicitly
 	powerStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(Danger).
@@ -3241,7 +3241,7 @@ func (m model) renderPowerView(termWidth, termHeight int) string {
 
 	powermenu := powerStyle.Render(innerContent)
 
-	// CHANGED 2025-10-06 - Return power menu without Place(), let View() handle centering - Problem: Place() creates uncolored padding causing ghosting
+	// CHANGED 2025-10-06 - Return power menu without Place(), let View() handle centering
 	return powermenu
 }
 
@@ -3249,7 +3249,7 @@ func (m model) renderPowerView(termWidth, termHeight int) string {
 func (m model) renderMenuView(termWidth, termHeight int) string {
 	var content []string
 
-	// CHANGED 2025-09-30 14:58 - Dynamic menu titles based on mode - Problem: Need different titles for main menu vs submenus
+	// Dynamic menu titles based on mode
 	// Select appropriate title based on current menu mode
 	var title string
 	switch m.mode {
@@ -3260,9 +3260,9 @@ func (m model) renderMenuView(termWidth, termHeight int) string {
 	case ModeBordersSubmenu:
 		title = "///// Borders ////"
 	case ModeBackgroundsSubmenu:
-		title = "/// Backgrounds ///" // CHANGED 2025-10-03 17:15 - Add backgrounds title
+		title = "/// Backgrounds ///" // Add backgrounds title
 	case ModeWallpaperSubmenu:
-		title = "/// Wallpapers ////" // CHANGED 2025-10-03 17:15 - Add wallpapers title
+		title = "/// Wallpapers ////" // Add wallpapers title
 	default:
 		title = "///// Menu //////"
 	}
@@ -3271,7 +3271,7 @@ func (m model) renderMenuView(termWidth, termHeight int) string {
 	content = append(content, "") // Placeholder for title
 	content = append(content, "")
 
-	// CHANGED 2025-10-04 - Add pagination for long menus - Problem: Wallpaper list too long, show max 9 items
+	// CHANGED 2025-10-04 - Add pagination for long menus
 	maxVisibleItems := 9
 	totalItems := len(m.menuOptions)
 
@@ -3304,18 +3304,18 @@ func (m model) renderMenuView(termWidth, termHeight int) string {
 	// Menu options (visible window)
 	for i := startIdx; i < endIdx; i++ {
 		option := m.menuOptions[i]
-		// CHANGED 2025-10-01 15:30 - Widened menu to 32 - Problem: TransIsHardJob wraps at width 24
+		// Widened menu to 32
 		var style lipgloss.Style
 		if i == m.menuIndex {
-			// CHANGED 2025-10-01 22:35 - Use BgBase only - Problem: Different backgrounds cause bleeding
-			// CHANGED 2025-10-06 - Removed Align() - Problem: Align() causes ghosting in fullscreen kitty
+			// Use BgBase only
+			// CHANGED 2025-10-06 - Removed Align()
 			style = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(Accent).
 				Background(BgBase).
 				Padding(0, 2)
 		} else {
-			// CHANGED 2025-10-06 - Removed Align() - Problem: Align() causes ghosting in fullscreen kitty
+			// CHANGED 2025-10-06 - Removed Align()
 			style = lipgloss.NewStyle().
 				Foreground(FgSecondary).
 				Background(BgBase).
@@ -3326,18 +3326,18 @@ func (m model) renderMenuView(termWidth, termHeight int) string {
 
 	// Show scroll indicator at bottom if not at end
 	if totalItems > maxVisibleItems && endIdx < totalItems {
-		// CHANGED 2025-10-06 - Removed Align(Center) - Problem: Align causes ghosting in fullscreen kitty
+		// CHANGED 2025-10-06 - Removed Align(Center)
 		indicatorStyle := lipgloss.NewStyle().Foreground(FgMuted)
 		content = append(content, indicatorStyle.Render("▼ More below ▼"))
 	}
 
 	// Help
 	content = append(content, "")
-	// CHANGED 2025-10-06 - Removed Align(Center) - Problem: Align causes ghosting
+	// CHANGED 2025-10-06 - Removed Align(Center)
 	helpStyle := lipgloss.NewStyle().Foreground(FgMuted)
 	content = append(content, helpStyle.Render("↑↓ Navigate • Enter Select • Esc Close"))
 
-	// CHANGED 2025-10-06 - Calculate title width from widest rendered content line - Problem: Title needs to center within menu width
+	// CHANGED 2025-10-06 - Calculate title width from widest rendered content line
 	maxWidth := 0
 	for i, line := range content {
 		if i == 0 || i == 1 { // Skip placeholder title and empty line
@@ -3357,11 +3357,11 @@ func (m model) renderMenuView(termWidth, termHeight int) string {
 		Align(lipgloss.Center)
 	content[0] = titleStyle.Render(title) // Replace placeholder
 
-	// CHANGED 2025-10-06 - Use Left instead of Center - Problem: Center alignment causes ghosting
+	// CHANGED 2025-10-06 - Use Left instead of Center
 	innerContent := lipgloss.JoinVertical(lipgloss.Left, content...)
 
 	// Create bordered menu with ASCII-style framing
-	// CHANGED 2025-10-01 21:30 - Use BgBase explicitly - Problem: All backgrounds must be identical
+	// Use BgBase explicitly
 	menuStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(Accent).
@@ -3370,14 +3370,14 @@ func (m model) renderMenuView(termWidth, termHeight int) string {
 
 	menu := menuStyle.Render(innerContent)
 
-	// CHANGED 2025-10-06 - Return menu without Place(), let View() handle centering - Problem: Place() creates uncolored padding causing ghosting in fullscreen
+	// CHANGED 2025-10-06 - Return menu without Place(), let View() handle centering
 	return menu
 }
 
-// CHANGED 2025-10-01 14:17 - Added F5 release notes view rendering function
-// CHANGED 2025-10-01 15:15 - Updated with NOTES_POPUP.txt format
+// Added F5 release notes view rendering function
+// Updated with NOTES_POPUP.txt format
 func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
-	// CHANGED 2025-10-03 16:35 - Rewrite to match NOTES popup format - Problem: Needed popup-style rendering like Menu/Power
+	// Rewrite to match NOTES popup format
 
 	// NOTES ASCII header (from NOTES_POPUP.txt template)
 	notesHeader := `
@@ -3406,13 +3406,13 @@ func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
 		"  • Go community",
 	}
 
-	// CHANGED 2025-10-03 16:50 - Define width first, then build content - Problem: Need width for centering individual elements
+	// Define width first, then build content
 	popupWidth := min(100, termWidth-8)
 
 	// Build content
 	var contentLines []string
 
-	// CHANGED 2025-10-03 17:10 - Hardcode ASCII center position, left-align all text - Problem: Lipgloss centering not working, just manually position ASCII
+	// Hardcode ASCII center position, left-align all text
 	// Add header with FIXED manual centering - position ASCII block in center of contentWidth
 	headerLines := strings.Split(notesHeader, "\n")
 
@@ -3457,7 +3457,7 @@ func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
 	// Join all content
 	innerContent := strings.Join(contentLines, "\n")
 
-	// CHANGED 2025-10-03 16:50 - Remove global Align, center individual elements instead - Problem: Global center broke ASCII art
+	// Remove global Align, center individual elements instead
 	// Create bordered box (matching Menu/Power popup style)
 
 	notesStyle := lipgloss.NewStyle().
@@ -3469,15 +3469,15 @@ func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
 
 	notesBox := notesStyle.Render(innerContent)
 
-	// CHANGED 2025-10-06 - Return notes without Place(), let View() handle centering - Problem: Place() creates uncolored padding causing ghosting
+	// CHANGED 2025-10-06 - Return notes without Place(), let View() handle centering
 	return notesBox
 }
 
 func (m model) renderMainHelp() string {
 	switch m.mode {
 	case ModeLogin, ModePassword:
-		// CHANGED 2025-10-03 17:15 - Reorder function keys to F1-F4 logical sequence
-		// CHANGED 2025-10-07 19:20 - Add Page Up/Down navigation for ASCII variants
+		// Reorder function keys to F1-F4 logical sequence
+		// Add Page Up/Down navigation for ASCII variants
 		if m.sessionDropdownOpen {
 			return "↑↓ Navigate • ⇞⇟ ASCII • Enter Select • Esc Close • Tab Focus • F1 Menu • F2 Sessions • F3 Notes • F4 Power"
 		}
@@ -3510,13 +3510,13 @@ func (m model) getFocusColor(target FocusState) color.Color {
 }
 
 func (m model) getSessionArt(sessionName string) string {
-	// CHANGED 2025-09-30 15:20 - Use pre-made ASCII from config files
+	// Use pre-made ASCII from config files
 	return m.getSessionASCII()
 }
 
 func (m model) authenticate(username, password string) tea.Cmd {
 	return func() tea.Msg {
-		// CHANGED 2025-10-05 - Add nil check for IPC client - Problem: Nil pointer defense-in-depth
+		// CHANGED 2025-10-05 - Add nil check for IPC client
 		if m.ipcClient == nil {
 			return fmt.Errorf("IPC client not initialized - greeter must be run by greetd")
 		}
@@ -3550,7 +3550,7 @@ func (m model) authenticate(username, password string) tea.Cmd {
 				return err
 			}
 
-			// CHANGED 2025-10-05 - Handle Error response (wrong password) - Problem: Wrong password returns Error, not Success
+			// CHANGED 2025-10-05 - Handle Error response (wrong password)
 			if errResp, ok := resp.(ipc.Error); ok {
 				return fmt.Errorf("authentication failed: %s - %s", errResp.ErrorType, errResp.Description)
 			}
@@ -3582,13 +3582,13 @@ func min(a, b int) int {
 	return b
 }
 
-// CHANGED 2025-10-02 11:10 - Add ANSI stripping for compositing - Problem: Need to check visible chars in UI lines
+// Add ANSI stripping for compositing
 // REFACTORED 2025-10-02 - Moved to internal/ui/utils.go
 func stripAnsi(s string) string {
 	return ui.StripAnsi(s)
 }
 
-// CHANGED 2025-10-02 11:13 - Character-by-character line merging - Problem: Need to overlay UI on fire per-character
+// Character-by-character line merging
 // Extract characters with their ANSI codes attached
 func extractCharsWithAnsi(line string) []string {
 	var chars []string
@@ -3634,7 +3634,7 @@ func main() {
 	// Define command-line flags with config file values as defaults
 	config := fileConfig
 
-	var screensaverTestMode bool // CHANGED 2025-10-11 - Add screensaver test mode flag - Problem: Need quick way to test screensaver
+	var screensaverTestMode bool // CHANGED 2025-10-11 - Add screensaver test mode flag
 
 	flag.BoolVar(&config.TestMode, "test", false, "Enable test mode (no actual authentication)")
 	flag.BoolVar(&config.Debug, "debug", false, "Enable debug output")
@@ -3668,7 +3668,7 @@ func main() {
 
 	flag.Parse()
 
-	// CHANGED 2025-10-06 - Initialize debug logging - Problem: Need persistent logs
+	// CHANGED 2025-10-06 - Initialize debug logging
 	initDebugLog()
 	logDebug("=== sysc-greet started ===")
 	logDebug("Version: sysc-greet greeter")
@@ -3710,17 +3710,17 @@ func main() {
 	}
 }
 
-// CHANGED 2025-10-02 03:50 - ASCII-2: Fancy template-based border
+// ASCII-2: Fancy template-based border
 func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
-	// CHANGED 2025-10-03 16:00 - Complete rewrite to match ASCII_TEMPLATE.png reference - Problem: Wrong spacing, gradients directly adjacent to content
+	// Complete rewrite to match ASCII_TEMPLATE.png reference
 	// Fancy gradient border matching the reference template with proper wide spacing
 
-	// CHANGED 2025-10-07 19:30 - Calculate border dynamically based on ASCII art width - Problem: Fixed width causes line shifting
+	// Calculate border dynamically based on ASCII art width
 	// Build content section FIRST to determine required width
 	var contentLines []string
 
-	// CHANGED 2025-10-03 15:45 - Split ASCII art into lines to prevent border corruption - Problem: Multi-line ASCII art treated as single line causing warping
-	// CHANGED 2025-10-09 20:25 - Enforce mandatory 2-line gap between ASCII and input fields - Problem: Smaller ASCII positioned too high
+	// Split ASCII art into lines to prevent border corruption
+	// Enforce mandatory 2-line gap between ASCII and input fields
 	// WM/Session ASCII art
 	if m.selectedSession != nil {
 		art := m.getSessionASCII()
@@ -3758,7 +3758,7 @@ func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
 	passwordRow := lipgloss.JoinHorizontal(lipgloss.Left, passwordLabel, " ", m.passwordInput.View())
 	contentLines = append(contentLines, passwordRow)
 
-	// CHANGED 2025-10-07 19:30 - Calculate border width based on actual content - Problem: Dynamic sizing to fit ASCII art
+	// Calculate border width based on actual content
 	// Find maximum content width
 	maxContentWidth := 0
 	for _, line := range contentLines {
@@ -3781,7 +3781,7 @@ func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
 	// Now render borders and content
 	var lines []string
 
-	// CHANGED 2025-10-03 16:00 - Recreate top border matching template corners
+	// Recreate top border matching template corners
 	// Top decorations - stepped corner fade matching template
 	// Line 1: Top edge with corner blocks
 	topLine1 := "▄▄▄▄" + strings.Repeat("█", borderWidth-8) + "▄▄▄▄"
@@ -3795,7 +3795,7 @@ func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
 	topLine3 := "█▀" + strings.Repeat(" ", borderWidth-4) + "▀█"
 	lines = append(lines, lipgloss.NewStyle().Foreground(Primary).Render(topLine3))
 
-	// CHANGED 2025-10-03 16:15 - Broken border design - gradient only at top, clean middle, gradient at bottom - Problem: Template shows NO side borders in content area
+	// Broken border design - gradient only at top, clean middle, gradient at bottom
 	// Top gradient fade: ▓ → ▒ → ░ (only 2 lines for shorter height)
 	gradientChars := []string{"▓", "▒"}
 	gradientColors := []color.Color{Secondary, Accent}
@@ -3805,7 +3805,7 @@ func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
 		lines = append(lines, lipgloss.NewStyle().Foreground(gradientColors[i]).Render(gradLine))
 	}
 
-	// CHANGED 2025-10-03 16:15 - Clean content area with NO side borders - Problem: Side borders interfere with ASCII art
+	// Clean content area with NO side borders
 	// Main content area - NO side borders, just centered content with empty space
 	for _, contentLine := range contentLines {
 		visibleWidth := lipgloss.Width(contentLine)
@@ -3830,7 +3830,7 @@ func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
 		lines = append(lines, lipgloss.NewStyle().Foreground(gradientColors[i]).Render(gradLine))
 	}
 
-	// CHANGED 2025-10-03 16:00 - Bottom decorations matching template
+	// Bottom decorations matching template
 	// Bottom corner fade (mirroring top)
 	bottomLine3 := "█▄" + strings.Repeat(" ", borderWidth-4) + "▄█"
 	lines = append(lines, lipgloss.NewStyle().Foreground(Primary).Render(bottomLine3))
@@ -3841,12 +3841,12 @@ func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
 	bottomLine1 := "▀▀▀▀" + strings.Repeat("█", borderWidth-8) + "▀▀▀▀"
 	lines = append(lines, lipgloss.NewStyle().Foreground(Primary).Render(bottomLine1))
 
-	// CHANGED 2025-10-03 15:45 - Add help text below border - Problem: Missing F2/F3/F4/F5 key bindings help
+	// Add help text below border
 	// Build bordered content
 	borderedContent := strings.Join(lines, "\n")
 
 	// Add help text below border
-	// CHANGED 2025-10-06 - Removed Width(termWidth) - Problem: Full-width help text stretches border to screen edges
+	// CHANGED 2025-10-06 - Removed Width(termWidth)
 	helpText := m.renderMainHelp()
 	helpStyle := lipgloss.NewStyle().
 		Foreground(FgMuted)
@@ -3854,6 +3854,6 @@ func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
 	// Join border and help text vertically
 	contentWithHelp := lipgloss.JoinVertical(lipgloss.Center, borderedContent, "", helpStyle.Render(helpText))
 
-	// CHANGED 2025-10-06 - Return content without Place(), let View() handle centering - Problem: Place() creates uncolored padding
+	// CHANGED 2025-10-06 - Return content without Place(), let View() handle centering
 	return contentWithHelp
 }

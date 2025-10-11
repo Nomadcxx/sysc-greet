@@ -1,6 +1,6 @@
 package greetd
 
-// CHANGED 2025-10-02 02:45 - Created greetd IPC protocol implementation in Go
+// Created greetd IPC protocol implementation in Go
 // Based on greetd-ipc protocol specification and tuigreet Rust implementation
 
 import (
