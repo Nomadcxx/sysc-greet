@@ -968,6 +968,13 @@ input {
     }
 }
 
+// CHANGED 2025-10-10 - Add themed backdrop color for non-primary monitors - Problem: Grey screens on secondary displays jarring
+// Default backdrop color (Dracula theme background) - applies to all outputs
+// This prevents jarring grey screens on non-primary monitors
+prefer-no-csd
+
+default-background-color "#282a36"
+
 // Outputs will be auto-detected by niri at runtime
 layout {
     gaps 0
