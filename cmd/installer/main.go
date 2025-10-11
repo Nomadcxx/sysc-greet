@@ -305,6 +305,10 @@ func (m model) checkDependencies() tea.Cmd {
 		_, err = exec.LookPath("niri")
 		niriInstalled := (err == nil)
 
+		// CHANGED 2025-10-10 - Check for swww wallpaper daemon - Problem: Need swww for themed wallpapers
+		_, err = exec.LookPath("swww")
+		swwwInstalled := (err == nil)
+
 		// CHANGED 2025-10-02 00:30 - Expanded distro support - Problem: More distros needed
 		packageManagers := map[string][]string{
 			"pacman":       {"/usr/bin/pacman", "/usr/sbin/pacman", "/bin/pacman", "/sbin/pacman"},
@@ -356,6 +360,12 @@ func (m model) checkDependencies() tea.Cmd {
 			msg += ", niri ✓"
 		} else {
 			msg += ", niri ✗ (install: pacman -S niri)"
+		}
+		// CHANGED 2025-10-10 - Show swww status - Problem: Need swww for themed wallpapers
+		if swwwInstalled {
+			msg += ", swww ✓"
+		} else {
+			msg += ", swww ✗ (install: pacman -S swww)"
 		}
 		if packageManager != "" {
 			msg += fmt.Sprintf(", package manager: %s", packageManager)
@@ -677,7 +687,31 @@ func (m model) installConfigs() tea.Cmd {
 			}
 		}
 
-		return stepCompleteMsg{true, fmt.Sprintf("Installed configs, fonts, assets, and greetd scripts to %s", m.configPath)}
+		// CHANGED 2025-10-10 - Generate and install theme wallpapers - Problem: Need themed backgrounds for multi-monitor
+		// Create wallpapers directory
+		cmd = exec.Command("mkdir", "-p", m.configPath+"/wallpapers")
+		if err := cmd.Run(); err != nil {
+			return stepCompleteMsg{false, fmt.Sprintf("Failed to create wallpapers dir: %v", err)}
+		}
+
+		// Generate wallpapers using the script
+		if _, err := os.Stat("scripts/generate-theme-wallpapers.sh"); err == nil {
+			cmd = exec.Command("bash", "scripts/generate-theme-wallpapers.sh")
+			if err := cmd.Run(); err != nil {
+				// Non-critical - continue even if generation fails
+				fmt.Printf("Warning: wallpaper generation failed: %v\n", err)
+			}
+
+			// Copy generated wallpapers if they exist
+			if _, err := os.Stat("wallpapers"); err == nil {
+				cmd = exec.Command("cp", "-r", "wallpapers/", m.configPath+"/")
+				if err := cmd.Run(); err != nil {
+					return stepCompleteMsg{false, fmt.Sprintf("Failed to copy wallpapers: %v", err)}
+				}
+			}
+		}
+
+		return stepCompleteMsg{true, fmt.Sprintf("Installed configs, fonts, assets, wallpapers, and greetd scripts to %s", m.configPath)}
 	}
 }
 
@@ -968,12 +1002,12 @@ input {
     }
 }
 
-// CHANGED 2025-10-10 - Add themed backdrop color for non-primary monitors - Problem: Grey screens on secondary displays jarring
-// Default backdrop color (Dracula theme background) - applies to all outputs
-// This prevents jarring grey screens on non-primary monitors
-prefer-no-csd
-
-default-background-color "#282a36"
+// CHANGED 2025-10-10 - Use swww for theme-aware wallpapers - Problem: Need themed backgrounds matching greeter theme
+// Layer rule for swww wallpaper daemon
+layer-rule {
+    match namespace="^wallpaper$"
+    place-within-backdrop true
+}
 
 // Outputs will be auto-detected by niri at runtime
 layout {
@@ -998,6 +1032,9 @@ window-rule {
     match app-id="kitty"
     opacity 0.90
 }
+
+// CHANGED 2025-10-10 - Start swww-daemon for wallpaper management - Problem: Need themed wallpapers on all monitors
+spawn-at-startup "swww-daemon"
 
 // CHANGED 2025-10-10 - Use spawn-sh-at-startup like ReGreet - Problem: spawn-at-startup doesn't block, causing race on slow hardware
 spawn-sh-at-startup "kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"

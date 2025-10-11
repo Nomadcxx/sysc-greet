@@ -9,6 +9,7 @@ import (
 	"log"
 	"math"
 	"os"
+	"os/exec"
 	"regexp"
 	"strconv"
 	"strings"
@@ -290,6 +291,56 @@ func applyTheme(themeName string) {
 
 	// Update border colors based on new primary
 	BorderFocus = Primary
+
+	// CHANGED 2025-10-10 - Set theme-aware wallpaper via swww - Problem: Multi-monitor needs themed backgrounds
+	setThemeWallpaper(themeName)
+}
+
+// CHANGED 2025-10-10 - Set wallpaper for current theme using swww - Problem: Need themed backgrounds on all monitors
+func setThemeWallpaper(themeName string) {
+	// Only set wallpaper in production mode (not test mode)
+	if debugLog != nil {
+		logDebug("Attempting to set wallpaper for theme: %s", themeName)
+	}
+
+	// Check if swww is available
+	if _, err := exec.LookPath("swww"); err != nil {
+		// swww not installed, skip silently
+		return
+	}
+
+	// Normalize theme name for filename
+	themeFile := strings.ToLower(strings.ReplaceAll(themeName, " ", "-"))
+	wallpaperPath := fmt.Sprintf("/usr/share/sysc-greet/wallpapers/sysc-greet-%s.png", themeFile)
+
+	// Check if wallpaper exists
+	if _, err := os.Stat(wallpaperPath); err != nil {
+		if debugLog != nil {
+			logDebug("Wallpaper not found: %s", wallpaperPath)
+		}
+		return
+	}
+
+	// Set wallpaper on all outputs using swww
+	// Use goroutine to avoid blocking the UI
+	go func() {
+		// First ensure swww-daemon is running
+		daemonCmd := exec.Command("swww-daemon")
+		_ = daemonCmd.Start() // Ignore error - daemon may already be running
+
+		// Give daemon a moment to start if it wasn't running
+		time.Sleep(100 * time.Millisecond)
+
+		// Set wallpaper on all monitors
+		cmd := exec.Command("swww", "img", wallpaperPath, "--transition-type", "fade", "--transition-duration", "0.5")
+		if err := cmd.Run(); err != nil {
+			if debugLog != nil {
+				logDebug("Failed to set wallpaper: %v", err)
+			}
+		} else if debugLog != nil {
+			logDebug("Successfully set wallpaper: %s", wallpaperPath)
+		}
+	}()
 }
 
 // REFACTORED 2025-10-02 - Moved to internal/ui/utils.go
