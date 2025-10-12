@@ -1,7 +1,6 @@
 # sysc-greet
 
 A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd), written in Go.
-![Preview](https://github.com/Nomadcxx/sysc-greet/raw/master/assets/showcase.gif)
 
 ![Preview](https://github.com/Nomadcxx/sysc-greet/raw/master/assets/showcase.gif)
 
