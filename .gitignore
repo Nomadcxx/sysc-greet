@@ -35,3 +35,4 @@ Thumbs.db
 *.swp
 *~
 .nfo
+cmd/sysc-greet/sysc-greet
