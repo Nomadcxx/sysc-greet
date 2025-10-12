@@ -22,12 +22,6 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.
 
 ### Manual Install
 
-**Prerequisites:**
-- Go 1.21+
-- systemd
-- Terminal emulator (kitty recommended for best experience)
-- niri compositor (recommended) or other Wayland compositor
-
 **Clone and run installer:**
 
 ```bash
