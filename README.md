@@ -13,34 +13,60 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 
 ## Installation
 
-### Prerequisites
+### Quick Install (One-Line)
 
+```bash
+curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo bash
+```
+
+Or using wget:
+
+```bash
+wget -qO- https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo bash
+```
+
+### Manual Install
+
+**Prerequisites:**
 - Go 1.21+
-- greetd
-- Terminal emulator (kitty recommended)
+- systemd
+- Terminal emulator (kitty recommended for best experience)
+- niri compositor (recommended) or other Wayland compositor
 
-### Build and Install
+**Clone and run installer:**
 
 ```bash
 git clone https://github.com/Nomadcxx/sysc-greet
 cd sysc-greet
-./install.sh
+go build -o install-sysc-greet ./cmd/installer/
+sudo ./install-sysc-greet
 ```
 
-The installer builds the greeter, installs it to `/usr/local/bin/sysc-greet`, and copies required assets to `/usr/share/sysc-greet/`.
+**What the installer does:**
+- Checks dependencies (Go, systemd, package manager)
+- Installs greetd and gslapper (optional, for video wallpapers)
+- Builds sysc-greet binary
+- Installs to `/usr/local/bin/sysc-greet`
+- Copies configs to `/usr/share/sysc-greet/`
+- Configures greetd with niri compositor
+- Enables greetd.service
 
-### Configure greetd
+After installation, reboot to see sysc-greet as your login screen.
 
-Edit `/etc/greetd/config.toml`:
+### Configuration
+
+The installer automatically configures greetd at `/etc/greetd/config.toml`:
 
 ```toml
 [terminal]
 vt = 1
 
 [default_session]
-command = "kitty --class=greeter -e sysc-greet"
+command = "niri -c /etc/greetd/niri-greeter-config.kdl"
 user = "greeter"
 ```
+
+Manual configuration not required unless using a different compositor.
 
 ## Usage
 
