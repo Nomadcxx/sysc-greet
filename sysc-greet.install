@@ -1,0 +1,35 @@
+post_install() {
+    echo "==> Creating greeter user..."
+    if ! id greeter &>/dev/null; then
+        useradd -M -G video -s /usr/bin/nologin greeter
+    fi
+
+    echo "==> Setting permissions..."
+    chown -R greeter:greeter /var/cache/sysc-greet
+    chown -R greeter:greeter /var/lib/greeter
+    chmod 755 /var/lib/greeter
+
+    echo ""
+    echo "==> sysc-greet installed successfully!"
+    echo ""
+    echo "To enable sysc-greet as your greeter:"
+    echo "  1. Edit /etc/greetd/config.toml:"
+    echo "     [default_session]"
+    echo "     command = \"niri -c /etc/greetd/niri-greeter-config.kdl\""
+    echo "     user = \"greeter\""
+    echo ""
+    echo "  2. Enable greetd service:"
+    echo "     systemctl enable greetd.service"
+    echo ""
+    echo "  3. Reboot to see sysc-greet"
+    echo ""
+}
+
+post_upgrade() {
+    post_install
+}
+
+pre_remove() {
+    echo "==> Disabling greetd service..."
+    systemctl disable greetd.service 2>/dev/null || true
+}
