@@ -792,9 +792,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, textinput.Blink
 
 	case tea.KeyMsg:
+		// CHANGED 2025-10-12 - Handle screensaver exit on any key press
+		if m.mode == ModeScreensaver {
+			return handleScreensaverInput(m, msg)
+		}
 		newModel, cmd := m.handleKeyInput(msg)
 		m = newModel
 		cmds = append(cmds, cmd)
+
+	case tea.MouseMsg:
+		// CHANGED 2025-10-12 - Exit screensaver and reset idle timer on mouse movement
+		if m.mode == ModeScreensaver {
+			m.mode = ModeLogin
+			m.idleTimer = time.Now()
+			return m, nil
+		}
+		// Reset idle timer on any mouse input in normal modes
+		m.idleTimer = time.Now()
 	}
 
 	// Update components based on current mode and focus
@@ -825,6 +839,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
+	// CHANGED 2025-10-12 - Reset idle timer on any key press to prevent screensaver activation
+	m.idleTimer = time.Now()
+
 	// Updated for tea.KeyMsg v2 API
 	if m.config.Debug {
 		keyStr := msg.String()
