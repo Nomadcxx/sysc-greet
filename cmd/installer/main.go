@@ -6,105 +6,109 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Theme colors - Dracula
+// Theme colors - Monochrome (ASCII style)
 var (
-	BgBase      = lipgloss.Color("#282a36")
-	BgElevated  = lipgloss.Color("#383a59")
-	BgSubtle    = lipgloss.Color("#44475a")
-	Primary     = lipgloss.Color("#bd93f9")
-	Secondary   = lipgloss.Color("#8be9fd")
-	Accent      = lipgloss.Color("#50fa7b")
-	FgPrimary   = lipgloss.Color("#f8f8f2")
-	FgSecondary = lipgloss.Color("#f1f2f6")
-	FgMuted     = lipgloss.Color("#6272a4")
-	ErrorColor  = lipgloss.Color("#ff5555")
-	WarningColor = lipgloss.Color("#f1fa8c")
+	BgBase       = lipgloss.Color("#1a1a1a")
+	BgElevated   = lipgloss.Color("#2a2a2a")
+	Primary      = lipgloss.Color("#ffffff")
+	Secondary    = lipgloss.Color("#cccccc")
+	Accent       = lipgloss.Color("#ffffff")
+	FgPrimary    = lipgloss.Color("#ffffff")
+	FgSecondary  = lipgloss.Color("#cccccc")
+	FgMuted      = lipgloss.Color("#666666")
+	ErrorColor   = lipgloss.Color("#ffffff")
+	WarningColor = lipgloss.Color("#888888")
+)
+
+// Styles
+var (
+	checkMark  = lipgloss.NewStyle().Foreground(Accent).SetString("[OK]")
+	failMark   = lipgloss.NewStyle().Foreground(ErrorColor).SetString("[FAIL]")
+	skipMark   = lipgloss.NewStyle().Foreground(WarningColor).SetString("[SKIP]")
+	headerStyle = lipgloss.NewStyle().Foreground(Primary).Bold(true)
 )
 
 type installStep int
 
 const (
 	stepWelcome installStep = iota
-	stepCheckPrivileges
-	stepSelectInstallType
-	stepCheckDependencies
-	stepInstallGreetd
-	stepInstallGslapper // CHANGED 2025-10-03 - Add gslapper installation step
-	stepBuildBinary
-	stepInstallBinary
-	stepInstallConfigs
-	stepSetupCache
-	stepConfigureGreetd
-	stepEnableService
+	stepInstalling
 	stepComplete
 )
 
-type installType int
+type taskStatus int
 
 const (
-	installFull installType = iota // greetd + sysc-greet
-	installGreeterOnly              // sysc-greet only (greetd already installed)
-	installConfigOnly               // Just configs (binary already installed)
+	statusPending taskStatus = iota
+	statusRunning
+	statusComplete
+	statusFailed
+	statusSkipped
 )
 
+type installTask struct {
+	name        string
+	description string
+	execute     func(*model) error
+	optional    bool
+	status      taskStatus
+}
+
 type model struct {
-	step              installStep
-	installType       installType
-	width             int
-	height            int
-	messages          []string
-	errors            []string
-	currentAction     string
-	hasRoot           bool
-	greetdInstalled   bool
-	tuigreetInstalled bool
-	needsGreetd       bool
-	packageManager    string
-	binaryBuilt       bool
-	installPath       string
-	configPath        string
-	selectedOption    int
-	options           []string
-	greetdFromSource  bool     // Track if greetd needs source build
-	liveOutput        []string // Store live command output lines
-	currentCommand    string   // Current command being run
+	step             installStep
+	tasks            []installTask
+	currentTaskIndex int
+	width            int
+	height           int
+	spinner          spinner.Model
+	errors           []string
+	packageManager   string
+	greetdInstalled  bool
+	needsGreetd      bool
 }
 
-type stepCompleteMsg struct {
+type taskCompleteMsg struct {
+	index   int
 	success bool
-	message string
+	error   string
 }
 
-type dependencyCheckMsg struct {
-	success           bool
-	message           string
-	packageManager    string
-	greetdInstalled   bool
-	tuigreetInstalled bool
-	needsGreetd       bool
-}
+func newModel() model {
+	s := spinner.New()
+	s.Style = lipgloss.NewStyle().Foreground(Secondary)
+	s.Spinner = spinner.Dot
 
-type commandOutputMsg struct {
-	line string
-}
+	tasks := []installTask{
+		{name: "Check privileges", description: "Checking root access", execute: checkPrivileges, status: statusPending},
+		{name: "Check dependencies", description: "Checking system dependencies", execute: checkDependencies, status: statusPending},
+		{name: "Install greetd", description: "Installing greetd daemon", execute: installGreetd, optional: true, status: statusPending},
+		{name: "Install gslapper", description: "Installing video wallpaper support", execute: installGslapper, optional: true, status: statusPending},
+		{name: "Build binary", description: "Building sysc-greet", execute: buildBinary, status: statusPending},
+		{name: "Install binary", description: "Installing to system", execute: installBinary, status: statusPending},
+		{name: "Install configs", description: "Installing configurations", execute: installConfigs, status: statusPending},
+		{name: "Setup cache", description: "Setting up cache and permissions", execute: setupCache, status: statusPending},
+		{name: "Configure greetd", description: "Configuring greetd daemon", execute: configureGreetd, status: statusPending},
+		{name: "Enable service", description: "Enabling greetd service", execute: enableService, status: statusPending},
+	}
 
-func initialModel() model {
 	return model{
-		step:        stepWelcome,
-		installPath: "/usr/local/bin/sysc-greet",
-		configPath:  "/usr/share/sysc-greet",
-		messages:    []string{},
-		errors:      []string{},
+		step:             stepWelcome,
+		tasks:            tasks,
+		currentTaskIndex: -1,
+		spinner:          s,
+		errors:           []string{},
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	return m.spinner.Tick
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -121,712 +125,583 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 		case "enter":
-			return m.handleEnter()
-		case "up", "k":
-			if m.selectedOption > 0 {
-				m.selectedOption--
-			}
-		case "down", "j":
-			if m.selectedOption < len(m.options)-1 {
-				m.selectedOption++
-			}
-		case "r", "R":
-			// Quick retry on error
-			if len(m.options) > 0 && m.options[0] == "Retry" {
-				return m.proceedWithStep()
-			}
-		case "s", "S":
-			// Quick skip on error
-			if len(m.options) > 0 {
-				return m.advanceStep()
-			}
-		case "y", "Y":
-			if m.step == stepCheckPrivileges {
-				return m.proceedWithStep()
-			}
-		case "n", "N":
-			if m.step == stepCheckPrivileges {
+			if m.step == stepWelcome {
+				// Start installation
+				m.step = stepInstalling
+				m.currentTaskIndex = 0
+				m.tasks[0].status = statusRunning
+				return m, tea.Batch(
+					m.spinner.Tick,
+					executeTask(0, &m),
+				)
+			} else if m.step == stepComplete {
 				return m, tea.Quit
 			}
 		}
 
-	case commandOutputMsg:
-		// Handle streaming command output
-		m.liveOutput = append(m.liveOutput, msg.line)
-		// Keep only last 10 lines
-		if len(m.liveOutput) > 10 {
-			m.liveOutput = m.liveOutput[len(m.liveOutput)-10:]
-		}
-		return m, nil
-
-	case dependencyCheckMsg:
-		// Handle dependency check with state updates
-		m.packageManager = msg.packageManager
-		m.greetdInstalled = msg.greetdInstalled
-		m.tuigreetInstalled = msg.tuigreetInstalled
-		m.needsGreetd = msg.needsGreetd
+	case taskCompleteMsg:
+		// Update task status
 		if msg.success {
-			m.messages = append(m.messages, "✓ "+msg.message)
-			return m.advanceStep()
+			m.tasks[msg.index].status = statusComplete
 		} else {
-			m.errors = append(m.errors, "✗ "+msg.message)
-		}
-		return m, nil
-
-	case stepCompleteMsg:
-		if msg.success {
-			m.messages = append(m.messages, "✓ "+msg.message)
-			return m.advanceStep()
-		} else {
-			m.errors = append(m.errors, "✗ "+msg.message)
-			// Offer source build for greetd failures
-			if m.step == stepInstallGreetd && !m.greetdFromSource && strings.Contains(msg.message, "not available") {
-				m.options = []string{"Build from source", "Skip", "Abort"}
-				m.selectedOption = 0
+			if m.tasks[msg.index].optional {
+				m.tasks[msg.index].status = statusSkipped
+				m.errors = append(m.errors, fmt.Sprintf("%s (skipped): %s", m.tasks[msg.index].name, msg.error))
 			} else {
-				m.options = []string{"Retry", "Skip", "Abort"}
-				m.selectedOption = 0
+				m.tasks[msg.index].status = statusFailed
+				m.errors = append(m.errors, fmt.Sprintf("%s: %s", m.tasks[msg.index].name, msg.error))
+				m.step = stepComplete
+				return m, nil
 			}
 		}
+
+		// Move to next task
+		m.currentTaskIndex++
+		if m.currentTaskIndex >= len(m.tasks) {
+			m.step = stepComplete
+			return m, nil
+		}
+
+		// Start next task
+		m.tasks[m.currentTaskIndex].status = statusRunning
+		return m, executeTask(m.currentTaskIndex, &m)
+
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
 	}
 
 	return m, nil
 }
 
-func (m model) handleEnter() (tea.Model, tea.Cmd) {
+func (m model) View() string {
+	if m.width == 0 {
+		return "Loading..."
+	}
+
+	var content strings.Builder
+
+	// ASCII Header
+	headerLines := []string{
+		"  █████████  █████ █████  █████████    █████████ ",
+		" ███░░░░░███░░███ ░░███  ███░░░░░███  ███░░░░░███",
+		"░███    ░░░  ░░███ ███  ░███    ░░░  ███     ░░░ ",
+		"░░█████████   ░░█████   ░░█████████ ░███         ",
+		" ░░░░░░░░███   ░░███     ░░░░░░░░███░███         ",
+		" ███    ░███    ░███     ███    ░███░░███     ███",
+		"░░█████████     █████   ░░█████████  ░░█████████ ",
+		" ░░░░░░░░░     ░░░░░     ░░░░░░░░░    ░░░░░░░░░  ",
+		"//////////////SEE YOU IN SPACE COWBOY//////////  ",
+	}
+
+	for _, line := range headerLines {
+		content.WriteString(headerStyle.Render(line))
+		content.WriteString("\n")
+	}
+	content.WriteString("\n")
+
+	// Title
+	titleStyle := lipgloss.NewStyle().
+		Foreground(Accent).
+		Bold(true).
+		Align(lipgloss.Center)
+	content.WriteString(titleStyle.Render("sysc-greet installer"))
+	content.WriteString("\n\n")
+
+	// Main content based on step
+	var mainContent string
 	switch m.step {
 	case stepWelcome:
-		m.step = stepCheckPrivileges
-		return m, m.checkPrivileges()
-	case stepSelectInstallType:
-		m.installType = installType(m.selectedOption)
-		return m.advanceStep()
-	default:
-		// Handle error menu options
-		if len(m.options) > 0 {
-			switch m.options[m.selectedOption] {
-			case "Retry":
-				m.options = []string{}
-				return m.proceedWithStep()
-			case "Build from source":
-				m.greetdFromSource = true
-				m.options = []string{}
-				return m.proceedWithStep()
-			case "Skip":
-				m.options = []string{}
-				return m.advanceStep()
-			case "Abort":
-				return m, tea.Quit
-			}
-		}
-		return m.proceedWithStep()
+		mainContent = m.renderWelcome()
+	case stepInstalling:
+		mainContent = m.renderInstalling()
+	case stepComplete:
+		mainContent = m.renderComplete()
 	}
+
+	// Wrap in border
+	mainStyle := lipgloss.NewStyle().
+		Padding(1, 2).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(Primary).
+		Width(m.width - 4)
+	content.WriteString(mainStyle.Render(mainContent))
+	content.WriteString("\n")
+
+	// Help text
+	helpText := m.getHelpText()
+	if helpText != "" {
+		helpStyle := lipgloss.NewStyle().
+			Foreground(FgMuted).
+			Italic(true).
+			Align(lipgloss.Center)
+		content.WriteString("\n" + helpStyle.Render(helpText))
+	}
+
+	// Wrap everything in background with centering
+	bgStyle := lipgloss.NewStyle().
+		Background(BgBase).
+		Foreground(FgPrimary).
+		Width(m.width).
+		Height(m.height).
+		Align(lipgloss.Center, lipgloss.Top)
+
+	return bgStyle.Render(content.String())
 }
 
-func (m model) proceedWithStep() (tea.Model, tea.Cmd) {
+func (m model) renderWelcome() string {
+	return `sysc-greet installer
+
+Builds binary, installs to system, configures greetd.
+Requires root.
+
+Press Enter to continue`
+}
+
+func (m model) renderInstalling() string {
+	var b strings.Builder
+
+	// Render all tasks with their current status
+	for i, task := range m.tasks {
+		var line string
+		switch task.status {
+		case statusPending:
+			line = lipgloss.NewStyle().Foreground(FgMuted).Render("  " + task.name)
+		case statusRunning:
+			line = m.spinner.View() + " " + lipgloss.NewStyle().Foreground(Secondary).Render(task.description)
+		case statusComplete:
+			line = checkMark.String() + " " + task.name
+		case statusFailed:
+			line = failMark.String() + " " + task.name
+		case statusSkipped:
+			line = skipMark.String() + " " + task.name
+		}
+
+		b.WriteString(line)
+		if i < len(m.tasks)-1 {
+			b.WriteString("\n")
+		}
+	}
+
+	// Show errors at bottom if any
+	if len(m.errors) > 0 {
+		b.WriteString("\n\n")
+		for _, err := range m.errors {
+			b.WriteString(lipgloss.NewStyle().Foreground(WarningColor).Render(err))
+			b.WriteString("\n")
+		}
+	}
+
+	return b.String()
+}
+
+func (m model) renderComplete() string {
+	// Check for critical failures
+	hasCriticalFailure := false
+	for _, task := range m.tasks {
+		if task.status == statusFailed && !task.optional {
+			hasCriticalFailure = true
+			break
+		}
+	}
+
+	if hasCriticalFailure {
+		return lipgloss.NewStyle().Foreground(ErrorColor).Render(
+			"Installation failed.\nCheck errors above.\n\nPress Enter to exit")
+	}
+
+	// Success
+	return `Installation complete.
+Reboot to see sysc-greet.
+
+` + lipgloss.NewStyle().Foreground(FgMuted).Render(">see you space cowboy") + `
+
+Press Enter to exit`
+}
+
+func (m model) getHelpText() string {
 	switch m.step {
-	case stepCheckPrivileges:
-		return m.advanceStep()
-	case stepCheckDependencies:
-		return m, m.checkDependencies()
-	case stepInstallGreetd:
-		// Skip if greetd already installed
-		if m.greetdInstalled {
-			m.messages = append(m.messages, "✓ greetd already installed, skipping")
-			return m.advanceStep()
-		}
-		// Try source build if package install fails
-		if m.greetdFromSource {
-			return m, m.buildGreetdFromSource()
-		}
-		return m, m.installGreetd()
-	case stepInstallGslapper:
-		// CHANGED 2025-10-03 - Install gslapper for video wallpapers
-		return m, m.installGslapper()
-	case stepBuildBinary:
-		return m, m.buildBinary()
-	case stepInstallBinary:
-		return m, m.installBinary()
-	case stepInstallConfigs:
-		return m, m.installConfigs()
-	case stepSetupCache:
-		return m, m.setupCache()
-	case stepConfigureGreetd:
-		return m, m.configureGreetd()
-	case stepEnableService:
-		return m, m.enableService()
-	}
-	return m, nil
-}
-
-func (m model) advanceStep() (tea.Model, tea.Cmd) {
-	m.step++
-	return m.proceedWithStep()
-}
-
-func (m model) checkPrivileges() tea.Cmd {
-	return func() tea.Msg {
-		if os.Geteuid() == 0 {
-			return stepCompleteMsg{true, "Running with root privileges"}
-		}
-		// Check if sudo is available
-		if _, err := exec.LookPath("sudo"); err == nil {
-			return stepCompleteMsg{true, "sudo available for privilege escalation"}
-		}
-		return stepCompleteMsg{false, "Root privileges required. Please run with sudo."}
+	case stepWelcome:
+		return "Enter: Continue  •  Ctrl+C: Quit"
+	case stepComplete:
+		return "Enter: Exit  •  Ctrl+C: Quit"
+	default:
+		return "Ctrl+C: Cancel"
 	}
 }
 
-func (m model) checkDependencies() tea.Cmd {
+func executeTask(index int, m *model) tea.Cmd {
 	return func() tea.Msg {
-		// Check for Go
-		if _, err := exec.LookPath("go"); err != nil {
-			return dependencyCheckMsg{success: false, message: "Go compiler not found. Install Go first."}
-		}
+		// Simulate work delay for visibility
+		time.Sleep(200 * time.Millisecond)
 
-		// Check for systemd
-		if _, err := exec.LookPath("systemctl"); err != nil {
-			return dependencyCheckMsg{success: false, message: "systemd not found. Manual setup required."}
-		}
+		err := m.tasks[index].execute(m)
 
-		// Check if greetd is installed
-		_, err := exec.LookPath("greetd")
-		greetdInstalled := (err == nil)
-
-		// Check if tuigreet is installed
-		_, err = exec.LookPath("tuigreet")
-		tuigreetInstalled := (err == nil)
-
-		// CHANGED 2025-10-04 - Check for kitty terminal
-		_, err = exec.LookPath("kitty")
-		kittyInstalled := (err == nil)
-
-		// CHANGED 2025-10-05 - Check for niri compositor
-		_, err = exec.LookPath("niri")
-		niriInstalled := (err == nil)
-
-		// CHANGED 2025-10-10 - Check for swww wallpaper daemon
-		_, err = exec.LookPath("swww")
-		swwwInstalled := (err == nil)
-
-		// Expanded distro support
-		packageManagers := map[string][]string{
-			"pacman":       {"/usr/bin/pacman", "/usr/sbin/pacman", "/bin/pacman", "/sbin/pacman"},
-			"yay":          {"/usr/bin/yay", "/usr/sbin/yay", "/bin/yay", "/sbin/yay"},
-			"apt":          {"/usr/bin/apt", "/usr/sbin/apt", "/bin/apt", "/usr/bin/apt-get"},
-			"dnf":          {"/usr/bin/dnf", "/usr/sbin/dnf"},
-			"zypper":       {"/usr/bin/zypper", "/usr/sbin/zypper"},
-			"emerge":       {"/usr/bin/emerge", "/usr/sbin/emerge"},
-			"apk":          {"/sbin/apk", "/usr/sbin/apk"},
-			"xbps-install": {"/usr/bin/xbps-install", "/bin/xbps-install"},
-		}
-
-		// Prefer pacman over yay as default
-		var packageManager string
-		// Check in order of preference (prefer distro package managers, yay only for AUR)
-		for _, pmName := range []string{"pacman", "apt", "dnf", "zypper", "emerge", "apk", "xbps-install", "yay"} {
-			paths := packageManagers[pmName]
-			for _, path := range paths {
-				if _, err := os.Stat(path); err == nil {
-					packageManager = pmName
-					break
-				}
+		if err != nil {
+			return taskCompleteMsg{
+				index:   index,
+				success: false,
+				error:   err.Error(),
 			}
-			if packageManager != "" {
+		}
+
+		return taskCompleteMsg{
+			index:   index,
+			success: true,
+		}
+	}
+}
+
+// Task execution functions
+
+func checkPrivileges(m *model) error {
+	if os.Geteuid() != 0 {
+		if _, err := exec.LookPath("sudo"); err != nil {
+			return fmt.Errorf("root privileges required")
+		}
+	}
+	return nil
+}
+
+func checkDependencies(m *model) error {
+	missing := []string{}
+
+	// Check critical deps
+	if _, err := exec.LookPath("go"); err != nil {
+		missing = append(missing, "go")
+	}
+	if _, err := exec.LookPath("systemctl"); err != nil {
+		missing = append(missing, "systemd")
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("missing: %s", strings.Join(missing, ", "))
+	}
+
+	// Detect package manager
+	packageManagers := map[string][]string{
+		"pacman": {"/usr/bin/pacman"},
+		"apt":    {"/usr/bin/apt"},
+		"dnf":    {"/usr/bin/dnf"},
+		"yay":    {"/usr/bin/yay"},
+	}
+
+	for pmName, paths := range packageManagers {
+		for _, path := range paths {
+			if _, err := os.Stat(path); err == nil {
+				m.packageManager = pmName
 				break
 			}
 		}
-
-		// Determine if we need to install greetd
-		needsGreetd := !greetdInstalled
-
-		msg := "Dependencies: Go ✓, systemd ✓"
-		if greetdInstalled {
-			msg += ", greetd ✓"
-		} else {
-			msg += ", greetd ✗ (will install)"
-		}
-		if tuigreetInstalled {
-			msg += ", tuigreet ✓ (will replace)"
-		}
-		// CHANGED 2025-10-04 - Show kitty status
-		if kittyInstalled {
-			msg += ", kitty ✓"
-		} else {
-			msg += ", kitty ✗ (install: pacman -S kitty)"
-		}
-		// CHANGED 2025-10-05 - Show niri status
-		if niriInstalled {
-			msg += ", niri ✓"
-		} else {
-			msg += ", niri ✗ (install: pacman -S niri)"
-		}
-		// CHANGED 2025-10-10 - Show swww status
-		if swwwInstalled {
-			msg += ", swww ✓"
-		} else {
-			msg += ", swww ✗ (install: pacman -S swww)"
-		}
-		if packageManager != "" {
-			msg += fmt.Sprintf(", package manager: %s", packageManager)
-		}
-
-		return dependencyCheckMsg{
-			success:           true,
-			message:           msg,
-			packageManager:    packageManager,
-			greetdInstalled:   greetdInstalled,
-			tuigreetInstalled: tuigreetInstalled,
-			needsGreetd:       needsGreetd,
+		if m.packageManager != "" {
+			break
 		}
 	}
+
+	// Check if greetd installed
+	_, err := exec.LookPath("greetd")
+	m.greetdInstalled = (err == nil)
+	m.needsGreetd = !m.greetdInstalled
+
+	return nil
 }
 
-func (m model) installGreetd() tea.Cmd {
-	return func() tea.Msg {
-		if m.packageManager == "" {
-			return stepCompleteMsg{false, "No supported package manager found. Install greetd manually."}
-		}
-
-		// Improved package manager support and error handling
-		var cmd *exec.Cmd
-		var pkgName string = "greetd"
-
-		switch m.packageManager {
-		case "yay":
-			// Try official repos first, then AUR
-			// Check if greetd is in official repos
-			checkCmd := exec.Command("pacman", "-Si", pkgName)
-			if checkCmd.Run() == nil {
-				// In official repos, use pacman
-				cmd = exec.Command("pacman", "-S", "--noconfirm", pkgName)
-			} else {
-				// Not in repos, use yay for AUR
-				cmd = exec.Command("sudo", "-u", os.Getenv("SUDO_USER"), "yay", "-S", "--noconfirm", pkgName)
-			}
-		case "pacman":
-			cmd = exec.Command("pacman", "-S", "--noconfirm", pkgName)
-		case "apt", "apt-get":
-			// Update package list first for Debian/Ubuntu
-			updateCmd := exec.Command("apt-get", "update")
-			updateCmd.Run() // Ignore errors, not critical
-			cmd = exec.Command("apt-get", "install", "-y", pkgName)
-		case "dnf":
-			cmd = exec.Command("dnf", "install", "-y", pkgName)
-		case "zypper":
-			cmd = exec.Command("zypper", "install", "-y", pkgName)
-		case "emerge":
-			cmd = exec.Command("emerge", "--ask=n", pkgName)
-		case "apk":
-			// Alpine Linux support
-			cmd = exec.Command("apk", "add", pkgName)
-		case "xbps-install":
-			// Void Linux support
-			cmd = exec.Command("xbps-install", "-y", pkgName)
-		default:
-			return stepCompleteMsg{false, fmt.Sprintf("Unsupported package manager: %s. Install greetd manually with your package manager.", m.packageManager)}
-		}
-
-		// Show live command output
-
-
-		err := cmd.Run()
-		if err != nil {
-			// Offer source build fallback
-			errMsg := fmt.Sprintf("greetd installation failed with %s. Will attempt to build from source...", m.packageManager)
-			return stepCompleteMsg{false, errMsg}
-		}
-
-		return stepCompleteMsg{true, fmt.Sprintf("greetd installed successfully using %s", m.packageManager)}
+func installGreetd(m *model) error {
+	if m.greetdInstalled {
+		return nil // Already installed
 	}
-}
 
-func (m model) buildGreetdFromSource() tea.Cmd {
-	return func() tea.Msg {
-		// Build greetd from source
-
-		// Check for Rust/Cargo
-		if _, err := exec.LookPath("cargo"); err != nil {
-			return stepCompleteMsg{false, "Cargo not found. Install Rust to build greetd from source: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"}
-		}
-
-		// Clone greetd repo
-		cloneCmd := exec.Command("git", "clone", "https://git.sr.ht/~kennylevinsen/greetd", "/tmp/greetd-build")
-		if err := cloneCmd.Run(); err != nil {
-			// Try alternate repo if sr.ht is down
-			cloneCmd = exec.Command("git", "clone", "https://github.com/kennylevinsen/greetd", "/tmp/greetd-build")
-			if err := cloneCmd.Run(); err != nil {
-				return stepCompleteMsg{false, "Failed to clone greetd repository. Check internet connection."}
-			}
-		}
-
-		// Build with cargo
-		buildCmd := exec.Command("cargo", "build", "--release")
-		buildCmd.Dir = "/tmp/greetd-build"
-		// Capture output instead
-		// Capture output instead
-
-		err := buildCmd.Run()
-		if err != nil {
-			return stepCompleteMsg{false, "greetd build failed. Check output above for errors."}
-		}
-
-		// Install binary
-		installCmd := exec.Command("install", "-Dm755", "/tmp/greetd-build/target/release/greetd", "/usr/local/bin/greetd")
-		if err := installCmd.Run(); err != nil {
-			return stepCompleteMsg{false, "Failed to install greetd binary"}
-		}
-
-		// Install agreety (default greeter)
-		installCmd = exec.Command("install", "-Dm755", "/tmp/greetd-build/target/release/agreety", "/usr/local/bin/agreety")
-		if err := installCmd.Run(); err != nil {
-			return stepCompleteMsg{false, "Failed to install agreety binary"}
-		}
-
-		// Create config directory
-		exec.Command("mkdir", "-p", "/etc/greetd").Run()
-
-		// Cleanup
-		exec.Command("rm", "-rf", "/tmp/greetd-build").Run()
-
-		return stepCompleteMsg{true, "greetd built and installed from source successfully"}
+	if m.packageManager == "" {
+		return fmt.Errorf("no package manager found")
 	}
-}
 
-// CHANGED 2025-10-03 - Install gslapper for video wallpaper support
-func (m model) installGslapper() tea.Cmd {
-	return func() tea.Msg {
-		// Check if gslapper is already installed
-		if _, err := exec.LookPath("gslapper"); err == nil {
-			return stepCompleteMsg{true, "gslapper already installed, skipping"}
-		}
-
-		if m.packageManager == "" {
-			return stepCompleteMsg{false, "No package manager found. Install gslapper manually from https://github.com/Nomadcxx/gSlapper"}
-		}
-
-		var cmd *exec.Cmd
-		var pkgName string = "gslapper"
-
-		switch m.packageManager {
-		case "yay", "pacman":
-			// For Arch Linux, try AUR package first
-			// Check if yay is available for AUR
-			if _, err := exec.LookPath("yay"); err == nil {
-				// Use yay for AUR package
-				cmd = exec.Command("sudo", "-u", os.Getenv("SUDO_USER"), "yay", "-S", "--noconfirm", pkgName)
-			} else {
-				// No yay, need to build from source
-				return m.buildGslapperFromSource()
-			}
-		default:
-			// For non-Arch distros, build from source
-			return m.buildGslapperFromSource()
-		}
-
-		err := cmd.Run()
-		if err != nil {
-			// AUR install failed, try building from source
-			return m.buildGslapperFromSource()
-		}
-
-		return stepCompleteMsg{true, "gslapper installed successfully from AUR"}
+	var cmd *exec.Cmd
+	switch m.packageManager {
+	case "pacman":
+		cmd = exec.Command("pacman", "-S", "--noconfirm", "greetd")
+	case "yay":
+		cmd = exec.Command("sudo", "-u", os.Getenv("SUDO_USER"), "yay", "-S", "--noconfirm", "greetd")
+	case "apt":
+		exec.Command("apt-get", "update").Run()
+		cmd = exec.Command("apt-get", "install", "-y", "greetd")
+	case "dnf":
+		cmd = exec.Command("dnf", "install", "-y", "greetd")
+	default:
+		return fmt.Errorf("unsupported package manager: %s", m.packageManager)
 	}
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("package install failed")
+	}
+
+	return nil
 }
 
-func (m model) buildGslapperFromSource() tea.Msg {
-	// Check for required dependencies
+func installGslapper(m *model) error {
+	// Check if already installed
+	if _, err := exec.LookPath("gslapper"); err == nil {
+		return nil
+	}
+
+	// Try AUR for Arch
+	if m.packageManager == "yay" {
+		cmd := exec.Command("sudo", "-u", os.Getenv("SUDO_USER"), "yay", "-S", "--noconfirm", "gslapper")
+		if err := cmd.Run(); err == nil {
+			return nil
+		}
+	}
+
+	// Try building from source
+	return buildGslapperFromSource(m)
+}
+
+func buildGslapperFromSource(m *model) error {
+	// Check for build deps
 	deps := []string{"meson", "ninja", "git"}
-	missingDeps := []string{}
-
 	for _, dep := range deps {
 		if _, err := exec.LookPath(dep); err != nil {
-			missingDeps = append(missingDeps, dep)
+			return fmt.Errorf("missing build dependency: %s", dep)
 		}
 	}
 
-	if len(missingDeps) > 0 {
-		// Try to install missing build dependencies
-		switch m.packageManager {
-		case "pacman", "yay":
-			installCmd := exec.Command("pacman", "-S", "--noconfirm", "meson", "ninja", "git")
-			installCmd.Run() // Try, but don't fail if it errors
-		case "apt":
-			installCmd := exec.Command("apt-get", "install", "-y", "meson", "ninja-build", "git")
-			installCmd.Run()
-		case "dnf":
-			installCmd := exec.Command("dnf", "install", "-y", "meson", "ninja-build", "git")
-			installCmd.Run()
-		}
-	}
-
-	// Install GStreamer dependencies
-	switch m.packageManager {
-	case "pacman", "yay":
-		depsCmd := exec.Command("pacman", "-S", "--noconfirm", "--needed",
-			"gstreamer", "gst-plugins-base", "gst-plugins-good", "gst-plugins-bad")
-		depsCmd.Run()
-	case "apt":
-		depsCmd := exec.Command("apt-get", "install", "-y",
-			"libgstreamer1.0-dev", "gstreamer1.0-plugins-base", "gstreamer1.0-plugins-good", "gstreamer1.0-plugins-bad")
-		depsCmd.Run()
-	case "dnf":
-		depsCmd := exec.Command("dnf", "install", "-y",
-			"gstreamer1-devel", "gstreamer1-plugins-base", "gstreamer1-plugins-good", "gstreamer1-plugins-bad")
-		depsCmd.Run()
-	}
-
-	// Clone gslapper repository
+	// Clone repo
+	exec.Command("rm", "-rf", "/tmp/gslapper-build").Run()
 	cloneCmd := exec.Command("git", "clone", "https://github.com/Nomadcxx/gSlapper", "/tmp/gslapper-build")
 	if err := cloneCmd.Run(); err != nil {
-		// Cleanup if exists
-		exec.Command("rm", "-rf", "/tmp/gslapper-build").Run()
-		cloneCmd = exec.Command("git", "clone", "https://github.com/Nomadcxx/gSlapper", "/tmp/gslapper-build")
-		if err := cloneCmd.Run(); err != nil {
-			return stepCompleteMsg{false, "Failed to clone gslapper repository. Check internet connection."}
-		}
+		return fmt.Errorf("clone failed")
 	}
 
-	// Build with meson
+	// Build
 	setupCmd := exec.Command("meson", "setup", "build", "--prefix=/usr/local")
 	setupCmd.Dir = "/tmp/gslapper-build"
 	if err := setupCmd.Run(); err != nil {
-		return stepCompleteMsg{false, "gslapper build setup failed. Missing dependencies?"}
+		return fmt.Errorf("build setup failed")
 	}
 
 	buildCmd := exec.Command("ninja", "-C", "build")
 	buildCmd.Dir = "/tmp/gslapper-build"
 	if err := buildCmd.Run(); err != nil {
-		return stepCompleteMsg{false, "gslapper build failed. Check meson/ninja installation."}
+		return fmt.Errorf("build failed")
 	}
 
 	// Install
 	installCmd := exec.Command("ninja", "-C", "build", "install")
 	installCmd.Dir = "/tmp/gslapper-build"
 	if err := installCmd.Run(); err != nil {
-		return stepCompleteMsg{false, "gslapper installation failed. May need manual install."}
+		return fmt.Errorf("install failed")
 	}
 
 	// Cleanup
 	exec.Command("rm", "-rf", "/tmp/gslapper-build").Run()
 
-	return stepCompleteMsg{true, "gslapper built and installed from source successfully"}
+	return nil
 }
 
-func (m model) buildBinary() tea.Cmd {
-	return func() tea.Msg {
-		// CHANGED 2025-10-04 - Build entire package directory not just main.go
-		// CHANGED 2025-10-04 - Disable VCS stamping
-		cmd := exec.Command("go", "build", "-buildvcs=false", "-o", "sysc-greet", "./cmd/sysc-greet/")
-		output, err := cmd.CombinedOutput()
-
-		if err != nil {
-			return stepCompleteMsg{false, fmt.Sprintf("Build failed: %s", string(output))}
-		}
-		return stepCompleteMsg{true, "Binary built successfully"}
+func buildBinary(m *model) error {
+	cmd := exec.Command("go", "build", "-buildvcs=false", "-o", "sysc-greet", "./cmd/sysc-greet/")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("build failed")
 	}
+	return nil
 }
 
-func (m model) installBinary() tea.Cmd {
-	return func() tea.Msg {
-		// Copy binary
-		cmd := exec.Command("install", "-Dm755", "sysc-greet", m.installPath)
-
-		if err := cmd.Run(); err != nil {
-			return stepCompleteMsg{false, fmt.Sprintf("Failed to install binary: %v", err)}
-		}
-		return stepCompleteMsg{true, fmt.Sprintf("Installed binary to %s", m.installPath)}
+func installBinary(m *model) error {
+	cmd := exec.Command("install", "-Dm755", "sysc-greet", "/usr/local/bin/sysc-greet")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("install failed")
 	}
+	return nil
 }
 
-func (m model) installConfigs() tea.Cmd {
-	return func() tea.Msg {
-		// Install both ascii_configs AND fonts
+func installConfigs(m *model) error {
+	configPath := "/usr/share/sysc-greet"
 
-		// Create config directory
-		cmd := exec.Command("mkdir", "-p", m.configPath+"/ascii_configs")
-		if err := cmd.Run(); err != nil {
-			return stepCompleteMsg{false, fmt.Sprintf("Failed to create config dir: %v", err)}
-		}
-
-		// Create fonts directory
-		cmd = exec.Command("mkdir", "-p", m.configPath+"/fonts")
-		if err := cmd.Run(); err != nil {
-			return stepCompleteMsg{false, fmt.Sprintf("Failed to create fonts dir: %v", err)}
-		}
-
-		// Copy ASCII configs
-		cmd = exec.Command("cp", "-r", "ascii_configs/", m.configPath+"/")
-		if err := cmd.Run(); err != nil {
-			return stepCompleteMsg{false, fmt.Sprintf("Failed to copy ASCII configs: %v", err)}
-		}
-
-		// Copy fonts
-		cmd = exec.Command("cp", "-r", "fonts/", m.configPath+"/")
-		if err := cmd.Run(); err != nil {
-			return stepCompleteMsg{false, fmt.Sprintf("Failed to copy fonts: %v", err)}
-		}
-
-		// Copy only kitty.conf
-		// Copy kitty config
-		cmd = exec.Command("cp", "config/kitty-greeter.conf", "/etc/greetd/kitty.conf")
-		if err := cmd.Run(); err != nil {
-			return stepCompleteMsg{false, fmt.Sprintf("Failed to copy kitty.conf: %v", err)}
-		}
-
-		// CHANGED 2025-10-04 - Copy Assets directory for bundled videos
-		// Copy Assets directory if it exists
-		if _, err := os.Stat("Assets"); err == nil {
-			cmd = exec.Command("mkdir", "-p", m.configPath+"/Assets")
-			if err := cmd.Run(); err != nil {
-				return stepCompleteMsg{false, fmt.Sprintf("Failed to create Assets dir: %v", err)}
-			}
-			cmd = exec.Command("cp", "-r", "Assets/", m.configPath+"/")
-			if err := cmd.Run(); err != nil {
-				return stepCompleteMsg{false, fmt.Sprintf("Failed to copy Assets: %v", err)}
-			}
-		}
-
-		// CHANGED 2025-10-10 - Generate and install theme wallpapers
-		// Create wallpapers directory
-		cmd = exec.Command("mkdir", "-p", m.configPath+"/wallpapers")
-		if err := cmd.Run(); err != nil {
-			return stepCompleteMsg{false, fmt.Sprintf("Failed to create wallpapers dir: %v", err)}
-		}
-
-		// Generate wallpapers using the script
-		if _, err := os.Stat("scripts/generate-theme-wallpapers.sh"); err == nil {
-			cmd = exec.Command("bash", "scripts/generate-theme-wallpapers.sh")
-			if err := cmd.Run(); err != nil {
-				// Non-critical - continue even if generation fails
-				fmt.Printf("Warning: wallpaper generation failed: %v\n", err)
-			}
-
-			// Copy generated wallpapers if they exist
-			if _, err := os.Stat("wallpapers"); err == nil {
-				cmd = exec.Command("cp", "-r", "wallpapers/", m.configPath+"/")
-				if err := cmd.Run(); err != nil {
-					return stepCompleteMsg{false, fmt.Sprintf("Failed to copy wallpapers: %v", err)}
-				}
-			}
-		}
-
-		return stepCompleteMsg{true, fmt.Sprintf("Installed configs, fonts, assets, wallpapers, and greetd scripts to %s", m.configPath)}
+	// Create directories
+	dirs := []string{
+		configPath + "/ascii_configs",
+		configPath + "/fonts",
+		configPath + "/Assets",
+		configPath + "/wallpapers",
 	}
-}
 
-func (m model) setupCache() tea.Cmd {
-	return func() tea.Msg {
-		// Create cache directory
-		cmd := exec.Command("mkdir", "-p", "/var/cache/tuigreet")
-		if err := cmd.Run(); err != nil {
-			return stepCompleteMsg{false, fmt.Sprintf("Failed to create cache dir: %v", err)}
+	for _, dir := range dirs {
+		if err := exec.Command("mkdir", "-p", dir).Run(); err != nil {
+			return fmt.Errorf("failed to create %s", dir)
 		}
-
-		// CHANGED 2025-10-04 - Create wallpapers directory for greeter user - Problem: Greeter needs $HOME/Pictures/wallpapers
-		// Create wallpapers directory for greeter user
-		cmd = exec.Command("mkdir", "-p", "/var/lib/greeter/Pictures/wallpapers")
-		if err := cmd.Run(); err != nil {
-			return stepCompleteMsg{false, fmt.Sprintf("Failed to create wallpapers dir: %v", err)}
-		}
-
-		// Create greeter user if it doesn't exist
-		cmd = exec.Command("id", "greeter")
-		if err := cmd.Run(); err != nil {
-			// User doesn't exist, create it
-			cmd = exec.Command("useradd", "-M", "-G", "video", "-s", "/usr/bin/nologin", "greeter")
-			if err := cmd.Run(); err != nil {
-				return stepCompleteMsg{false, "Failed to create greeter user"}
-			}
-		}
-
-		// Set ownership of cache
-		cmd = exec.Command("chown", "-R", "greeter:greeter", "/var/cache/tuigreet")
-		if err := cmd.Run(); err != nil {
-			return stepCompleteMsg{false, "Failed to set cache ownership"}
-		}
-
-		// CHANGED 2025-10-06 - Fix greeter home permissions
-		// Set ownership of greeter home directory
-		cmd = exec.Command("chown", "-R", "greeter:greeter", "/var/lib/greeter")
-		if err := cmd.Run(); err != nil {
-			return stepCompleteMsg{false, "Failed to set greeter home ownership"}
-		}
-
-		// Set proper permissions on greeter home
-		cmd = exec.Command("chmod", "755", "/var/lib/greeter")
-		if err := cmd.Run(); err != nil {
-			return stepCompleteMsg{false, "Failed to set greeter home permissions"}
-		}
-
-		return stepCompleteMsg{true, "Cache directory and greeter home permissions configured"}
 	}
+
+	// Copy files
+	copies := map[string]string{
+		"ascii_configs/":            configPath + "/",
+		"fonts/":                    configPath + "/",
+		"config/kitty-greeter.conf": "/etc/greetd/kitty.conf",
+	}
+
+	// Optional copies
+	if _, err := os.Stat("Assets"); err == nil {
+		copies["Assets/"] = configPath + "/"
+	}
+
+	for src, dst := range copies {
+		if err := exec.Command("cp", "-r", src, dst).Run(); err != nil {
+			return fmt.Errorf("failed to copy %s", src)
+		}
+	}
+
+	// Generate wallpapers
+	if _, err := os.Stat("scripts/generate-theme-wallpapers.sh"); err == nil {
+		exec.Command("bash", "scripts/generate-theme-wallpapers.sh").Run()
+		if _, err := os.Stat("wallpapers"); err == nil {
+			exec.Command("cp", "-r", "wallpapers/", configPath+"/").Run()
+		}
+	}
+
+	return nil
 }
 
-// CHANGED 2025-10-06 - Multi-environment monitor detection
+func setupCache(m *model) error {
+	// Create cache directory
+	if err := exec.Command("mkdir", "-p", "/var/cache/sysc-greet").Run(); err != nil {
+		return fmt.Errorf("cache dir creation failed")
+	}
+
+	// Create greeter home
+	if err := exec.Command("mkdir", "-p", "/var/lib/greeter/Pictures/wallpapers").Run(); err != nil {
+		return fmt.Errorf("greeter home creation failed")
+	}
+
+	// Create greeter user if needed
+	cmd := exec.Command("id", "greeter")
+	if err := cmd.Run(); err != nil {
+		cmd = exec.Command("useradd", "-M", "-G", "video", "-s", "/usr/bin/nologin", "greeter")
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("greeter user creation failed")
+		}
+	}
+
+	// Set ownership
+	paths := []string{"/var/cache/sysc-greet", "/var/lib/greeter"}
+	for _, path := range paths {
+		if err := exec.Command("chown", "-R", "greeter:greeter", path).Run(); err != nil {
+			return fmt.Errorf("ownership change failed for %s", path)
+		}
+	}
+
+	// Set permissions
+	if err := exec.Command("chmod", "755", "/var/lib/greeter").Run(); err != nil {
+		return fmt.Errorf("permissions change failed")
+	}
+
+	return nil
+}
+
+func configureGreetd(m *model) error {
+	niriConfig := `// SYSC-Greet Niri config for greetd greeter session
+// Monitors auto-detected by niri at runtime
+
+hotkey-overlay {
+    skip-at-startup
+}
+
+input {
+    keyboard {
+        xkb {
+            layout "us"
+        }
+        repeat-delay 400
+        repeat-rate 40
+    }
+
+    mouse {
+    }
+
+    touchpad {
+        tap;
+    }
+}
+
+layer-rule {
+    match namespace="^wallpaper$"
+    place-within-backdrop true
+}
+
+layout {
+    gaps 0
+    center-focused-column "never"
+
+    focus-ring {
+        off
+    }
+
+    border {
+        off
+    }
+}
+
+animations {
+    off
+}
+
+window-rule {
+    match app-id="kitty"
+    opacity 0.90
+}
+
+spawn-at-startup "swww-daemon"
+
+spawn-sh-at-startup "kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
+
+binds {
+}
+`
+
+	if err := os.WriteFile("/etc/greetd/niri-greeter-config.kdl", []byte(niriConfig), 0644); err != nil {
+		return fmt.Errorf("niri config write failed")
+	}
+
+	greetdConfig := `[terminal]
+vt = 1
+
+[default_session]
+command = "niri -c /etc/greetd/niri-greeter-config.kdl"
+user = "greeter"
+
+[initial_session]
+command = "niri -c /etc/greetd/niri-greeter-config.kdl"
+user = "greeter"
+`
+
+	if err := os.WriteFile("/etc/greetd/config.toml", []byte(greetdConfig), 0644); err != nil {
+		return fmt.Errorf("greetd config write failed")
+	}
+
+	return nil
+}
+
+func enableService(m *model) error {
+	// Remove existing display-manager.service symlink
+	symlinkPath := "/etc/systemd/system/display-manager.service"
+	if _, err := os.Lstat(symlinkPath); err == nil {
+		os.Remove(symlinkPath)
+	}
+
+	// Enable greetd
+	cmd := exec.Command("systemctl", "enable", "greetd.service")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("service enable failed")
+	}
+
+	return nil
+}
+
+// Monitor detection (simplified from original)
 type Monitor struct {
-	Name       string
-	Width      int
-	Height     int
+	Name        string
+	Width       int
+	Height      int
 	RefreshRate int
-	Primary    bool
-}
-
-func detectMonitors() []Monitor {
-	var monitors []Monitor
-
-	// Method 1: Try niri (if running)
-	if cmd := exec.Command("niri", "msg", "outputs"); cmd.Run() == nil {
-		output, err := cmd.Output()
-		if err == nil {
-			monitors = parseNiriOutputs(string(output))
-			if len(monitors) > 0 {
-				return monitors
-			}
-		}
-	}
-
-	// Method 2: Try hyprctl (Hyprland)
-	if cmd := exec.Command("hyprctl", "monitors"); cmd.Run() == nil {
-		output, err := cmd.Output()
-		if err == nil {
-			monitors = parseHyprlandMonitors(string(output))
-			if len(monitors) > 0 {
-				return monitors
-			}
-		}
-	}
-
-	// Method 3: Try swaymsg (Sway)
-	if cmd := exec.Command("swaymsg", "-t", "get_outputs"); cmd.Run() == nil {
-		output, err := cmd.Output()
-		if err == nil {
-			monitors = parseSwayOutputs(string(output))
-			if len(monitors) > 0 {
-				return monitors
-			}
-		}
-	}
-
-	// Method 4: Try xrandr (X11)
-	if cmd := exec.Command("xrandr", "--query"); cmd.Run() == nil {
-		output, err := cmd.Output()
-		if err == nil {
-			monitors = parseXrandr(string(output))
-			if len(monitors) > 0 {
-				return monitors
-			}
-		}
-	}
-
-	// Method 5: Try DRM (direct /sys/class/drm reading)
-	monitors = parseDRM()
-	if len(monitors) > 0 {
-		return monitors
-	}
-
-	// Fallback: Single 1920x1080 monitor
-	return []Monitor{{Name: "Unknown-1", Width: 1920, Height: 1080, RefreshRate: 60, Primary: true}}
+	Primary     bool
 }
 
 func parseNiriOutputs(output string) []Monitor {
@@ -837,14 +712,12 @@ func parseNiriOutputs(output string) []Monitor {
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 
-		// Output "Name" (connector)
 		if strings.HasPrefix(line, "Output") {
 			if current != nil {
 				monitors = append(monitors, *current)
 			}
 			current = &Monitor{}
 
-			// Extract connector name from: Output "..." (DP-1)
 			if start := strings.LastIndex(line, "("); start != -1 {
 				if end := strings.LastIndex(line, ")"); end != -1 {
 					current.Name = strings.TrimSpace(line[start+1 : end])
@@ -852,7 +725,6 @@ func parseNiriOutputs(output string) []Monitor {
 			}
 		}
 
-		// Current mode: 3440x1440 @ 120.000 Hz
 		if current != nil && strings.Contains(line, "Current mode:") {
 			parts := strings.Fields(line)
 			for i, part := range parts {
@@ -877,553 +749,15 @@ func parseNiriOutputs(output string) []Monitor {
 		monitors = append(monitors, *current)
 	}
 
-	// Mark first as primary
 	if len(monitors) > 0 {
 		monitors[0].Primary = true
 	}
 
 	return monitors
-}
-
-func parseHyprlandMonitors(output string) []Monitor {
-	// TODO: Parse hyprctl monitors output
-	// Format: Monitor NAME (ID X): WIDTHxHEIGHT@REFRESH
-	return nil
-}
-
-func parseSwayOutputs(output string) []Monitor {
-	// TODO: Parse swaymsg JSON output
-	return nil
-}
-
-func parseXrandr(output string) []Monitor {
-	var monitors []Monitor
-	lines := strings.Split(output, "\n")
-
-	for _, line := range lines {
-		// Look for: DP-1 connected primary 3440x1440+0+0 (normal left...) 800mm x 340mm
-		if strings.Contains(line, " connected") {
-			fields := strings.Fields(line)
-			if len(fields) < 3 {
-				continue
-			}
-
-			monitor := Monitor{Name: fields[0]}
-			monitor.Primary = strings.Contains(line, " primary ")
-
-			// Find resolution field (e.g., "3440x1440+0+0")
-			for _, field := range fields {
-				if strings.Contains(field, "x") && strings.Contains(field, "+") {
-					resPart := strings.Split(field, "+")[0]
-					dims := strings.Split(resPart, "x")
-					if len(dims) == 2 {
-						monitor.Width, _ = strconv.Atoi(dims[0])
-						monitor.Height, _ = strconv.Atoi(dims[1])
-						monitor.RefreshRate = 60 // xrandr doesn't show refresh in this line
-						monitors = append(monitors, monitor)
-						break
-					}
-				}
-			}
-		}
-	}
-
-	return monitors
-}
-
-func parseDRM() []Monitor {
-	var monitors []Monitor
-
-	// Read /sys/class/drm/card*/card*/status
-	entries, err := os.ReadDir("/sys/class/drm")
-	if err != nil {
-		return nil
-	}
-
-	for _, entry := range entries {
-		if !strings.HasPrefix(entry.Name(), "card") {
-			continue
-		}
-
-		statusPath := fmt.Sprintf("/sys/class/drm/%s/status", entry.Name())
-		status, err := os.ReadFile(statusPath)
-		if err != nil || !strings.Contains(string(status), "connected") {
-			continue
-		}
-
-		// Found connected monitor, try to get EDID for resolution
-		// This is complex, so for now just add with default resolution
-		monitors = append(monitors, Monitor{
-			Name:        entry.Name(),
-			Width:       1920,
-			Height:      1080,
-			RefreshRate: 60,
-		})
-	}
-
-	if len(monitors) > 0 {
-		monitors[0].Primary = true
-	}
-
-	return monitors
-}
-
-func (m model) configureGreetd() tea.Cmd {
-	return func() tea.Msg {
-		// CHANGED 2025-10-06 - Remove monitor auto-detection, let niri handle it
-		// CHANGED 2025-10-05 - Use niri compositor instead of weston
-		// Based on working example from https://github.com/YaLTeR/niri/discussions/1276
-
-		// Write niri greeter config (no hardcoded monitor settings - niri auto-detects)
-		niriConfig := `// SYSC-Greet Niri config for greetd greeter session
-// This config is ONLY used by greetd to show the greeter
-// Monitors will be auto-detected by niri at runtime
-
-hotkey-overlay {
-    skip-at-startup
-}
-
-input {
-    keyboard {
-        xkb {
-            layout "us"
-        }
-        repeat-delay 400
-        repeat-rate 40
-    }
-
-    mouse {
-        // natural-scroll;
-    }
-
-    touchpad {
-        tap;
-        // natural-scroll;
-    }
-}
-
-// CHANGED 2025-10-10 - Use swww for theme-aware wallpapers
-// Layer rule for swww wallpaper daemon
-layer-rule {
-    match namespace="^wallpaper$"
-    place-within-backdrop true
-}
-
-// Outputs will be auto-detected by niri at runtime
-layout {
-    gaps 0
-    center-focused-column "never"
-
-    focus-ring {
-        off
-    }
-
-    border {
-        off
-    }
-}
-
-animations {
-    off
-}
-
-// Window rule to preserve kitty opacity even when focused
-window-rule {
-    match app-id="kitty"
-    opacity 0.90
-}
-
-// CHANGED 2025-10-10 - Start swww-daemon for wallpaper management
-spawn-at-startup "swww-daemon"
-
-// CHANGED 2025-10-10 - Use spawn-sh-at-startup like ReGreet
-spawn-sh-at-startup "kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
-
-// Empty binds block = no keybindings work (security for greeter)
-binds {
-}
-`
-		if err := os.WriteFile("/etc/greetd/niri-greeter-config.kdl", []byte(niriConfig), 0644); err != nil {
-			return stepCompleteMsg{false, fmt.Sprintf("Failed to write niri config: %v", err)}
-		}
-
-		// Write greetd config to use niri
-		config := `[terminal]
-vt = 1
-
-[default_session]
-command = "niri -c /etc/greetd/niri-greeter-config.kdl"
-user = "greeter"
-
-[initial_session]
-command = "niri -c /etc/greetd/niri-greeter-config.kdl"
-user = "greeter"
-`
-		if err := os.WriteFile("/etc/greetd/config.toml", []byte(config), 0644); err != nil {
-			return stepCompleteMsg{false, fmt.Sprintf("Failed to write greetd config: %v", err)}
-		}
-
-		return stepCompleteMsg{true, "greetd configured with niri compositor"}
-	}
-}
-
-func (m model) enableService() tea.Cmd {
-	return func() tea.Msg {
-
-		// Automatically handle service conflicts
-		// Check if display-manager.service symlink exists
-		symlinkPath := "/etc/systemd/system/display-manager.service"
-		if _, err := os.Lstat(symlinkPath); err == nil {
-			// Symlink exists, remove it
-			_, _ = os.Readlink(symlinkPath)
-			if err := os.Remove(symlinkPath); err != nil {
-				return stepCompleteMsg{false, fmt.Sprintf("Failed to remove display-manager.service symlink: %v", err)}
-			}
-		}
-
-		// Don't stop display manager, just warn
-		// DON'T stop - let user reboot to activate new greeter
-		// The old display manager will be disabled on next boot
-
-		// Enable greetd service (this creates the display-manager.service symlink)
-		cmd := exec.Command("systemctl", "enable", "greetd.service")
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			return stepCompleteMsg{false, fmt.Sprintf("Failed to enable greetd: %s", string(output))}
-		}
-
-		return stepCompleteMsg{true, "greetd service enabled. REBOOT to activate sysc-greet (don't restart display-manager.service now!)"}
-	}
-}
-
-func (m model) View() string {
-	if m.width == 0 {
-		return "Loading..."
-	}
-
-	var content strings.Builder
-
-	// ASCII Header - CHANGED 2025-10-01 17:35 - Pad shorter lines to match longest line
-	// Pad all lines to 49 chars to prevent Align() mangling
-	headerLines := []string{
-		"  █████████  █████ █████  █████████    █████████ ",
-		" ███░░░░░███░░███ ░░███  ███░░░░░███  ███░░░░░███",
-		"░███    ░░░  ░░███ ███  ░███    ░░░  ███     ░░░ ",
-		"░░█████████   ░░█████   ░░█████████ ░███         ",
-		" ░░░░░░░░███   ░░███     ░░░░░░░░███░███         ",
-		" ███    ░███    ░███     ███    ░███░░███     ███",
-		"░░█████████     █████   ░░█████████  ░░█████████ ",
-		" ░░░░░░░░░     ░░░░░     ░░░░░░░░░    ░░░░░░░░░  ",
-		"//////////////SEE YOU IN SPACE COWBOY//////////  ",
-	}
-
-	headerStyle := lipgloss.NewStyle().
-		Foreground(Primary).
-		Bold(true)
-
-	// Simple rendering without centering, let title/step handle it
-	for _, line := range headerLines {
-		content.WriteString(headerStyle.Render(line))
-		content.WriteString("\n")
-	}
-	content.WriteString("\n")
-
-	// Title
-	titleStyle := lipgloss.NewStyle().
-		Foreground(Accent).
-		Bold(true).
-		Align(lipgloss.Center)
-
-	content.WriteString(titleStyle.Render("sysc-greet Installation Wizard"))
-	content.WriteString("\n\n")
-
-	// Step indicator
-	stepText := m.getStepText()
-	stepStyle := lipgloss.NewStyle().
-		Foreground(Secondary).
-		Align(lipgloss.Center)
-	content.WriteString(stepStyle.Render(fmt.Sprintf("Step %d/11: %s", int(m.step)+1, stepText)))
-	content.WriteString("\n\n")
-
-	// Main content
-	mainContent := m.getStepContent()
-	mainStyle := lipgloss.NewStyle().
-		Padding(1, 2).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(Primary).
-		Width(m.width - 4)
-
-	content.WriteString(mainStyle.Render(mainContent))
-	content.WriteString("\n")
-
-	// Messages
-	if len(m.messages) > 0 {
-		content.WriteString("\n")
-		for _, msg := range m.messages {
-			msgStyle := lipgloss.NewStyle().Foreground(Accent)
-			content.WriteString("  " + msgStyle.Render(msg) + "\n")
-		}
-	}
-
-	// Errors
-	if len(m.errors) > 0 {
-		content.WriteString("\n")
-		for _, err := range m.errors {
-			errStyle := lipgloss.NewStyle().Foreground(ErrorColor)
-			content.WriteString("  " + errStyle.Render(err) + "\n")
-		}
-	}
-
-	// Help - CHANGED 2025-10-01 17:00 - Removed Width() to fix background bleeding
-	helpText := m.getHelpText()
-	if helpText != "" {
-		helpStyle := lipgloss.NewStyle().
-			Foreground(FgMuted).
-			Italic(true).
-			Align(lipgloss.Center)
-		content.WriteString("\n" + helpStyle.Render(helpText))
-	}
-
-	// Wrap everything in background
-	// Restore Align(Center) for proper centering
-	bgStyle := lipgloss.NewStyle().
-		Background(BgBase).
-		Foreground(FgPrimary).
-		Width(m.width).
-		Height(m.height).
-		Align(lipgloss.Center, lipgloss.Top)
-
-	return bgStyle.Render(content.String())
-}
-
-func (m model) getStepText() string {
-	switch m.step {
-	case stepWelcome:
-		return "Welcome"
-	case stepCheckPrivileges:
-		return "Check Privileges"
-	case stepSelectInstallType:
-		return "Select Installation Type"
-	case stepCheckDependencies:
-		return "Check Dependencies"
-	case stepInstallGreetd:
-		return "Install greetd"
-	case stepInstallGslapper:
-		return "Install gslapper" // CHANGED 2025-10-03 - Add gslapper step title
-	case stepBuildBinary:
-		return "Build Binary"
-	case stepInstallBinary:
-		return "Install Binary"
-	case stepInstallConfigs:
-		return "Install Configurations"
-	case stepSetupCache:
-		return "Setup Cache"
-	case stepConfigureGreetd:
-		return "Configure greetd"
-	case stepEnableService:
-		return "Enable Service"
-	case stepComplete:
-		return "Installation Complete"
-	}
-	return "Unknown"
-}
-
-func (m model) getStepContent() string {
-	switch m.step {
-	case stepWelcome:
-		return `Welcome to the sysc-greet installer!
-
-This wizard will guide you through installing sysc-greet as your
-system greeter. The installation process includes:
-
-  • Building the sysc-greet binary
-  • Installing to system directories
-  • Configuring greetd daemon
-  • Setting up user permissions
-  • Enabling the service
-
-Installation will require root privileges.
-
-Press Enter to begin installation
-Press Ctrl+C to exit`
-
-	case stepCheckPrivileges:
-		status := "✓ Sufficient privileges"
-		if os.Geteuid() != 0 {
-			status = "⚠ Will request elevation when needed"
-		}
-		return fmt.Sprintf(`Checking system privileges...
-
-%s
-
-Commands will be executed with sudo when necessary.
-Some steps may prompt for your password.
-
-Press Enter to continue
-Press N to cancel`, status)
-
-	case stepSelectInstallType:
-		m.options = []string{
-			"Full Installation (greetd + sysc-greet)",
-			"Greeter Only (sysc-greet only)",
-			"Configs Only (update configs)",
-		}
-
-		var content strings.Builder
-		content.WriteString("Select installation type:\n\n")
-
-		for i, opt := range m.options {
-			if i == m.selectedOption {
-				style := lipgloss.NewStyle().
-					Foreground(BgBase).
-					Background(Accent).
-					Bold(true).
-					Padding(0, 1)
-				content.WriteString("  " + style.Render("▶ "+opt) + "\n")
-			} else {
-				content.WriteString("    " + opt + "\n")
-			}
-		}
-
-		return content.String()
-
-	case stepCheckDependencies:
-		return `Checking system dependencies...
-
-Required:
-  • Go compiler (for building)
-  • systemd (for service management)
-  • greetd (greeter daemon)
-
-This may take a moment...`
-
-	case stepInstallGreetd:
-		status := "Installing greetd..."
-		if m.greetdInstalled {
-			status = "greetd already installed, skipping..."
-		} else if m.tuigreetInstalled {
-			status = "tuigreet detected - greetd should be installed.\nInstalling greetd to ensure proper setup..."
-		}
-
-		pm := "package manager"
-		if m.packageManager != "" {
-			pm = m.packageManager
-		}
-
-		return fmt.Sprintf(`%s
-
-Package manager: %s
-Package: greetd
-
-The greetd daemon will be installed from your system's package
-repository. This is required for sysc-greet to function.
-
-Please wait...`, status, pm)
-
-	case stepInstallGslapper:
-		// CHANGED 2025-10-03 - Add gslapper step content
-		pm := "source build"
-		if m.packageManager == "yay" || m.packageManager == "pacman" {
-			pm = "AUR (or source fallback)"
-		}
-
-		return fmt.Sprintf(`Installing gslapper for video wallpapers...
-
-Method: %s
-Package: gslapper
-Dependencies: GStreamer, meson, ninja
-
-gslapper provides video wallpaper support using GStreamer for
-hardware-accelerated playback. This is optional but recommended
-for the video wallpaper feature.
-
-Please wait...`, pm)
-
-	case stepBuildBinary:
-		return `Building sysc-greet binary...
-
-This will compile the Go source code into an executable.
-Build flags: -o sysc-greet ./cmd/sysc-greet/
-
-Please wait...`
-
-	case stepInstallBinary:
-		return fmt.Sprintf(`Installing binary to system...
-
-Target: %s
-Permissions: 755 (executable)
-
-This requires root privileges.`, m.installPath)
-
-	case stepInstallConfigs:
-		return fmt.Sprintf(`Installing configuration files...
-
-ASCII configs: %s/ascii_configs/
-Themes: Embedded in binary
-
-16 window manager configurations will be installed.`, m.configPath)
-
-	case stepSetupCache:
-		return `Setting up cache and permissions...
-
-Cache: /var/cache/tuigreet
-Home: /var/lib/greeter (with write permissions)
-User: greeter
-Group: greeter
-
-The greeter user will be created if it doesn't exist.`
-
-	case stepConfigureGreetd:
-		return `Configuring greetd daemon...
-
-Config file: /etc/greetd/config.toml
-Greeter command: sysc-greet
-VT: 1
-
-This will create/overwrite the greetd configuration.`
-
-	case stepEnableService:
-		return `Enabling greetd service...
-
-Service: greetd.service
-State: enabled (start on boot)
-
-The greeter will start automatically on next boot.`
-
-	case stepComplete:
-		return `Installation complete! 🎉
-
-sysc-greet has been successfully installed and configured.
-
-Next steps:
-  1. Test in test mode: sysc-greet --test
-  2. Restart greetd: sudo systemctl restart greetd
-  3. Switch to TTY1 to see the greeter
-  4. Login with your credentials
-
-To revert to previous greeter, edit /etc/greetd/config.toml
-
-Press Q to exit`
-	}
-
-	return "Processing..."
-}
-
-func (m model) getHelpText() string {
-	switch m.step {
-	case stepWelcome, stepCheckPrivileges:
-		return "Enter: Continue  •  Ctrl+C: Quit"
-	case stepSelectInstallType:
-		return "↑↓: Navigate  •  Enter: Select  •  Ctrl+C: Quit"
-	case stepComplete:
-		return "Q: Quit"
-	default:
-		return "Please wait..."
-	}
 }
 
 func main() {
-	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
+	p := tea.NewProgram(newModel())
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)

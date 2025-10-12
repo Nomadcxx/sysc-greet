@@ -1,14 +1,29 @@
 # Refactoring Plan for sysc-greet
 
-**Date:** 2025-10-11
-**Status:** Phase 1 Complete ✅
-**Backup Created:** `sysc-greet-backup-2025-10-11-ascii-borders-working`
+**Date:** 2025-10-12
+**Status:** Phase 7 Complete ✅
+**Backups Created:**
+- Phase 1: `sysc-greet-backup-2025-10-11-ascii-borders-working`
+- Phase 2: `sysc-greet-backup-2025-10-11-phase1-complete`
+- Phase 3: `sysc-greet-backup-2025-10-11-phase2-complete`
+- Phase 4: `sysc-greet-backup-2025-10-11-phase3-complete`
+- Phase 5: `sysc-greet-backup-2025-10-11-phase4-complete`
+- Phase 6: `sysc-greet-backup-2025-10-11-phase5-complete`
+- Phase 7: `sysc-greet-backup-2025-10-12-phase6-complete`
 
 ## Current State Analysis
 
 ### main.go Statistics
-- **Total Lines:** 4,213
-- **Total Functions:** 64
+- **Original Lines:** 4,213
+- **After Phase 1:** 3,303 lines
+- **After Phase 2:** 2,607 lines
+- **After Phase 3:** 2,308 lines
+- **After Phase 4:** 2,030 lines
+- **After Phase 5:** 1,900 lines
+- **After Phase 6:** 1,711 lines
+- **After Phase 7:** 1,658 lines
+- **Total Reduction:** 2,555 lines (60.6%)
+- **Original Functions:** 64
 - **Primary Issues:**
   - Monolithic structure making maintenance difficult
   - Border rendering functions scattered throughout file
@@ -38,88 +53,109 @@
 **Actual Reduction:** 910 lines (21.6% of main.go)
 **Result:** borders.go created with 928 lines, all border styles tested and working
 
-### Phase 2: Extract ASCII Art Handling
+### Phase 2: Extract ASCII Art Handling ✅ COMPLETE
 **Target:** Create `ascii.go` for ASCII art configuration and rendering
 
-**Functions to Extract:**
-1. `getSessionASCII()` - Line 553
-2. `getSessionASCIIMonochrome()` - Line 2670
-3. `getSessionArt()` - Line 3514
-4. `loadASCIIConfig()` - Line 426
+**Functions Extracted:**
+1. ✅ `getSessionASCII()` - Line 553
+2. ✅ `getSessionASCIIMonochrome()` - Line 2670
+3. ✅ `getSessionArt()` - Line 3514
+4. ✅ `loadASCIIConfig()` - Line 426
 
-**Animation Functions to Extract:**
-- `applyASCIIAnimation()` - Line 628
-- `applySmoothGradient()` - Line 657
-- `applyWaveAnimation()` - Line 756
-- `applyPulseAnimation()` - Line 803
-- `applyRainbowAnimation()` - Line 838
-- `applyMatrixAnimation()` - Line 887
-- `applyTypewriterAnimation()` - Line 935
-- `applyGlowAnimation()` - Line 986
-- `applyStaticColors()` - Line 1036
+**Animation Functions Extracted:**
+- ✅ `applyASCIIAnimation()` - Line 628
+- ✅ `applySmoothGradient()` - Line 657
+- ✅ `applyWaveAnimation()` - Line 756
+- ✅ `applyPulseAnimation()` - Line 803
+- ✅ `applyRainbowAnimation()` - Line 838
+- ✅ `applyMatrixAnimation()` - Line 887
+- ✅ `applyTypewriterAnimation()` - Line 935
+- ✅ `applyGlowAnimation()` - Line 986
+- ✅ `applyStaticColors()` - Line 1036
 
-**Estimated Reduction:** ~800 lines
+**Helper Functions Extracted:**
+- ✅ `interpolateColors()` - Line 727
+- ✅ `parseHexColor()` - Line 741
 
-### Phase 3: Extract UI Components
+**Actual Reduction:** 696 lines (16.5% of original main.go)
+**Result:** ascii.go created with 721 lines, all ASCII art and animations working
+
+### Phase 3: Extract UI Components ✅ COMPLETE
 **Target:** Create `ui_components.go` for reusable UI rendering functions
 
-**Functions to Extract:**
-1. `renderMainForm()` - Line 2961
-2. `renderMonochromeForm()` - Line 2615
-3. `renderSessionSelector()` - Line 3059
-4. `renderSessionDropdown()` - Line 3127
-5. `renderMainHelp()` - Line 3478
+**Functions Extracted:**
+1. ✅ `renderMainForm()` - Main login form with session, username/password inputs
+2. ✅ `renderMonochromeForm()` - Monochrome styled login form
+3. ✅ `renderSessionSelector()` - Session selector with dropdown indicator
+4. ✅ `renderSessionDropdown()` - Dropdown list of available sessions
+5. ✅ `renderMainHelp()` - Help text at bottom of screen
 
-**Estimated Reduction:** ~500 lines
+**Actual Reduction:** 299 lines (7.1% of original main.go)
+**Result:** ui_components.go created with 322 lines, all UI components working
 
-### Phase 4: Extract View Rendering
+### Phase 4: Extract View Rendering ✅ COMPLETE
 **Target:** Create `views.go` for top-level view rendering
 
-**Functions to Extract:**
-1. `renderPowerView()` - Line 3197
-2. `renderMenuView()` - Line 3251
-3. `renderReleaseNotesView()` - Line 3381
+**Functions Extracted:**
+1. ✅ `renderPowerView()` - Power options menu (reboot/shutdown/cancel)
+2. ✅ `renderMenuView()` - Main menu and all submenus (themes, borders, backgrounds, wallpaper)
+3. ✅ `renderReleaseNotesView()` - F3 release notes popup with ASCII header
 
-**Estimated Reduction:** ~300 lines
+**Actual Reduction:** 278 lines (6.6% of original main.go)
+**Result:** views.go created with 294 lines, all view rendering working
 
-### Phase 5: Extract Background Effects
+### Phase 5: Extract Background Effects ✅ COMPLETE
 **Target:** Create `backgrounds.go` for background animation effects
 
-**Functions to Extract:**
-1. `applyBackgroundAnimation()` - Line 2829
-2. `addMatrixRain()` - Line 2845
-3. `addFireEffect()` - Line 2877
-4. `addAsciiRain()` - Line 2904
-5. `addMatrixEffect()` - Line 2931
-6. `getBackgroundColor()` - Line 2956
+**Functions Extracted:**
+1. ✅ `applyBackgroundAnimation()` - Router for background effects based on selection
+2. ✅ `addMatrixRain()` - Simple matrix rain simulation (older implementation)
+3. ✅ `addFireEffect()` - DOOM-style fire effect rendering
+4. ✅ `addAsciiRain()` - ASCII rain effect rendering
+5. ✅ `addMatrixEffect()` - Matrix-style background effect
+6. ✅ `getBackgroundColor()` - Returns BgBase to prevent color bleeding
 
-**Estimated Reduction:** ~200 lines
+**Actual Reduction:** 130 lines (3.1% of original main.go)
+**Result:** backgrounds.go created with 149 lines, all background effects working
 
-### Phase 6: Extract Theme Management
+### Phase 6: Extract Theme Management ✅ COMPLETE
 **Target:** Create `theme.go` for theme-related functions
 
-**Functions to Extract:**
-1. `applyTheme()` - Line 168
-2. `setThemeWallpaper()` - Line 301
-3. `getAnimatedColor()` - Line 3495
-4. `getAnimatedBorderColor()` - Line 3501
-5. `getFocusColor()` - Line 3507
+**Functions Extracted:**
+1. ✅ `applyTheme()` - 130 lines with 9 theme definitions (gruvbox, material, nord, dracula, catppuccin, tokyo night, solarized, monochrome, transishardjob)
+2. ✅ `setThemeWallpaper()` - 40 lines with swww daemon integration and test mode protection
+3. ✅ `getAnimatedColor()` - Brand color cycling for animations
+4. ✅ `getAnimatedBorderColor()` - Border animation color cycling
+5. ✅ `getFocusColor()` - Focus state color helper
 
-**Estimated Reduction:** ~300 lines
+**Additional Cleanup:**
+- Removed unused `os/exec` import from main.go
+- Updated help text: "bubble-greet" → "sysc-greet"
+- Updated config file path: "bubble-greet.conf" → "sysc-greet.conf"
+- Removed deprecated `-font` flag (figlet no longer used)
+- Updated ASCII config path references
 
-### Phase 7: Extract Utilities
+**Actual Reduction:** 189 lines (4.5% of original main.go)
+**Result:** theme.go created with 215 lines, all themes and wallpaper management working
+
+### Phase 7: Extract Utilities ✅ COMPLETE
 **Target:** Create `utils.go` for utility functions
 
-**Functions to Extract:**
-1. `centerText()` - Line 343
-2. `stripANSI()` - Line 390
-3. `stripAnsi()` - Line 3589 (Note: duplicate, should consolidate)
-4. `extractCharsWithAnsi()` - Line 3595
-5. `min()` - Line 3580
-6. `interpolateColors()` - Line 727
-7. `parseHexColor()` - Line 741
+**Functions Extracted:**
+1. ✅ `centerText()` - Wrapper for internal/ui.CenterText
+2. ✅ `stripANSI()` - ANSI escape code removal with regex
+3. ✅ `stripAnsi()` - Wrapper for internal/ui.StripAnsi
+4. ✅ `extractCharsWithAnsi()` - Character extraction preserving ANSI codes
+5. ✅ `min()` - Integer minimum helper
+6. ✅ `ansiRegex` - Shared regex pattern for ANSI stripping
 
-**Estimated Reduction:** ~150 lines
+**Additional Cleanup:**
+- Removed unused `regexp` import from main.go
+- Removed unused `internal/ui` import from main.go
+- Consolidated ANSI stripping functions in one location
+
+**Actual Reduction:** 53 lines (1.3% of original main.go)
+**Result:** utils.go created with 75 lines, all utility functions working
 
 ### Phase 8: Extract Configuration
 **Target:** Create `config.go` for configuration loading
