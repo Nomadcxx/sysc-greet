@@ -20,12 +20,6 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo bash
 ```
 
-Or using wget:
-
-```bash
-wget -qO- https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo bash
-```
-
 ### Manual Install
 
 **Prerequisites:**
