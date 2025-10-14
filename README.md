@@ -71,6 +71,64 @@ command = "niri -c /etc/greetd/niri-greeter-config.kdl"
 user = "greeter"
 ```
 
+**Create niri greeter config** (`/etc/greetd/niri-greeter-config.kdl`):
+
+```kdl
+// SYSC-Greet Niri config for greetd greeter session
+hotkey-overlay {
+    skip-at-startup
+}
+
+input {
+    keyboard {
+        xkb {
+            layout "us"
+        }
+        repeat-delay 400
+        repeat-rate 40
+    }
+    touchpad {
+        tap;
+    }
+}
+
+layer-rule {
+    match namespace="^wallpaper$"
+    place-within-backdrop true
+}
+
+layout {
+    gaps 0
+    center-focused-column "never"
+    focus-ring { off }
+    border { off }
+}
+
+animations {
+    off
+}
+
+window-rule {
+    match app-id="kitty"
+    opacity 0.90
+}
+
+spawn-at-startup "swww-daemon"
+spawn-sh-at-startup "kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
+
+binds {
+}
+```
+
+**Create greeter user:**
+
+```bash
+sudo useradd -M -G video -s /usr/bin/nologin greeter
+sudo mkdir -p /var/cache/sysc-greet /var/lib/greeter/Pictures/wallpapers
+sudo chown -R greeter:greeter /var/cache/sysc-greet /var/lib/greeter
+sudo chmod 755 /var/lib/greeter
+```
+
 **Enable service:**
 
 ```bash
