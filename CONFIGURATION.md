@@ -77,11 +77,6 @@ date_format=Monday, January 2, 2006
 # Clock size: small, medium, large
 clock_size=medium
 
-# Animation on screensaver start
-animate_on_start=true
-animation_type=print
-animation_speed=20
-
 # ASCII variants (cycles every 5 minutes)
 ascii_1=
   ▄▀▀▀▀ █   █ ▄▀▀▀▀ ▄▀▀▀▀    ▄▀    ▄▀
@@ -107,10 +102,6 @@ Go uses the reference time `01/02 03:04:05PM '06 -0700` (1234567 - memorable, ri
 - `15:04:05` - 24-hour with seconds
 - `Monday, January 2, 2006` - Full date
 - `2006-01-02` - ISO format
-
-### Animation Types
-- `print` - Typewriter reveal effect
-- `none` - Instant appearance
 
 ### Behavior
 - Activates after `idle_timeout` minutes

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"image/color"
@@ -244,56 +243,8 @@ type ASCIIConfig struct {
 // applyRainbowAnimation, applyMatrixAnimation, applyTypewriterAnimation, applyGlowAnimation, applyStaticColors
 // Helpers: interpolateColors, parseHexColor
 
-func loadConfig(configPath string) (Config, error) {
-	// CHANGED 2025-10-12 - Removed figlet font path (figlet no longer used)
-	config := Config{
-		FontPath: "", // Deprecated: figlet no longer used
-		Palettes: make(map[string]ColorPalette),
-	}
-
-	file, err := os.Open(configPath)
-	if err != nil {
-		// If config file doesn't exist, use defaults
-		return config, nil
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-
-		// Skip comments and empty lines
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		// Parse key = value pairs
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			continue
-		}
-
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-
-		if key == "font_path" {
-			config.FontPath = value
-		} else {
-			// Parse color palette: session_type = color1,color2,color3,...
-			colors := strings.Split(value, ",")
-			for i, color := range colors {
-				colors[i] = strings.TrimSpace(color)
-			}
-
-			config.Palettes[key] = ColorPalette{
-				Name:   fmt.Sprintf("%s theme", strings.Title(key)),
-				Colors: colors,
-			}
-		}
-	}
-
-	return config, scanner.Err()
-}
+// CHANGED 2025-10-14 - Removed loadConfig() function and Config.Palettes field
+// The sysc-greet.conf system was unused and confusing - hardcoded sessionPalettes provide all needed palettes
 
 type Config struct {
 	TestMode  bool
@@ -303,9 +254,6 @@ type Config struct {
 	ShowIssue bool
 	Width     int
 	ThemeName string
-	// CHANGED 2025-09-29 - Added font and palette configuration
-	FontPath string                  // Path to figlet font file
-	Palettes map[string]ColorPalette // Custom color palettes per session type
 }
 
 type ViewMode string
@@ -1583,17 +1531,10 @@ func (m model) authenticate(username, password string) tea.Cmd {
 func main() {
 	// CHANGED 2025-10-01 - Removed SetColorProfile - not available in lipgloss v2
 	// Color profile is now automatically detected via colorprofile package
+	// CHANGED 2025-10-14 - Removed sysc-greet.conf loading - hardcoded sessionPalettes provide all needed palettes
 
-	// Load configuration from file first
-	// CHANGED 2025-09-29 - Added config file loading with command-line override support
-	// CHANGED 2025-10-12 - Updated config path to sysc-greet.conf
-	fileConfig, err := loadConfig("sysc-greet.conf")
-	if err != nil {
-		fmt.Printf("Warning: Could not load config file: %v\n", err)
-	}
-
-	// Define command-line flags with config file values as defaults
-	config := fileConfig
+	// Initialize config with defaults
+	config := Config{}
 
 	var screensaverTestMode bool // CHANGED 2025-10-11 - Add screensaver test mode flag
 
@@ -1609,15 +1550,14 @@ func main() {
 
 	// Add help text
 	// CHANGED 2025-10-12 - Updated help text to reflect sysc-greet branding
+	// CHANGED 2025-10-14 - Removed sysc-greet.conf references
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS]\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "sysc-greet - A terminal greeter for greetd\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
 		flag.PrintDefaults()
 		fmt.Fprintf(os.Stderr, "\nConfiguration:\n")
-		fmt.Fprintf(os.Stderr, "  Config file: sysc-greet.conf\n")
 		fmt.Fprintf(os.Stderr, "  ASCII configs: /usr/share/sysc-greet/ascii_configs/\n")
-		fmt.Fprintf(os.Stderr, "  Palettes: %d custom palettes loaded\n", len(config.Palettes))
 		fmt.Fprintf(os.Stderr, "\nKey Bindings:\n")
 		fmt.Fprintf(os.Stderr, "  Tab       Cycle focus between elements\n")
 		fmt.Fprintf(os.Stderr, "  ↑↓       Navigate sessions when focused\n")
