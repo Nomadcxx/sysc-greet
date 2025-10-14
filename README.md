@@ -1,17 +1,19 @@
 # sysc-greet
 
-A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd), written in Go.
+A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd), written in Go with the Bubble Tea framework.
 
 ![Preview](https://github.com/Nomadcxx/sysc-greet/raw/master/assets/showcase.gif)
 
 ## Features
 
-- **Themes**: Dracula, Gruvbox, Material, Nord, Tokyo Night, Catppuccin, Solarized, Monochrome, TransIsHardJob
-- **Background Animations**: Fire (DOOM PSX effect), Matrix (digital rain), Rain (ASCII drops), Static Pattern
-- **Border Styles**: Classic, Modern, Minimal, ASCII-1, ASCII-2, Wave, Pulse
-- **Preference Caching**: Remembers theme, background, border style, and session
-- **Multiple ASCII Variants**: Page Up/Down to cycle through different ASCII art per session
-- **Multi-Background Support**: Enable multiple effects simultaneously
+- **9 Themes**: Dracula, Gruvbox, Material, Nord, Tokyo Night, Catppuccin, Solarized, Monochrome, TransIsHardJob
+- **Background Effects**: Fire (DOOM PSX), Matrix rain, ASCII rain, Static patterns
+- **7 Border Styles**: Classic, Modern, Minimal, ASCII-1, ASCII-2, Wave, Pulse
+- **Screensaver**: Configurable idle timeout with ASCII art cycling
+- **Multiple ASCII Variants**: Page Up/Down navigation per session
+- **Video Wallpapers**: Multi-monitor support via gslapper
+- **Session Management**: Auto-detection of X11/Wayland sessions
+- **Preference Caching**: Theme, background, border, session persistence
 
 ## Installation
 
@@ -23,37 +25,42 @@ yay -S sysc-greet
 paru -S sysc-greet
 ```
 
-### Quick Install (One-Line)
+### Quick Install Script
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo bash
 ```
 
-### Manual Install
+### Manual Build
 
-**Clone and run installer:**
+**Requirements:**
+- Go 1.21+
+- greetd
+- niri (compositor)
+- kitty (terminal)
+- swww (wallpaper daemon)
+- gslapper (optional, for video wallpapers)
+
+**Build and install:**
 
 ```bash
 git clone https://github.com/Nomadcxx/sysc-greet
 cd sysc-greet
-go build -o install-sysc-greet ./cmd/installer/
-sudo ./install-sysc-greet
+go build -o sysc-greet ./cmd/sysc-greet/
+sudo install -Dm755 sysc-greet /usr/local/bin/sysc-greet
 ```
 
-**What the installer does:**
-- Checks dependencies (Go, systemd, package manager)
-- Installs greetd and gslapper (optional, for video wallpapers)
-- Builds sysc-greet binary
-- Installs to `/usr/local/bin/sysc-greet`
-- Copies configs to `/usr/share/sysc-greet/`
-- Configures greetd with niri compositor
-- Enables greetd.service
+**Install assets:**
 
-After installation, reboot to see sysc-greet as your login screen.
+```bash
+sudo mkdir -p /usr/share/sysc-greet/{ascii_configs,fonts,wallpapers}
+sudo cp -r ascii_configs/* /usr/share/sysc-greet/ascii_configs/
+sudo cp -r fonts/* /usr/share/sysc-greet/fonts/
+sudo cp -r wallpapers/* /usr/share/sysc-greet/wallpapers/
+sudo cp config/kitty-greeter.conf /etc/greetd/kitty.conf
+```
 
-### Configuration
-
-The installer automatically configures greetd at `/etc/greetd/config.toml`:
+**Configure greetd** (`/etc/greetd/config.toml`):
 
 ```toml
 [terminal]
@@ -64,33 +71,23 @@ command = "niri -c /etc/greetd/niri-greeter-config.kdl"
 user = "greeter"
 ```
 
-Manual configuration not required unless using a different compositor.
+**Enable service:**
+
+```bash
+sudo systemctl enable greetd.service
+```
+
+## Configuration
 
 **For detailed configuration options, see [CONFIGURATION.md](https://github.com/Nomadcxx/sysc-greet/blob/master/CONFIGURATION.md)**
 
-## Usage
+### ASCII Art Format
 
-### Key Bindings
-
-- **F2**: Settings menu (themes, borders, backgrounds)
-- **F3**: Session selection
-- **F4**: Power menu (shutdown/reboot)
-- **F5**: Release notes
-- **Page Up/Down**: Cycle ASCII variants
-
-### Test Mode
-
-```bash
-sysc-greet --test
-```
-
-## ASCII Art Configuration
-
-Add custom ASCII art to `/usr/share/sysc-greet/ascii_configs/`:
+Custom ASCII art configs in `/usr/share/sysc-greet/ascii_configs/`:
 
 ```ini
 # mysession.conf
-name=mysession
+name=My Session
 
 ascii_1=
   Your ASCII art here
@@ -101,10 +98,46 @@ ascii_2=
   Alternative variant
   Line 2
 
-colors=#color1,#color2,#color3
-animation_style=rainbow
-animation_speed=1.0
+colors=#ff5555,#50fa7b,#bd93f9
 ```
+
+**Note:** `colors` define theme color overrides (accent, success, info)
+
+## Usage
+
+### Key Bindings
+
+- **F2** - Settings menu (themes, borders, backgrounds)
+- **F3** - Session selection
+- **F4** - Power menu (shutdown/reboot)
+- **F5** - Release notes
+- **Page Up/Down** - Cycle ASCII variants
+- **Tab** - Navigate fields
+- **Enter** - Submit/Continue
+- **Esc** - Cancel/Return
+
+### Test Mode
+
+Test the greeter without locking your session:
+
+```bash
+sysc-greet --test
+```
+
+### Additional Options
+
+```bash
+sysc-greet --theme dracula          # Start with specific theme
+sysc-greet --border ascii-2         # Start with specific border
+sysc-greet --screensaver            # Enable screensaver in test mode
+```
+
+## Acknowledgements
+
+- [tuigreet](https://github.com/apognu/tuigreet) by apognu - Original inspiration and base
+- [Bubble Tea](https://github.com/charmbracelet/bubbletea) by Charm - TUI framework
+- [Lipgloss](https://github.com/charmbracelet/lipgloss) by Charm - Terminal styling
+- [greetd](https://git.sr.ht/~kennylevinsen/greetd) by kennylevinsen - Login manager
 
 ## License
 
