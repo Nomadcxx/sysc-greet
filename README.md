@@ -66,7 +66,7 @@ user = "greeter"
 
 Manual configuration not required unless using a different compositor.
 
-**For detailed configuration options, see [CONFIGURATION.md](CONFIGURATION.md)**
+**For detailed configuration options, see [CONFIGURATION.md](https://github.com/Nomadcxx/sysc-greet/blob/master/CONFIGURATION.md)**
 
 ## Usage
 
