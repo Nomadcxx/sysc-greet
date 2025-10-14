@@ -39,27 +39,9 @@ ascii_2=
 /_/|_/ |___/ .___/\____/____//_/ |_/_/|_/_____/
           /_/
 
-# Color gradient (hex colors)
+# Color gradient (hex colors - used for theme color overrides)
 colors=#89b4fa,#a6e3a1,#f9e2af,#fab387,#f38ba8,#cba6f7
-
-# Animation settings
-animation_style=gradient
-animation_speed=1.0
-animation_direction=right
 ```
-
-### Animation Styles
-- `gradient` - Smooth color transitions
-- `wave` - Wavy patterns
-- `pulse` - Breathing effect
-- `rainbow` - Full spectrum
-- `matrix` - Digital rain
-- `typewriter` - Typing effect
-- `glow` - Pulsing highlights
-- `static` - No animation
-
-### Animation Directions
-- `right`, `left`, `up`, `down`, `center-out`, `random`
 
 ### Creating Custom ASCII
 
@@ -149,13 +131,8 @@ Go uses the reference time `01/02 03:04:05PM '06 -0700` (1234567 - memorable, ri
 ### Theme Wallpapers
 Images named `sysc-greet-{theme}.png` are automatically matched to themes.
 
-**Generate theme wallpapers:**
-```bash
-./scripts/generate-theme-wallpapers.sh
-```
-
 ### Accessing in Greeter
-Press `F1` → Wallpaper → Select your wallpaper
+Press `F2` → Backgrounds → Select your wallpaper or background effect
 
 ---
 

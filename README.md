@@ -122,6 +122,9 @@ Test the greeter without locking your session:
 
 ```bash
 sysc-greet --test
+
+# Test in fullscreen (recommended for accurate preview)
+kitty --start-as=fullscreen sysc-greet --test
 ```
 
 ### Additional Options
