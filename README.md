@@ -15,6 +15,14 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 
 ## Installation
 
+### Arch Linux (AUR)
+
+```bash
+yay -S sysc-greet
+# or
+paru -S sysc-greet
+```
+
 ### Quick Install (One-Line)
 
 ```bash
@@ -57,6 +65,8 @@ user = "greeter"
 ```
 
 Manual configuration not required unless using a different compositor.
+
+**For detailed configuration options, see [CONFIGURATION.md](CONFIGURATION.md)**
 
 ## Usage
 
