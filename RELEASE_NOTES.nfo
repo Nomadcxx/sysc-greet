@@ -1,0 +1,49 @@
+  █████████  ███████████    █████████     █████████  ██████████
+ ███░░░░░███░░███░░░░░███  ███░░░░░███   ███░░░░░███░░███░░░░░█
+░███    ░░░  ░███    ░███ ░███    ░███  ███     ░░░  ░███  █ ░
+░░█████████  ░██████████  ░███████████ ░███          ░██████
+ ░░░░░░░░███ ░███░░░░░░   ░███░░░░░███ ░███          ░███░░█
+ ███    ░███ ░███         ░███    ░███ ░░███     ███ ░███ ░   █
+░░█████████  █████        █████   █████ ░░█████████  ██████████
+ ░░░░░░░░░  ░░░░░        ░░░░░   ░░░░░   ░░░░░░░░░  ░░░░░░░░░░
+ //////////////////////SEE YOU IN SPACE COWBOY///////////////
+
+THEMES (9):
+  Dracula, Catppuccin, Nord, Tokyo Night, Gruvbox
+  Material, Solarized, Monochrome, TransIsHardJob
+
+BACKGROUNDS:
+  Fire - PSX DOOM fire effect with theme palettes
+  Matrix - Digital rain animation
+  Rain - ASCII raindrop effect
+  Static Pattern - Geometric background
+
+BORDERS (7):
+  Classic, Modern, Minimal, ASCII-1, ASCII-2, Wave, Pulse
+
+SCREENSAVER:
+  Configurable idle timeout with ASCII art cycling
+  Automatic variant rotation every 5 minutes
+  Exit on any key/mouse input
+
+FEATURES:
+  - Preference caching (theme, background, border, session)
+  - Multi-ASCII variant support (Page Up/Down to cycle)
+  - Multi-background effects (enable multiple simultaneously)
+  - Session management (X11/Wayland auto-detection)
+  - Power menu (shutdown/reboot)
+
+KEYBINDS:
+  F2 - Settings Menu
+  F3 - Session Selection
+  F4 - Power Menu
+  F5 - Release Notes
+  Tab - Navigation
+  Page Up/Down - ASCII Variants
+
+TECHNICAL:
+  Built with Go + Bubble Tea framework
+  greetd integration
+  Styled with Lipgloss
+
+Credits: tuigreet (apognu), Bubble Tea/Lipgloss (Charm)
