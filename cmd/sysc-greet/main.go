@@ -1261,7 +1261,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				username := m.usernameInput.Value()
 				password := m.passwordInput.Value()
 				if m.config.Debug {
-					logDebug(" Username: %s, Password: %s", username, password)
+					// SECURITY: Never log passwords - only log username for debugging
+					logDebug(" Authentication attempt for user: %s", username)
 				}
 				if m.config.TestMode {
 					fmt.Println("Test mode: Auth successful")
@@ -1569,6 +1570,14 @@ func main() {
 	}
 
 	flag.Parse()
+
+	// SECURITY: Prevent test mode in production environment
+	// Test mode bypasses authentication and should only be used for development
+	if config.TestMode && os.Getenv("GREETD_SOCK") != "" {
+		fmt.Fprintf(os.Stderr, "SECURITY ERROR: Test mode cannot be enabled in production (GREETD_SOCK is set)\n")
+		fmt.Fprintf(os.Stderr, "Test mode bypasses authentication and should only be used for development.\n")
+		os.Exit(1)
+	}
 
 	// CHANGED 2025-10-06 - Initialize debug logging
 	initDebugLog()
