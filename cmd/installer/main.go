@@ -29,9 +29,9 @@ var (
 
 // Styles
 var (
-	checkMark  = lipgloss.NewStyle().Foreground(Accent).SetString("[OK]")
-	failMark   = lipgloss.NewStyle().Foreground(ErrorColor).SetString("[FAIL]")
-	skipMark   = lipgloss.NewStyle().Foreground(WarningColor).SetString("[SKIP]")
+	checkMark   = lipgloss.NewStyle().Foreground(Accent).SetString("[OK]")
+	failMark    = lipgloss.NewStyle().Foreground(ErrorColor).SetString("[FAIL]")
+	skipMark    = lipgloss.NewStyle().Foreground(WarningColor).SetString("[SKIP]")
 	headerStyle = lipgloss.NewStyle().Foreground(Primary).Bold(true)
 )
 
@@ -650,7 +650,7 @@ window-rule {
 
 spawn-at-startup "swww-daemon"
 
-spawn-sh-at-startup "kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
+spawn-sh-at-startup "XDG_CACHE_HOME=/var/cache/sysc-greet HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
 
 binds {
 }

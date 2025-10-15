@@ -9,19 +9,33 @@ post_install() {
     chown -R greeter:greeter /var/lib/greeter
     chmod 755 /var/lib/greeter
 
+    echo "==> Configuring greetd..."
+    # Create greetd config if it doesn't exist or is empty
+    if [ ! -s /etc/greetd/config.toml ]; then
+        cat > /etc/greetd/config.toml <<'EOF'
+[terminal]
+vt = 1
+
+[default_session]
+command = "niri -c /etc/greetd/niri-greeter-config.kdl"
+user = "greeter"
+
+[initial_session]
+command = "niri -c /etc/greetd/niri-greeter-config.kdl"
+user = "greeter"
+EOF
+        echo "Created /etc/greetd/config.toml"
+    else
+        echo "Existing /etc/greetd/config.toml found, not modifying"
+    fi
+
+    echo "==> Enabling greetd service..."
+    systemctl enable greetd.service
+
     echo ""
     echo "==> sysc-greet installed successfully!"
     echo ""
-    echo "To enable sysc-greet as your greeter:"
-    echo "  1. Edit /etc/greetd/config.toml:"
-    echo "     [default_session]"
-    echo "     command = \"niri -c /etc/greetd/niri-greeter-config.kdl\""
-    echo "     user = \"greeter\""
-    echo ""
-    echo "  2. Enable greetd service:"
-    echo "     systemctl enable greetd.service"
-    echo ""
-    echo "  3. Reboot to see sysc-greet"
+    echo "Reboot to see sysc-greet"
     echo ""
 }
 
