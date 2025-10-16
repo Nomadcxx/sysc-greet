@@ -701,7 +701,7 @@ window-rule {
 
 spawn-at-startup "swww-daemon"
 
-spawn-sh-at-startup "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
+spawn-sh-at-startup "XDG_CACHE_HOME=/var/cache/sysc-greet HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
 
 binds {
 }
@@ -791,7 +791,7 @@ for_window [app_id="kitty"] opacity 0.90
 for_window [app_id="kitty"] fullscreen enable
 
 # Startup applications
-exec swww-daemon
+exec swaybg -i /usr/share/sysc-greet/wallpapers/sysc-greet-default.png --mode fill
 exec "kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; swaymsg exit"
 `
 }

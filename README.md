@@ -61,9 +61,11 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.
 **Requirements:**
 - Go 1.21+
 - greetd
-- niri (compositor)
+- One of the following compositors:
+  - niri + swww (wallpaper daemon)
+  - hyprland + swww (wallpaper daemon)
+  - sway + swaybg (wallpaper daemon)
 - kitty (terminal)
-- swww (wallpaper daemon)
 - gslapper (optional, for video wallpapers)
 
 **Build and install:**

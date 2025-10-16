@@ -116,8 +116,13 @@ Go uses the reference time `01/02 03:04:05PM '06 -0700` (1234567 - memorable, ri
 `/usr/share/sysc-greet/wallpapers/`
 
 ### Supported Formats
-- **Static:** PNG, JPG (via `swww`)
+- **Static:** PNG, JPG (via compositor-specific wallpaper daemons)
 - **Video:** MP4, WebM (via `gslapper`)
+
+### Wallpaper Daemons
+Different compositors use different wallpaper daemons:
+- **Niri & Hyprland:** Use `swww` for static wallpapers
+- **Sway:** Uses `swaybg` for static wallpapers
 
 ### Theme Wallpapers
 Images named `sysc-greet-{theme}.png` are automatically matched to themes.
