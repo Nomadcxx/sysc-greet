@@ -134,6 +134,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.step == stepComplete || m.step == stepWelcome || m.step == stepCompositorSelect {
 				return m, tea.Quit
 			}
+			// Allow cancelling during installation
+			if m.step == stepInstalling {
+				return m, tea.Quit
+			}
 		case "enter":
 			if m.step == stepWelcome {
 				// Move to compositor selection if not pre-selected
@@ -185,6 +189,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
+
+	case taskCompleteMsg:
+		// Handle task completion
+		if msg.index >= 0 && msg.index < len(m.tasks) {
+			if msg.success {
+				m.tasks[msg.index].status = statusComplete
+			} else {
+				m.tasks[msg.index].status = statusFailed
+				m.errors = append(m.errors, fmt.Sprintf("Task %s failed: %s", m.tasks[msg.index].name, msg.error))
+			}
+
+			// Move to next task or finish
+			nextIndex := msg.index + 1
+			if nextIndex < len(m.tasks) {
+				m.currentTaskIndex = nextIndex
+				m.tasks[nextIndex].status = statusRunning
+				return m, tea.Batch(
+					m.spinner.Tick,
+					executeTask(nextIndex, &m),
+				)
+			} else {
+				// All tasks complete
+				m.step = stepComplete
+				return m, nil
+			}
+		}
 	}
 
 	return m, nil
@@ -920,9 +950,12 @@ func parseNiriOutputs(output string) []Monitor {
 }
 
 func main() {
+	fmt.Println("Starting installer...")
 	p := tea.NewProgram(newModel())
+	fmt.Println("Program created, running...")
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
+	fmt.Println("Installer finished")
 }
