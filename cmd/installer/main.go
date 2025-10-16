@@ -776,10 +776,8 @@ misc {
     disable_hyprland_logo = true
 }
 
-# Minimal decorations
+# Minimal decorations for fullscreen greeter
 decoration {
-    rounding = 0
-    shadow = false
     blur {
         enabled = false
     }
