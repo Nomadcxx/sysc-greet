@@ -100,8 +100,6 @@ layer-rule {
 layout {
     gaps 0
     center-focused-column "never"
-    focus-ring { off }
-    border { off }
 }
 
 animations {
