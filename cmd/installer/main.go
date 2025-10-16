@@ -770,10 +770,16 @@ animations {
     enabled = false
 }
 
+# Disable splash and logo for cleaner greeter
+misc {
+    disable_splash_rendering = true
+    disable_hyprland_logo = true
+}
+
 # Minimal decorations
 decoration {
     rounding = 0
-    drop_shadow = false
+    shadow = false
     blur {
         enabled = false
     }
@@ -801,7 +807,6 @@ input {
 # No binds = no user control
 
 # Window rules for kitty greeter
-windowrulev2 = opacity 0.90, class:^(kitty)$
 windowrulev2 = fullscreen, class:^(kitty)$
 
 # Layer rules for wallpaper daemon
