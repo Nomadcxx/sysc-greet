@@ -529,7 +529,7 @@ func initialModel(config Config, screensaverMode bool) model {
 		selectedBackground:     "none",
 		currentTheme:           "dracula",
 		borderAnimationEnabled: false,
-		selectedFont:           "/usr/share/bubble-greet/fonts/dos_rebel.flf", // Absolute path
+		selectedFont:           "/usr/share/sysc-greet/fonts/dos_rebel.flf", // FIXED 2025-10-15 - Corrected path from bubble-greet to sysc-greet
 		customASCIIText:        "",
 		// CHANGED 2025-10-01 - Initialize animation control defaults
 		selectedAnimationStyle:     "gradient",

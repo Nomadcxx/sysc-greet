@@ -65,7 +65,7 @@ func (m MainModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m MainModel) View() string {
 	var b strings.Builder
 
-	b.WriteString("bubble-greet\n\n")
+	b.WriteString("sysc-greet\n\n") // FIXED 2025-10-15 - Corrected title from bubble-greet to sysc-greet
 
 	if m.Mode == "username" {
 		b.WriteString("Username: " + m.UsernameInput.View() + "\n")

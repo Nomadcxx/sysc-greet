@@ -1,7 +1,13 @@
 post_install() {
     echo "==> Creating greeter user..."
+    # FIXED 2025-10-15 - Add render group for Intel/AMD iGPU support on laptops
+    # Modern Linux uses 'render' group for /dev/dri/renderD* device access
     if ! id greeter &>/dev/null; then
-        useradd -M -G video -s /usr/bin/nologin greeter
+        useradd -M -G video,render,input -s /usr/bin/nologin greeter
+    else
+        # User exists - ensure they have required groups for GPU access
+        # CRITICAL: Fixes "greeter exited without creating session" on laptops
+        usermod -aG video,render,input greeter
     fi
 
     echo "==> Setting permissions..."

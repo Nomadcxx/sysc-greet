@@ -684,7 +684,8 @@ func (m model) getSessionASCIIMonochrome() string {
 	}
 
 	// Try to load ASCII config for this session
-	configPath := fmt.Sprintf("/usr/share/bubble-greet/ascii_configs/%s.conf", configFileName)
+	// FIXED 2025-10-15 - Corrected path from bubble-greet to sysc-greet
+	configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
 	asciiConfig, err := loadASCIIConfig(configPath)
 	if err != nil {
 		// Fallback to session name as text

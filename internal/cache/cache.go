@@ -9,18 +9,16 @@ import (
 	"github.com/Nomadcxx/sysc-greet/internal/sessions"
 )
 
-const cacheDir = ".cache/bubble-greet"
+// FIXED 2025-10-17 - Use persistent system cache location instead of user home
+// This prevents cache from being wiped on reboot (was in /tmp via XDG_CACHE_HOME)
+const cacheDir = "/var/cache/sysc-greet"
 const sessionFile = "session"
 const preferencesFile = "preferences"
 
 // SaveSelectedSession saves the selected session to cache
 func SaveSelectedSession(session sessions.Session) error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("failed to get home directory: %v", err)
-	}
-
-	cachePath := filepath.Join(home, cacheDir)
+	// Use system cache directory directly
+	cachePath := cacheDir
 	if err := os.MkdirAll(cachePath, 0755); err != nil {
 		return fmt.Errorf("failed to create cache directory: %v", err)
 	}
@@ -40,12 +38,8 @@ func SaveSelectedSession(session sessions.Session) error {
 
 // LoadSelectedSession loads the selected session from cache
 func LoadSelectedSession() (*sessions.Session, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get home directory: %v", err)
-	}
-
-	filePath := filepath.Join(home, cacheDir, sessionFile)
+	// Use system cache directory directly
+	filePath := filepath.Join(cacheDir, sessionFile)
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return nil, nil // No cached session
 	}
@@ -73,12 +67,8 @@ type UserPreferences struct {
 
 // SavePreferences saves user preferences to cache
 func SavePreferences(prefs UserPreferences) error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("failed to get home directory: %v", err)
-	}
-
-	cachePath := filepath.Join(home, cacheDir)
+	// Use system cache directory directly
+	cachePath := cacheDir
 	if err := os.MkdirAll(cachePath, 0755); err != nil {
 		return fmt.Errorf("failed to create cache directory: %v", err)
 	}
@@ -98,12 +88,8 @@ func SavePreferences(prefs UserPreferences) error {
 
 // LoadPreferences loads user preferences from cache
 func LoadPreferences() (*UserPreferences, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get home directory: %v", err)
-	}
-
-	filePath := filepath.Join(home, cacheDir, preferencesFile)
+	// Use system cache directory directly
+	filePath := filepath.Join(cacheDir, preferencesFile)
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return nil, nil // No cached preferences
 	}

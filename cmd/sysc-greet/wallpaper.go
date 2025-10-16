@@ -79,7 +79,7 @@ func launchGslapperWallpaper(wallpaperFilename string) {
 		startErr := cmd.Start()
 
 		// Write status to a debug file so user can check if it's being called
-		debugFile := "/tmp/bubble-greet-wallpaper.log"
+		debugFile := "/tmp/sysc-greet-wallpaper.log" // FIXED 2025-10-15 - Corrected log filename from bubble-greet to sysc-greet
 		logMsg := ""
 		if killErr != nil {
 			logMsg += "pkill gslapper: " + killErr.Error() + "\n"
