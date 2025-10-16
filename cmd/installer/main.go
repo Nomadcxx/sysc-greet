@@ -81,6 +81,7 @@ type model struct {
 type taskCompleteMsg struct {
 	index   int
 	success bool
+	skipped bool
 	error   string
 }
 
@@ -193,7 +194,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case taskCompleteMsg:
 		// Handle task completion
 		if msg.index >= 0 && msg.index < len(m.tasks) {
-			if msg.success {
+			if msg.skipped {
+				m.tasks[msg.index].status = statusSkipped
+			} else if msg.success {
 				m.tasks[msg.index].status = statusComplete
 			} else {
 				m.tasks[msg.index].status = statusFailed
@@ -399,6 +402,28 @@ func (m model) getHelpText() string {
 
 func executeTask(index int, m *model) tea.Cmd {
 	return func() tea.Msg {
+		// Check if this is an optional task that should be skipped
+		if m.tasks[index].optional {
+			// Special handling for greetd installation
+			if m.tasks[index].name == "Install greetd" && !m.needsGreetd {
+				return taskCompleteMsg{
+					index:   index,
+					success: true,
+					skipped: true,
+				}
+			}
+			// Special handling for gslapper installation
+			if m.tasks[index].name == "Install gslapper" {
+				if _, err := exec.LookPath("gslapper"); err == nil {
+					return taskCompleteMsg{
+						index:   index,
+						success: true,
+						skipped: true,
+					}
+				}
+			}
+		}
+
 		// Simulate work delay for visibility
 		time.Sleep(200 * time.Millisecond)
 
@@ -418,8 +443,6 @@ func executeTask(index int, m *model) tea.Cmd {
 		}
 	}
 }
-
-// Task execution functions
 
 func checkPrivileges(m *model) error {
 	if os.Geteuid() != 0 {
