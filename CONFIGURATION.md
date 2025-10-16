@@ -132,7 +132,26 @@ Press `F2` → Backgrounds → Select your wallpaper or background effect
 ### Configuration Files
 - **greetd config:** `/etc/greetd/config.toml`
 - **Niri config:** `/etc/greetd/niri-greeter-config.kdl`
+- **Hyprland config:** `/etc/greetd/hyprland-greeter-config.conf`
+- **Sway config:** `/etc/greetd/sway-greeter-config`
 - **Kitty config:** `/etc/greetd/kitty.conf`
+
+## Compositor Configurations
+
+sysc-greet uses compositor-specific configs for the greeter session:
+
+- **Niri:** `/etc/greetd/niri-greeter-config.kdl`
+- **Hyprland:** `/etc/greetd/hyprland-greeter-config.conf`
+- **Sway:** `/etc/greetd/sway-greeter-config`
+
+These configs are optimized for the greeter with:
+- No keybindings (security)
+- Minimal decorations (performance)
+- Disabled animations (fast startup)
+- Kitty fullscreen launch
+- Auto-exit after login
+
+You can customize these configs if needed, but changes may affect greeter security or functionality.
 
 ### Data Directories
 - **ASCII configs:** `/usr/share/sysc-greet/ascii_configs/`

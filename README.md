@@ -15,17 +15,42 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 - **Session Management**: Auto-detection of X11/Wayland sessions
 - **Preference Caching**: Theme, background, border, session persistence
 
-## Installation
+## Which Compositor?
 
-### Arch Linux (AUR)
+sysc-greet supports three Wayland compositors:
 
+- **Niri** - Tiling compositor with unique scrollable workspaces
+- **Hyprland** - Popular dynamic tiling compositor with extensive features
+- **Sway** - Stable i3-compatible tiling compositor
+
+Pick the package matching your compositor. The greeter will work identically on all three.
+
+Choose the package for your compositor:
+
+**For Niri users:**
 ```bash
-yay -S sysc-greet
+yay -S sysc-greet-niri
 # or
-paru -S sysc-greet
+paru -S sysc-greet-niri
+```
+
+**For Hyprland users:**
+```bash
+yay -S sysc-greet-hyprland
+# or
+paru -S sysc-greet-hyprland
+```
+
+**For Sway users:**
+```bash
+yay -S sysc-greet-sway
+# or
+paru -S sysc-greet-sway
 ```
 
 ### Quick Install Script
+
+The installer will ask which compositor you want to use:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo bash

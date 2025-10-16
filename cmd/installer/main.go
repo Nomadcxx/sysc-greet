@@ -29,9 +29,9 @@ var (
 
 // Styles
 var (
-	checkMark  = lipgloss.NewStyle().Foreground(Accent).SetString("[OK]")
-	failMark   = lipgloss.NewStyle().Foreground(ErrorColor).SetString("[FAIL]")
-	skipMark   = lipgloss.NewStyle().Foreground(WarningColor).SetString("[SKIP]")
+	checkMark   = lipgloss.NewStyle().Foreground(Accent).SetString("[OK]")
+	failMark    = lipgloss.NewStyle().Foreground(ErrorColor).SetString("[FAIL]")
+	skipMark    = lipgloss.NewStyle().Foreground(WarningColor).SetString("[SKIP]")
 	headerStyle = lipgloss.NewStyle().Foreground(Primary).Bold(true)
 )
 
@@ -39,6 +39,7 @@ type installStep int
 
 const (
 	stepWelcome installStep = iota
+	stepCompositorSelect
 	stepInstalling
 	stepComplete
 )
@@ -62,16 +63,19 @@ type installTask struct {
 }
 
 type model struct {
-	step             installStep
-	tasks            []installTask
-	currentTaskIndex int
-	width            int
-	height           int
-	spinner          spinner.Model
-	errors           []string
-	packageManager   string
-	greetdInstalled  bool
-	needsGreetd      bool
+	step               installStep
+	tasks              []installTask
+	currentTaskIndex   int
+	width              int
+	height             int
+	spinner            spinner.Model
+	errors             []string
+	packageManager     string
+	greetdInstalled    bool
+	needsGreetd        bool
+	selectedCompositor string
+	compositorOptions  []string
+	compositorIndex    int
 }
 
 type taskCompleteMsg struct {
@@ -84,6 +88,9 @@ func newModel() model {
 	s := spinner.New()
 	s.Style = lipgloss.NewStyle().Foreground(Secondary)
 	s.Spinner = spinner.Dot
+
+	// Check for pre-selected compositor from environment
+	preSelectedCompositor := os.Getenv("SYSC_COMPOSITOR")
 
 	tasks := []installTask{
 		{name: "Check privileges", description: "Checking root access", execute: checkPrivileges, status: statusPending},
@@ -99,11 +106,14 @@ func newModel() model {
 	}
 
 	return model{
-		step:             stepWelcome,
-		tasks:            tasks,
-		currentTaskIndex: -1,
-		spinner:          s,
-		errors:           []string{},
+		step:               stepWelcome,
+		tasks:              tasks,
+		currentTaskIndex:   -1,
+		spinner:            s,
+		errors:             []string{},
+		compositorOptions:  []string{"niri", "hyprland", "sway"},
+		compositorIndex:    0,
+		selectedCompositor: preSelectedCompositor,
 	}
 }
 
@@ -121,12 +131,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
-			if m.step == stepComplete || m.step == stepWelcome {
+			if m.step == stepComplete || m.step == stepWelcome || m.step == stepCompositorSelect {
 				return m, tea.Quit
 			}
 		case "enter":
 			if m.step == stepWelcome {
-				// Start installation
+				// Move to compositor selection if not pre-selected
+				if m.selectedCompositor == "" {
+					m.step = stepCompositorSelect
+					return m, nil
+				} else {
+					// Skip compositor selection if pre-selected
+					m.step = stepInstalling
+					m.currentTaskIndex = 0
+					m.tasks[0].status = statusRunning
+					return m, tea.Batch(
+						m.spinner.Tick,
+						executeTask(0, &m),
+					)
+				}
+			} else if m.step == stepCompositorSelect {
+				// Set selected compositor and start installation
+				m.selectedCompositor = m.compositorOptions[m.compositorIndex]
 				m.step = stepInstalling
 				m.currentTaskIndex = 0
 				m.tasks[0].status = statusRunning
@@ -137,34 +163,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else if m.step == stepComplete {
 				return m, tea.Quit
 			}
-		}
-
-	case taskCompleteMsg:
-		// Update task status
-		if msg.success {
-			m.tasks[msg.index].status = statusComplete
-		} else {
-			if m.tasks[msg.index].optional {
-				m.tasks[msg.index].status = statusSkipped
-				m.errors = append(m.errors, fmt.Sprintf("%s (skipped): %s", m.tasks[msg.index].name, msg.error))
-			} else {
-				m.tasks[msg.index].status = statusFailed
-				m.errors = append(m.errors, fmt.Sprintf("%s: %s", m.tasks[msg.index].name, msg.error))
-				m.step = stepComplete
+		case "up", "k":
+			if m.step == stepCompositorSelect {
+				m.compositorIndex--
+				if m.compositorIndex < 0 {
+					m.compositorIndex = len(m.compositorOptions) - 1
+				}
+				return m, nil
+			}
+		case "down", "j":
+			if m.step == stepCompositorSelect {
+				m.compositorIndex++
+				if m.compositorIndex >= len(m.compositorOptions) {
+					m.compositorIndex = 0
+				}
 				return m, nil
 			}
 		}
-
-		// Move to next task
-		m.currentTaskIndex++
-		if m.currentTaskIndex >= len(m.tasks) {
-			m.step = stepComplete
-			return m, nil
-		}
-
-		// Start next task
-		m.tasks[m.currentTaskIndex].status = statusRunning
-		return m, executeTask(m.currentTaskIndex, &m)
 
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -214,6 +229,8 @@ func (m model) View() string {
 	switch m.step {
 	case stepWelcome:
 		mainContent = m.renderWelcome()
+	case stepCompositorSelect:
+		mainContent = m.renderCompositorSelect()
 	case stepInstalling:
 		mainContent = m.renderInstalling()
 	case stepComplete:
@@ -257,6 +274,22 @@ Builds binary, installs to system, configures greetd.
 Requires root.
 
 Press Enter to continue`
+}
+
+func (m model) renderCompositorSelect() string {
+	var b strings.Builder
+	b.WriteString("Select compositor for sysc-greet:\n\n")
+
+	for i, comp := range m.compositorOptions {
+		prefix := "  "
+		if i == m.compositorIndex {
+			prefix = "> "
+		}
+		b.WriteString(prefix + comp + "\n")
+	}
+
+	b.WriteString("\nUse ↑↓ to select, Enter to continue")
+	return b.String()
 }
 
 func (m model) renderInstalling() string {
@@ -312,18 +345,21 @@ func (m model) renderComplete() string {
 	}
 
 	// Success
-	return `Installation complete.
+	return fmt.Sprintf(`Installation complete.
 Reboot to see sysc-greet.
+Selected compositor: %s
 
-` + lipgloss.NewStyle().Foreground(FgMuted).Render(">see you space cowboy") + `
+`+lipgloss.NewStyle().Foreground(FgMuted).Render(">see you space cowboy")+`
 
-Press Enter to exit`
+Press Enter to exit`, m.selectedCompositor)
 }
 
 func (m model) getHelpText() string {
 	switch m.step {
 	case stepWelcome:
 		return "Enter: Continue  •  Ctrl+C: Quit"
+	case stepCompositorSelect:
+		return "↑↓: Navigate  •  Enter: Select  •  Ctrl+C: Quit"
 	case stepComplete:
 		return "Enter: Exit  •  Ctrl+C: Quit"
 	default:
@@ -373,6 +409,13 @@ func checkDependencies(m *model) error {
 	}
 	if _, err := exec.LookPath("systemctl"); err != nil {
 		missing = append(missing, "systemd")
+	}
+
+	// Check compositor if selected
+	if m.selectedCompositor != "" {
+		if _, err := exec.LookPath(m.selectedCompositor); err != nil {
+			missing = append(missing, m.selectedCompositor)
+		}
 	}
 
 	if len(missing) > 0 {
@@ -549,11 +592,11 @@ func installConfigs(m *model) error {
 		}
 	}
 
-	// Generate wallpapers
-	if _, err := os.Stat("scripts/generate-theme-wallpapers.sh"); err == nil {
-		exec.Command("bash", "scripts/generate-theme-wallpapers.sh").Run()
-		if _, err := os.Stat("wallpapers"); err == nil {
-			exec.Command("cp", "-r", "wallpapers/", configPath+"/").Run()
+	// Copy wallpapers if directory exists
+	// FIXED 2025-10-17 - Always copy wallpapers directory if it exists
+	if _, err := os.Stat("wallpapers"); err == nil {
+		if err := exec.Command("cp", "-r", "wallpapers/", configPath+"/").Run(); err != nil {
+			return fmt.Errorf("failed to copy wallpapers")
 		}
 	}
 
@@ -572,12 +615,20 @@ func setupCache(m *model) error {
 	}
 
 	// Create greeter user if needed
+	// FIXED 2025-10-15 - Add render group for modern Intel/AMD iGPU support
+	// Modern Linux uses 'render' group for /dev/dri/renderD* (non-privileged GPU access)
+	// Both 'video' and 'render' groups needed for laptop iGPU compatibility
 	cmd := exec.Command("id", "greeter")
 	if err := cmd.Run(); err != nil {
-		cmd = exec.Command("useradd", "-M", "-G", "video", "-s", "/usr/bin/nologin", "greeter")
+		// User doesn't exist - create with video,render,input groups
+		cmd = exec.Command("useradd", "-M", "-G", "video,render,input", "-s", "/usr/bin/nologin", "greeter")
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("greeter user creation failed")
 		}
+	} else {
+		// User exists - ensure they have required groups
+		// CRITICAL: This fixes laptops where greeter user exists but lacks render group
+		exec.Command("usermod", "-aG", "video,render,input", "greeter").Run()
 	}
 
 	// Set ownership
@@ -596,8 +647,8 @@ func setupCache(m *model) error {
 	return nil
 }
 
-func configureGreetd(m *model) error {
-	niriConfig := `// SYSC-Greet Niri config for greetd greeter session
+func getNiriConfig() string {
+	return `// SYSC-Greet Niri config for greetd greeter session
 // Monitors auto-detected by niri at runtime
 
 hotkey-overlay {
@@ -650,27 +701,139 @@ window-rule {
 
 spawn-at-startup "swww-daemon"
 
-spawn-sh-at-startup "kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
+spawn-sh-at-startup "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
 
 binds {
 }
 `
+}
 
-	if err := os.WriteFile("/etc/greetd/niri-greeter-config.kdl", []byte(niriConfig), 0644); err != nil {
-		return fmt.Errorf("niri config write failed")
+func getHyprlandConfig() string {
+	return `# SYSC-Greet Hyprland config for greetd greeter session
+# Monitors auto-detected by Hyprland at runtime
+
+# No animations for faster greeter startup
+animations {
+    enabled = false
+}
+
+# Minimal decorations
+decoration {
+    rounding = 0
+    drop_shadow = false
+    blur {
+        enabled = false
+    }
+}
+
+# Greeter doesn't need gaps
+general {
+    gaps_in = 0
+    gaps_out = 0
+    border_size = 0
+}
+
+# Input configuration
+input {
+    kb_layout = us
+    repeat_delay = 400
+    repeat_rate = 40
+
+    touchpad {
+        tap-to-click = true
+    }
+}
+
+# Disable all keybindings (security for greeter)
+# No binds = no user control
+
+# Window rules for kitty greeter
+windowrulev2 = opacity 0.90, class:^(kitty)$
+windowrulev2 = fullscreen, class:^(kitty)$
+
+# Layer rules for wallpaper daemon
+layerrule = blur, wallpaper
+
+# Startup applications
+exec-once = swww-daemon
+exec-once = kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
+`
+}
+
+func getSwayConfig() string {
+	return `# SYSC-Greet Sway config for greetd greeter session
+# Monitors auto-detected by Sway at runtime
+
+# Disable window borders
+default_border none
+default_floating_border none
+
+# No gaps needed for greeter
+gaps inner 0
+gaps outer 0
+
+# Input configuration
+input * {
+    xkb_layout "us"
+    repeat_delay 400
+    repeat_rate 40
+}
+
+input type:touchpad {
+    tap enabled
+}
+
+# Disable all keybindings (security)
+# Empty config = no keys work
+
+# Window rules for kitty (match any)
+for_window [app_id="kitty"] opacity 0.90
+for_window [app_id="kitty"] fullscreen enable
+
+# Startup applications
+exec swww-daemon
+exec "kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; swaymsg exit"
+`
+}
+
+func configureGreetd(m *model) error {
+	var compositorConfig string
+	var greetdCommand string
+
+	switch m.selectedCompositor {
+	case "niri":
+		compositorConfig = getNiriConfig()
+		greetdCommand = "niri -c /etc/greetd/niri-greeter-config.kdl"
+		if err := os.WriteFile("/etc/greetd/niri-greeter-config.kdl", []byte(compositorConfig), 0644); err != nil {
+			return fmt.Errorf("niri config write failed")
+		}
+
+	case "hyprland":
+		compositorConfig = getHyprlandConfig()
+		greetdCommand = "Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
+		if err := os.WriteFile("/etc/greetd/hyprland-greeter-config.conf", []byte(compositorConfig), 0644); err != nil {
+			return fmt.Errorf("hyprland config write failed")
+		}
+
+	case "sway":
+		compositorConfig = getSwayConfig()
+		greetdCommand = "sway -c /etc/greetd/sway-greeter-config"
+		if err := os.WriteFile("/etc/greetd/sway-greeter-config", []byte(compositorConfig), 0644); err != nil {
+			return fmt.Errorf("sway config write failed")
+		}
 	}
 
-	greetdConfig := `[terminal]
+	greetdConfig := fmt.Sprintf(`[terminal]
 vt = 1
 
 [default_session]
-command = "niri -c /etc/greetd/niri-greeter-config.kdl"
+command = "%s"
 user = "greeter"
 
 [initial_session]
-command = "niri -c /etc/greetd/niri-greeter-config.kdl"
+command = "%s"
 user = "greeter"
-`
+`, greetdCommand, greetdCommand)
 
 	if err := os.WriteFile("/etc/greetd/config.toml", []byte(greetdConfig), 0644); err != nil {
 		return fmt.Errorf("greetd config write failed")

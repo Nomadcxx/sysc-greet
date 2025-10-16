@@ -1,0 +1,17 @@
+# Maintainer: Nomadcxx <noovie@gmail.com>
+pkgname=sysc-greet
+pkgver=1.1.0
+pkgrel=1
+pkgdesc="Transitional package - use sysc-greet-niri instead"
+arch=('x86_64' 'aarch64')
+url="https://github.com/Nomadcxx/sysc-greet"
+license=('MIT')
+depends=('sysc-greet-niri')
+
+package() {
+    echo "This is a transitional package."
+    echo "Please install one of:"
+    echo "  - sysc-greet-niri"
+    echo "  - sysc-greet-hyprland"
+    echo "  - sysc-greet-sway"
+}
