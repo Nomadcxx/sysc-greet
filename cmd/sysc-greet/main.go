@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -572,6 +573,16 @@ func initialModel(config Config, screensaverMode bool) model {
 					}
 				}
 			}
+			// FIXED 2025-10-17 - Load username and auto-advance to password if matches current session
+			if prefs.Username != "" && m.selectedSession != nil && prefs.Session == m.selectedSession.Name {
+				m.usernameInput.SetValue(prefs.Username)
+				// FIXED 2025-10-17 - Automatically switch to password mode when username is cached
+				m.mode = ModePassword
+				m.focusState = FocusPassword
+				m.usernameInput.Blur()
+				m.passwordInput.Focus()
+				logDebug("Loaded cached username '%s' for session: %s - auto-advancing to password", prefs.Username, m.selectedSession.Name)
+			}
 		}
 	}
 
@@ -656,6 +667,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case sessionSelectedMsg:
 		session := sessions.Session(msg)
+
+		// FIXED 2025-10-17 - Track previous session to detect changes
+		previousSession := ""
+		if m.selectedSession != nil {
+			previousSession = m.selectedSession.Name
+		}
+
 		m.selectedSession = &session
 		// Update session index
 		for i, s := range m.sessions {
@@ -665,6 +683,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		m.sessionDropdownOpen = false
+
+		// FIXED 2025-10-17 - Clear and reload username when session changes
+		if previousSession != "" && previousSession != session.Name {
+			logDebug("Session changed from '%s' to '%s', clearing username", previousSession, session.Name)
+			m.usernameInput.SetValue("") // Clear current username
+
+			// Load cached username for NEW session if available
+			if !m.config.TestMode {
+				if prefs, err := cache.LoadPreferences(); err == nil && prefs != nil {
+					if prefs.Username != "" && prefs.Session == session.Name {
+						m.usernameInput.SetValue(prefs.Username)
+						logDebug("Loaded cached username for new session: %s", session.Name)
+					}
+				}
+			}
+		}
+
 		if m.config.Debug {
 			logDebug(" Selected session: %s", session.Name)
 		}
@@ -678,12 +713,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			// CHANGED 2025-10-03 - Save session preference
 			// CHANGED 2025-10-03 - Skip saving in test mode
+			// FIXED 2025-10-17 - Save current username value (already loaded for this session above)
 			if !m.config.TestMode {
 				cache.SavePreferences(cache.UserPreferences{
 					Theme:       m.currentTheme,
 					Background:  m.selectedBackground,
 					BorderStyle: m.selectedBorderStyle,
 					Session:     session.Name,
+					Username:    m.usernameInput.Value(), // Save current username value
 				})
 			}
 			return m, tea.Batch(cmds...)
@@ -697,14 +734,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				fmt.Println("Test mode: Would reboot system")
 				return m, tea.Quit
 			}
+			// FIXED 2025-10-17 - Use shutdown command for proper system reboot from greeter session
+			// shutdown -r now coordinates with init system and works from any session
 			fmt.Println("Rebooting...")
+			exec.Command("shutdown", "-r", "now").Start()
 			return m, tea.Quit
 		case "Shutdown":
 			if m.config.TestMode {
 				fmt.Println("Test mode: Would shutdown system")
 				return m, tea.Quit
 			}
+			// FIXED 2025-10-17 - Use shutdown command for proper system poweroff from greeter session
+			// shutdown -h now coordinates with init system and works from any session
 			fmt.Println("Shutting down...")
+			exec.Command("shutdown", "-h", "now").Start()
 			return m, tea.Quit
 		case "Cancel":
 			m.mode = ModeLogin
@@ -719,24 +762,43 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Removed delay workaround
 			// Now we properly wait for greetd's success response in StartSession() before returning
 			// This ensures greetd has finished session initialization regardless of hardware speed
+
+			// FIXED 2025-10-17 - Save username to cache on successful login
+			if !m.config.TestMode && m.selectedSession != nil {
+				sessionName := m.selectedSession.Name
+				username := m.usernameInput.Value()
+				cache.SavePreferences(cache.UserPreferences{
+					Theme:       m.currentTheme,
+					Background:  m.selectedBackground,
+					BorderStyle: m.selectedBorderStyle,
+					Session:     sessionName,
+					Username:    username,
+				})
+				logDebug("Saved username '%s' for session: %s", username, sessionName)
+			}
+
 			fmt.Println("Session started successfully")
 			return m, tea.Quit
 		} else {
-			// CHANGED 2025-10-05 - Store error message and return to password mode
+			// FIXED 2025-10-17 - Return to login mode (not password mode) so user can fix username
 			m.errorMessage = msg
-			m.mode = ModePassword
-			m.passwordInput.SetValue("") // Clear password field
-			m.passwordInput.Focus()
-			m.focusState = FocusPassword
+			m.mode = ModeLogin
+			m.usernameInput.SetValue("")  // Clear username field
+			m.passwordInput.SetValue("")  // Clear password field
+			m.usernameInput.Focus()
+			m.passwordInput.Blur()
+			m.focusState = FocusUsername
 			return m, textinput.Blink
 		}
 	case error:
-		// CHANGED 2025-10-05 - Store error message and return to password mode
+		// FIXED 2025-10-17 - Return to login mode (not password mode) so user can fix username
 		m.errorMessage = msg.Error()
-		m.mode = ModePassword
-		m.passwordInput.SetValue("") // Clear password field
-		m.passwordInput.Focus()
-		m.focusState = FocusPassword
+		m.mode = ModeLogin
+		m.usernameInput.SetValue("")  // Clear username field
+		m.passwordInput.SetValue("")  // Clear password field
+		m.usernameInput.Focus()
+		m.passwordInput.Blur()
+		m.focusState = FocusUsername
 		return m, textinput.Blink
 
 	case tea.KeyMsg:
@@ -766,6 +828,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.usernameInput, cmd = m.usernameInput.Update(msg)
 			cmds = append(cmds, cmd)
+			// FIXED 2025-10-17 - Clear error message when user starts typing in login mode
+			if m.errorMessage != "" && len(m.usernameInput.Value()) > 0 {
+				m.errorMessage = ""
+			}
 		}
 	case ModePassword:
 		if m.focusState == FocusPassword {

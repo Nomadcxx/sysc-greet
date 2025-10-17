@@ -69,6 +69,7 @@ type UserPreferences struct {
 	Background  string `json:"background"`   // Last selected background animation
 	BorderStyle string `json:"border_style"` // Last selected border style
 	Session     string `json:"session"`      // Last selected session
+	Username    string `json:"username"`     // FIXED 2025-10-17 - Last successful username for this session
 }
 
 // SavePreferences saves user preferences to cache
