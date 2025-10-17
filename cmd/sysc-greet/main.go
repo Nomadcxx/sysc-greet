@@ -493,8 +493,9 @@ func initialModel(config Config, screensaverMode bool) model {
 	// Set initial focus
 	ti.Focus()
 
-	// Apply Dracula theme at initialization
-	applyTheme("dracula", config.TestMode)
+	// REMOVED 2025-10-17 - Don't apply Dracula at initialization
+	// The cached theme will be loaded immediately after model creation (line 558)
+	// Applying Dracula here causes a race condition with the cached theme wallpaper
 
 	// CHANGED 2025-10-11 - Determine initial mode
 	initialMode := ModeLogin
@@ -551,11 +552,14 @@ func initialModel(config Config, screensaverMode bool) model {
 
 	// CHANGED 2025-10-03 - Load cached preferences including session
 	// CHANGED 2025-10-03 - Skip cache in test mode
+	// FIXED 2025-10-17 - Apply Dracula as fallback if no cached theme exists
+	themeApplied := false
 	if !m.config.TestMode {
 		if prefs, err := cache.LoadPreferences(); err == nil && prefs != nil {
 			if prefs.Theme != "" {
 				m.currentTheme = prefs.Theme
 				applyTheme(prefs.Theme, m.config.TestMode)
+				themeApplied = true
 			}
 			if prefs.Background != "" {
 				m.selectedBackground = prefs.Background
@@ -584,6 +588,12 @@ func initialModel(config Config, screensaverMode bool) model {
 				logDebug("Loaded cached username '%s' for session: %s - auto-advancing to password", prefs.Username, m.selectedSession.Name)
 			}
 		}
+	}
+
+	// FIXED 2025-10-17 - Apply Dracula as fallback if no cached theme was loaded
+	if !themeApplied {
+		applyTheme("dracula", m.config.TestMode)
+		logDebug("No cached theme found - applied Dracula as default")
 	}
 
 	// CHANGED 2025-10-11 - Initialize print effect if starting in screensaver mode
