@@ -9,7 +9,7 @@ import (
 	"github.com/Nomadcxx/sysc-greet/internal/sessions"
 )
 
-const cacheDir = ".cache/bubble-greet"
+const cacheDir = ".cache/sysc-greet"
 const sessionFile = "session"
 const preferencesFile = "preferences"
 

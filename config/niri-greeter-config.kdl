@@ -57,7 +57,7 @@ window-rule {
 
 spawn-at-startup "swww-daemon"
 
-spawn-sh-at-startup "XDG_CACHE_HOME=/var/cache/sysc-greet HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
+spawn-sh-at-startup "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
 
 // Empty binds block = no keybindings work (security for greeter)
 binds {

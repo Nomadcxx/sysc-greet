@@ -29,9 +29,9 @@ var (
 
 // Styles
 var (
-	checkMark   = lipgloss.NewStyle().Foreground(Accent).SetString("[OK]")
-	failMark    = lipgloss.NewStyle().Foreground(ErrorColor).SetString("[FAIL]")
-	skipMark    = lipgloss.NewStyle().Foreground(WarningColor).SetString("[SKIP]")
+	checkMark  = lipgloss.NewStyle().Foreground(Accent).SetString("[OK]")
+	failMark   = lipgloss.NewStyle().Foreground(ErrorColor).SetString("[FAIL]")
+	skipMark   = lipgloss.NewStyle().Foreground(WarningColor).SetString("[SKIP]")
 	headerStyle = lipgloss.NewStyle().Foreground(Primary).Bold(true)
 )
 
@@ -72,6 +72,8 @@ type model struct {
 	packageManager   string
 	greetdInstalled  bool
 	needsGreetd      bool
+	uninstallMode    bool
+	selectedOption   int // 0 = Install, 1 = Uninstall
 }
 
 type taskCompleteMsg struct {
@@ -124,9 +126,31 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.step == stepComplete || m.step == stepWelcome {
 				return m, tea.Quit
 			}
+		case "up", "k":
+			if m.step == stepWelcome && m.selectedOption > 0 {
+				m.selectedOption--
+			}
+		case "down", "j":
+			if m.step == stepWelcome && m.selectedOption < 1 {
+				m.selectedOption++
+			}
 		case "enter":
 			if m.step == stepWelcome {
-				// Start installation
+				// Set mode based on selection
+				m.uninstallMode = (m.selectedOption == 1)
+
+				// Set appropriate tasks
+				if m.uninstallMode {
+					m.tasks = []installTask{
+						{name: "Check privileges", description: "Checking root access", execute: checkPrivileges, status: statusPending},
+						{name: "Disable service", description: "Disabling greetd service", execute: disableService, status: statusPending},
+						{name: "Remove binary", description: "Removing sysc-greet binary", execute: removeBinary, status: statusPending},
+						{name: "Remove configs", description: "Removing configurations", execute: removeConfigs, status: statusPending},
+						{name: "Clean cache", description: "Cleaning cache directories", execute: cleanCache, optional: true, status: statusPending},
+					}
+				}
+
+				// Start installation/uninstallation
 				m.step = stepInstalling
 				m.currentTaskIndex = 0
 				m.tasks[0].status = statusRunning
@@ -206,7 +230,11 @@ func (m model) View() string {
 		Foreground(Accent).
 		Bold(true).
 		Align(lipgloss.Center)
-	content.WriteString(titleStyle.Render("sysc-greet installer"))
+	title := "sysc-greet installer"
+	if m.uninstallMode {
+		title = "sysc-greet uninstaller"
+	}
+	content.WriteString(titleStyle.Render(title))
 	content.WriteString("\n\n")
 
 	// Main content based on step
@@ -251,12 +279,29 @@ func (m model) View() string {
 }
 
 func (m model) renderWelcome() string {
-	return `sysc-greet installer
+	var b strings.Builder
 
-Builds binary, installs to system, configures greetd.
-Requires root.
+	b.WriteString("Select an option:\n\n")
 
-Press Enter to continue`
+	// Install option
+	installPrefix := "  "
+	if m.selectedOption == 0 {
+		installPrefix = lipgloss.NewStyle().Foreground(Primary).Render("▸ ")
+	}
+	b.WriteString(installPrefix + "Install sysc-greet\n")
+	b.WriteString("    Builds binary, installs to system, configures greetd\n\n")
+
+	// Uninstall option
+	uninstallPrefix := "  "
+	if m.selectedOption == 1 {
+		uninstallPrefix = lipgloss.NewStyle().Foreground(Primary).Render("▸ ")
+	}
+	b.WriteString(uninstallPrefix + "Uninstall sysc-greet\n")
+	b.WriteString("    Removes sysc-greet from your system\n\n")
+
+	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Requires root privileges"))
+
+	return b.String()
 }
 
 func (m model) renderInstalling() string {
@@ -312,6 +357,14 @@ func (m model) renderComplete() string {
 	}
 
 	// Success
+	if m.uninstallMode {
+		return `Uninstall complete.
+sysc-greet has been removed.
+
+` + lipgloss.NewStyle().Foreground(FgMuted).Render(">see you space cowboy") + `
+
+Press Enter to exit`
+	}
 	return `Installation complete.
 Reboot to see sysc-greet.
 
@@ -323,7 +376,7 @@ Press Enter to exit`
 func (m model) getHelpText() string {
 	switch m.step {
 	case stepWelcome:
-		return "Enter: Continue  •  Ctrl+C: Quit"
+		return "↑/↓: Navigate  •  Enter: Continue  •  Ctrl+C: Quit"
 	case stepComplete:
 		return "Enter: Exit  •  Ctrl+C: Quit"
 	default:
@@ -549,11 +602,11 @@ func installConfigs(m *model) error {
 		}
 	}
 
-	// Generate wallpapers
-	if _, err := os.Stat("scripts/generate-theme-wallpapers.sh"); err == nil {
-		exec.Command("bash", "scripts/generate-theme-wallpapers.sh").Run()
-		if _, err := os.Stat("wallpapers"); err == nil {
-			exec.Command("cp", "-r", "wallpapers/", configPath+"/").Run()
+	// Copy wallpapers if directory exists
+	// FIXED 2025-10-17 - Always copy wallpapers directory if it exists
+	if _, err := os.Stat("wallpapers"); err == nil {
+		if err := exec.Command("cp", "-r", "wallpapers/", configPath+"/").Run(); err != nil {
+			return fmt.Errorf("failed to copy wallpapers")
 		}
 	}
 
@@ -572,12 +625,20 @@ func setupCache(m *model) error {
 	}
 
 	// Create greeter user if needed
+	// FIXED 2025-10-15 - Add render group for modern Intel/AMD iGPU support
+	// Modern Linux uses 'render' group for /dev/dri/renderD* (non-privileged GPU access)
+	// Both 'video' and 'render' groups needed for laptop iGPU compatibility
 	cmd := exec.Command("id", "greeter")
 	if err := cmd.Run(); err != nil {
-		cmd = exec.Command("useradd", "-M", "-G", "video", "-s", "/usr/bin/nologin", "greeter")
+		// User doesn't exist - create with video,render,input groups
+		cmd = exec.Command("useradd", "-M", "-G", "video,render,input", "-s", "/usr/bin/nologin", "greeter")
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("greeter user creation failed")
 		}
+	} else {
+		// User exists - ensure they have required groups
+		// CRITICAL: This fixes laptops where greeter user exists but lacks render group
+		exec.Command("usermod", "-aG", "video,render,input", "greeter").Run()
 	}
 
 	// Set ownership
@@ -650,7 +711,7 @@ window-rule {
 
 spawn-at-startup "swww-daemon"
 
-spawn-sh-at-startup "XDG_CACHE_HOME=/var/cache/sysc-greet HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
+spawn-sh-at-startup "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
 
 binds {
 }
@@ -754,6 +815,56 @@ func parseNiriOutputs(output string) []Monitor {
 	}
 
 	return monitors
+}
+
+// Uninstall functions
+
+func disableService(m *model) error {
+	// Disable greetd service
+	if err := exec.Command("systemctl", "disable", "greetd.service").Run(); err != nil {
+		// Not a critical error if it's already disabled
+		return nil
+	}
+	return nil
+}
+
+func removeBinary(m *model) error {
+	// Remove binary
+	if err := exec.Command("rm", "-f", "/usr/local/bin/sysc-greet").Run(); err != nil {
+		return fmt.Errorf("failed to remove binary")
+	}
+	return nil
+}
+
+func removeConfigs(m *model) error {
+	// Remove configs and data
+	paths := []string{
+		"/usr/share/sysc-greet",
+		"/etc/greetd/kitty.conf",
+		"/etc/greetd/niri-greeter-config.kdl",
+	}
+
+	for _, path := range paths {
+		exec.Command("rm", "-rf", path).Run()
+	}
+
+	return nil
+}
+
+func cleanCache(m *model) error {
+	// Clean cache (optional - user might want to keep preferences)
+	paths := []string{
+		"/var/cache/sysc-greet",
+	}
+
+	for _, path := range paths {
+		exec.Command("rm", "-rf", path).Run()
+	}
+
+	// Note: We don't remove /var/lib/greeter or the greeter user
+	// as they might be used by other greeters
+
+	return nil
 }
 
 func main() {
