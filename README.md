@@ -6,9 +6,9 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 
 ## Features
 
-- **9 Themes**: Dracula, Gruvbox, Material, Nord, Tokyo Night, Catppuccin, Solarized, Monochrome, TransIsHardJob
+- **Mucho themes**: Dracula, Gruvbox, Material, Nord, Tokyo Night, Catppuccin, Solarized, Monochrome, TransIsHardJob
 - **Background Effects**: Fire (DOOM PSX), Matrix rain, ASCII rain, Static patterns
-- **7 Border Styles**: Classic, Modern, Minimal, ASCII-1, ASCII-2, Wave, Pulse
+- **Border Styles**: Classic, Modern, Minimal (best), ASCII-1, ASCII-2, Wave, Pulse
 - **Screensaver**: Configurable idle timeout with ASCII art cycling
 - **Video Wallpapers**: Multi-monitor support via gslapper
 - **Preference Caching**: Theme, background, border, session persistence
@@ -16,11 +16,15 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 ## Installation
 
 ### Arch Linux (AUR)
-
-```bash
+First, decide which compositor you want. sysc-greet will install the recommended default (niri), sysc-greet-hyperland installs the Hyprland variant, and sysc-greet-sway installs the Sway variant.
+```bash RECOMMENDED
 yay -S sysc-greet
-# or
-paru -S sysc-greet
+```
+```bash
+yay -S sysc-greet-hyprland
+```
+```bash
+yay -S sysc-greet-sway
 ```
 
 ### Installer (Recommended)
@@ -153,23 +157,22 @@ Press `F1` (Settings) → Backgrounds → Select your wallpaper or video
 
 Custom ASCII art configs in `/usr/share/sysc-greet/ascii_configs/`:
 
-```ini
-# mysession.conf
+```
+# cinnamon.conf
 name=My Session
 
 ascii_1=
-  Your ASCII art here
-  Line 2
-  Line 3
-
+ 🬭🬭🬭🬭 🬞🬭🬭🬭🬏🬞🬭🬼 🬞🬭🬏🬞🬭🬼 🬞🬭🬏 🬭🬭🬭🬭 🬞🬭🬽  🭈🬭🬏 🬭🬭🬭🬭 🬞🬭🬼 🬞🬭🬏
+▐▒▌ 🭣🬀 ▐▒▌ ▐▒🭌🬿▐▒▌▐▒🭌🬿▐▒▌▐▒▌▐▒▌▐▒█🭍🭂█▒▌▐▒▌▐▒▌▐▒🭌🬿▐▒▌
+▐─▌    ▐─▌ ▐─▌🭥🭒─▌▐─▌🭥🭒─▌▐─🬛🬫─▌▐─▌🭣🭘▐─▌▐─▌▐─▌▐─▌🭥🭒─▌
+▐░▌ 🭈🬏 ▐░▌ ▐░▌ ▐░▌▐░▌ ▐░▌▐░▌▐░▌▐░▌  ▐░▌▐░▌▐░▌▐░▌ ▐░▌
+ 🬂🬂🬂🬂 🬁🬂🬂🬂🬀🬁🬂🬀 🬁🬂🬀🬁🬂🬀 🬁🬂🬀🬁🬂🬀🬁🬂🬀🬁🬂🬀  🬁🬂🬀 🬂🬂🬂🬂 🬁🬂🬀 🬁🬂🬀
 ascii_2=
-  Alternative variant
-  Line 2
+𜺠𜵡𜶜𜺣 𜶜𜵡 ▄𜺣▗▖▄𜺣▗▖ 𜷋𜺣 ▄𜺣𜷋▖𜷋𜴧𜶜𜺣▄𜺣▗▖
+█  𜺨 ▐▌ █𜴦𜷥▌█𜴦𜷥▌𜷥𜶬𜷖𜵈█𜴦▜▌█ ▐▌█𜴦𜷥▌
+𜴦𜶻𜷋🯦 𜷕𜷀 █ ▐▌█ ▐▌█ ▐▌█ ▐▌𜶫▂𜷕𜴍█ ▐▌
 
-colors=#ff5555,#50fa7b,#bd93f9
 ```
-
-**Note:** `colors` define theme color overrides (accent, success, info)
 
 **For more customization options (screensaver, compositor configs, etc.), see [CONFIGURATION.md](https://github.com/Nomadcxx/sysc-greet/blob/master/CONFIGURATION.md)**
 
