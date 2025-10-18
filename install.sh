@@ -21,6 +21,30 @@ if ! command -v go &> /dev/null; then
     exit 1
 fi
 
+# Ask user for compositor choice
+echo "Select compositor:"
+echo "1) niri"
+echo "2) hyprland"
+echo "3) sway"
+read -p "Choice [1-3]: " choice
+
+case $choice in
+    1) COMPOSITOR="niri" ;;
+    2) COMPOSITOR="hyprland" ;;
+    3) COMPOSITOR="sway" ;;
+    *) echo "Invalid choice"; exit 1 ;;
+esac
+
+echo "Selected: $COMPOSITOR"
+echo ""
+
+# Check for compositor
+if ! command -v $COMPOSITOR &> /dev/null; then
+    echo "Error: $COMPOSITOR is not installed"
+    echo "Please install $COMPOSITOR first"
+    exit 1
+fi
+
 # Create temp directory
 TEMP_DIR=$(mktemp -d)
 cd "$TEMP_DIR"
@@ -32,8 +56,9 @@ cd sysc-greet
 echo "Building installer..."
 go build -o install-sysc-greet ./cmd/installer/
 
-echo "Running installer..."
-./install-sysc-greet
+echo "Running installer with compositor: $COMPOSITOR"
+# Pass compositor to installer via environment variable
+SYSC_COMPOSITOR=$COMPOSITOR ./install-sysc-greet
 
 # Cleanup
 cd /
