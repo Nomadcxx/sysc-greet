@@ -9,7 +9,7 @@ all: build
 # Build the main greeter binary
 build:
 	@echo "Building sysc-greet..."
-	@go build -o sysc-greet cmd/sysc-greet/main.go
+	@go build -buildvcs=false -o sysc-greet ./cmd/sysc-greet/
 	@echo "✓ Binary built successfully"
 
 # Build the installer

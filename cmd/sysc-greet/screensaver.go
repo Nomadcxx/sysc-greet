@@ -14,14 +14,14 @@ import (
 
 // ScreensaverConfig holds screensaver configuration
 type ScreensaverConfig struct {
-	IdleTimeout      int      // Idle timeout in minutes
-	TimeFormat       string   // Time format string
-	DateFormat       string   // Date format string
-	ASCIIVariants    []string // Multiple ASCII art variants
-	ClockStyle       string   // Clock style: "kompaktblk", "delta_corp", "phmvga", "dos_rebel", "plain"
-	AnimateOnStart   bool     // Enable animation when screensaver starts
-	AnimationType    string   // Animation type: "print", "none"
-	AnimationSpeed   int      // Animation speed in milliseconds per character
+	IdleTimeout    int      // Idle timeout in minutes
+	TimeFormat     string   // Time format string
+	DateFormat     string   // Date format string
+	ASCIIVariants  []string // Multiple ASCII art variants
+	ClockStyle     string   // Clock style: "kompaktblk", "delta_corp", "phmvga", "dos_rebel", "plain"
+	AnimateOnStart bool     // Enable animation when screensaver starts
+	AnimationType  string   // Animation type: "print", "none"
+	AnimationSpeed int      // Animation speed in milliseconds per character
 }
 
 // loadScreensaverConfig loads screensaver configuration
@@ -157,7 +157,7 @@ func loadScreensaverConfig() ScreensaverConfig {
 // renderStyledClock renders time string using the specified clock style
 func renderStyledClock(timeStr string, style string) []string {
 	// Get digit map for this style
-	digits := getClockStyleDigits(style)
+	digits := animations.GetClockStyleDigits(style)
 
 	// Plain style - return single line
 	if digits == nil {
