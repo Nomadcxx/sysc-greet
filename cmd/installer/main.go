@@ -181,6 +181,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				compositors := []string{"niri", "hyprland", "sway"}
 				m.selectedCompositor = compositors[m.compositorIndex]
 
+				// Validate compositor is installed
+				compositorBinaries := map[string][]string{
+					"niri":     {"niri"},
+					"hyprland": {"Hyprland", "hyprland"},
+					"sway":     {"sway"},
+				}
+
+				compositorInstalled := false
+				if binaries, ok := compositorBinaries[m.selectedCompositor]; ok {
+					for _, bin := range binaries {
+						if _, err := exec.LookPath(bin); err == nil {
+							compositorInstalled = true
+							break
+						}
+					}
+				}
+
+				if !compositorInstalled {
+					m.errors = append(m.errors, fmt.Sprintf("%s is not installed - please install it first", m.selectedCompositor))
+					// Stay on compositor selection screen
+					return m, nil
+				}
+
 				// Start installation
 				m.step = stepInstalling
 				m.currentTaskIndex = 0
@@ -361,6 +384,15 @@ func (m model) renderCompositorSelect() string {
 	}
 
 	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("The greeter will work identically on all compositors"))
+
+	// Show errors if any
+	if len(m.errors) > 0 {
+		b.WriteString("\n\n")
+		for _, err := range m.errors {
+			b.WriteString(lipgloss.NewStyle().Foreground(ErrorColor).Render("⚠ " + err))
+			b.WriteString("\n")
+		}
+	}
 
 	return b.String()
 }
