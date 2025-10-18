@@ -25,19 +25,21 @@ name=Hyprland
 
 # Multiple variants (user can cycle through these)
 ascii_1=
-  ██╗  ██╗██╗   ██╗██████╗ ██████╗ ██╗      █████╗ ███╗   ██╗██████╗
-  ██║  ██║╚██╗ ██╔╝██╔══██╗██╔══██╗██║     ██╔══██╗████╗  ██║██╔══██╗
-  ███████║ ╚████╔╝ ██████╔╝██████╔╝██║     ███████║██╔██╗ ██║██║  ██║
-  ██╔══██║  ╚██╔╝  ██╔═══╝ ██╔══██╗██║     ██╔══██║██║╚██╗██║██║  ██║
-  ██║  ██║   ██║   ██║     ██║  ██║███████╗██║  ██║██║ ╚████║██████╔╝
-  ╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═════╝
-
+_____________________________  ________  .______________
+\______   \_   _____/\______ \ \______ \ |   \__    ___/
+ |       _/|    __)_  |    |  \ |    |  \|   | |    |
+ |    |   \|        \ |    `   \|    `   \   | |    |
+ |____|_  /_______  //_______  /_______  /___| |____|
+        \/        \/         \/        \/
 ascii_2=
-   _  ___   ______  ____  __    ___   _  ______
-  / |/ / | / / __ \/ __ \/ /   / _ | / |/ / __ \
- /    /| |/ / /_/ / /_/ / /__ / __ |/    / /_/ /
-/_/|_/ |___/ .___/\____/____//_/ |_/_/|_/_____/
-          /_/
+ ________  ___  ___  ________  ___  __    ________
+|\   ____\|\  \|\  \|\   ____\|\  \|\  \ |\   ____\
+\ \  \___|\ \  \\\  \ \  \___|\ \  \/  /|\ \  \___|_
+ \ \_____  \ \  \\\  \ \  \    \ \   ___  \ \_____  \
+  \|____|\  \ \  \\\  \ \  \____\ \  \\ \  \|____|\  \
+    ____\_\  \ \_______\ \_______\ \__\\ \__\____\_\  \
+   |\_________\|_______|\|_______|\|__| \|__|\_________\
+   \|_________|                             \|_________|
 
 # Color gradient (hex colors - used for theme color overrides)
 colors=#89b4fa,#a6e3a1,#f9e2af,#fab387,#f38ba8,#cba6f7
@@ -104,12 +106,13 @@ ascii_1=
   //  SEE YOU SPACE COWBOY //
 
 ascii_2=
-  ███████╗██╗     ███████╗███████╗██████╗
-  ██╔════╝██║     ██╔════╝██╔════╝██╔══██╗
-  ███████╗██║     █████╗  █████╗  ██████╔╝
-  ╚════██║██║     ██╔══╝  ██╔══╝  ██╔═══╝
-  ███████║███████╗███████╗███████╗██║
-  ╚══════╝╚══════╝╚══════╝╚══════╝╚═╝
+.________._______._______ .____/\ .________
+|    ___/: .____/:_.  ___\:   /  \|    ___/
+|___    \| : _/\ |  : |/\ |.  ___/|___    \
+|       /|   /  \|    /  \|     \ |       /
+|__:___/ |_.: __/|. _____/|      \|__:___/ 
+   :        :/    :/      |___\  /   :     
+                  :            \/ 
 ```
 
 ### Time Format Reference
@@ -137,7 +140,6 @@ There are two types of wallpapers, each stored in different locations and manage
 
 **Location:** `/usr/share/sysc-greet/wallpapers/`
 **Managed by:** [swww](https://github.com/LGFae/swww) (Wayland wallpaper daemon)
-**Formats:** PNG, JPG
 
 These auto-match your selected theme using the naming convention `sysc-greet-{theme}.png`.
 
@@ -168,9 +170,8 @@ sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/sysc-greet-mytheme.p
 
 **Location:** `/var/lib/greeter/Pictures/wallpapers/`
 **Managed by:** [gSlapper](https://github.com/Nomadcxx/gSlapper) (Video wallpaper manager)
-**Formats:** MP4, WebM
 
-Video wallpapers provide animated backgrounds with multi-monitor support.
+Video wallpapers provide animated backgrounds with multi-monitor support. Also if you are still using mpvpaper in 2025 for video backgrounds you need to reflect on your life choices and install gSlapper instead.
 
 **Requirements:**
 ```bash
@@ -251,4 +252,4 @@ sudo chmod 755 /var/cache/sysc-greet
 
 ---
 
-*Made with questionable amounts of caffeine.*
+*See you in space cowboy
