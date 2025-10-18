@@ -542,17 +542,23 @@ func installGreetd(m *model) error {
 		// Try AUR helper first if available, fall back to pacman
 		if _, err := exec.LookPath("yay"); err == nil {
 			// Use yay for AUR access (greetd might be in AUR)
-			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
-				cmd = exec.Command("sudo", "-u", sudoUser, "yay", "-S", "--noconfirm", "greetd")
+			// IMPORTANT: yay must NOT be run as root, but needs sudo internally
+			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" && sudoUser != "root" {
+				// Drop privileges to run yay as the original user
+				// yay will ask for sudo password when needed
+				cmd = exec.Command("su", "-", sudoUser, "-c", "yay -S --noconfirm greetd")
 			} else {
-				cmd = exec.Command("yay", "-S", "--noconfirm", "greetd")
+				// Fallback to pacman if we can't determine non-root user
+				cmd = exec.Command("pacman", "-S", "--noconfirm", "greetd")
 			}
 		} else if _, err := exec.LookPath("paru"); err == nil {
 			// Alternative AUR helper
-			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
-				cmd = exec.Command("sudo", "-u", sudoUser, "paru", "-S", "--noconfirm", "greetd")
+			// IMPORTANT: paru must NOT be run as root, but needs sudo internally
+			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "root" && sudoUser != "" {
+				cmd = exec.Command("su", "-", sudoUser, "-c", "paru -S --noconfirm greetd")
 			} else {
-				cmd = exec.Command("paru", "-S", "--noconfirm", "greetd")
+				// Fallback to pacman if we can't determine non-root user
+				cmd = exec.Command("pacman", "-S", "--noconfirm", "greetd")
 			}
 		} else {
 			// Standard pacman (official repos only)
@@ -601,25 +607,23 @@ func installGslapper(m *model) error {
 	if m.packageManager == "pacman" {
 		// Try AUR helpers
 		if _, err := exec.LookPath("yay"); err == nil {
-			var cmd *exec.Cmd
-			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
-				cmd = exec.Command("sudo", "-u", sudoUser, "yay", "-S", "--noconfirm", "gslapper")
-			} else {
-				cmd = exec.Command("yay", "-S", "--noconfirm", "gslapper")
+			// IMPORTANT: yay must NOT be run as root
+			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" && sudoUser != "root" {
+				cmd := exec.Command("su", "-", sudoUser, "-c", "yay -S --noconfirm gslapper")
+				if err := cmd.Run(); err == nil {
+					return nil // Success
+				}
 			}
-			if err := cmd.Run(); err == nil {
-				return nil // Success
-			}
+			// If no SUDO_USER, skip yay (can't run as root)
 		} else if _, err := exec.LookPath("paru"); err == nil {
-			var cmd *exec.Cmd
-			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
-				cmd = exec.Command("sudo", "-u", sudoUser, "paru", "-S", "--noconfirm", "gslapper")
-			} else {
-				cmd = exec.Command("paru", "-S", "--noconfirm", "gslapper")
+			// IMPORTANT: paru must NOT be run as root
+			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" && sudoUser != "root" {
+				cmd := exec.Command("su", "-", sudoUser, "-c", "paru -S --noconfirm gslapper")
+				if err := cmd.Run(); err == nil {
+					return nil // Success
+				}
 			}
-			if err := cmd.Run(); err == nil {
-				return nil // Success
-			}
+			// If no SUDO_USER, skip paru (can't run as root)
 		}
 	}
 
