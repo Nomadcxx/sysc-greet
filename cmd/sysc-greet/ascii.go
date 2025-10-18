@@ -99,6 +99,20 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 			}
 		} else if inASCII {
 			if trimmedLine == `"""` {
+				// End ASCII section and save variant
+				if len(currentVariantLines) > 0 {
+					variant := strings.Join(currentVariantLines, "\n")
+					variant = strings.TrimRight(variant, "\n")
+					config.ASCIIVariants = append(config.ASCIIVariants, variant)
+
+					variantLines := strings.Split(variant, "\n")
+					height := len(variantLines)
+					if height > config.MaxASCIIHeight {
+						config.MaxASCIIHeight = height
+					}
+				}
+				currentVariantLines = []string{}
+				inASCII = false
 				continue
 			}
 			currentVariantLines = append(currentVariantLines, line)
@@ -193,23 +207,10 @@ func (m model) getSessionASCII() string {
 	// CHANGED 2025-10-11 - Removed height normalization padding to ensure consistent 2-line spacing
 	// All WM ASCII art now maintains natural height for consistent distance to border elements
 
-	// Disable animations, use static primary color
-	// Apply static primary color to ASCII art
-	lines := strings.Split(currentASCII, "\n")
-	var coloredLines []string
-
-	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
-			coloredLines = append(coloredLines, line)
-			continue
-		}
-		// Add Background to prevent bleeding through
-		// Reverted: fire is inside now, always use background
-		style := lipgloss.NewStyle().Foreground(Primary).Background(BgBase)
-		coloredLines = append(coloredLines, style.Render(line))
-	}
-
-	return strings.Join(coloredLines, "\n")
+	// CHANGED 2025-10-18 19:09 - Apply styling to entire ASCII block instead of per-line to fix width calculation mangling - Problem: Per-line Render() caused JoinVertical(Center) to miscalculate widths
+	// Apply static primary color to entire ASCII art block
+	style := lipgloss.NewStyle().Foreground(Primary).Background(BgBase)
+	return style.Render(currentASCII)
 }
 
 // Get color palette for a session type
