@@ -961,6 +961,14 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 
 	case "esc":
 		switch m.mode {
+		case ModePassword:
+			// CHANGED 2025-10-18 22:05 - Allow ESC to return from password mode to login mode
+			m.mode = ModeLogin
+			m.focusState = FocusUsername
+			m.passwordInput.SetValue("") // Clear password field
+			m.usernameInput.Focus()
+			m.passwordInput.Blur()
+			return m, textinput.Blink
 		case ModePower:
 			m.mode = ModeLogin
 			m.focusState = FocusUsername
@@ -1400,8 +1408,9 @@ func (m model) View() tea.View {
 	// CHANGED 2025-10-06 - Removed wallpaper check
 	// CHANGED 2025-10-06 - Only show fire on main login screen, not in menus
 	// CHANGED 2025-10-08 - Add ascii-rain background support
-	hasFireBackground := (m.enableFire || m.selectedBackground == "fire" || m.selectedBackground == "fire+rain") && m.mode == ModeLogin
-	hasRainBackground := (m.selectedBackground == "ascii-rain") && m.mode == ModeLogin
+	// CHANGED 2025-10-18 22:00 - Enable background animations in password mode (username caching means most users see password mode)
+	hasFireBackground := (m.enableFire || m.selectedBackground == "fire" || m.selectedBackground == "fire+rain") && (m.mode == ModeLogin || m.mode == ModePassword)
+	hasRainBackground := (m.selectedBackground == "ascii-rain") && (m.mode == ModeLogin || m.mode == ModePassword)
 
 	if hasFireBackground {
 		// CHANGED 2025-10-06 - Use multi-layer approach: fire at bottom, centered UI on top
@@ -1442,7 +1451,7 @@ func (m model) View() tea.View {
 		)
 		view.BackgroundColor = BgBase
 		return view
-	} else if m.selectedBackground == "matrix" && m.mode == ModeLogin {
+	} else if m.selectedBackground == "matrix" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		// Render matrix as full background
 		backgroundContent := m.addMatrixEffect("", termWidth, termHeight)
 
