@@ -46,8 +46,27 @@ colors=#89b4fa,#a6e3a1,#f9e2af,#fab387,#f38ba8,#cba6f7
 ### Creating Custom ASCII
 
 **ASCII generators:**
-- [patorjk.com/software/taag](http://patorjk.com/software/taag/)
-- `figlet` command-line tool
+- [patorjk.com/software/taag](http://patorjk.com/software/taag/) - Web-based generator
+- [ASCII Art Archive](https://www.asciiart.eu/) - Browse existing art
+- [Mobius](https://github.com/Mobius-Team/Mobius) - Advanced ASCII art tools
+
+**Using figlet:**
+
+Install figlet and figlet-fonts for local generation:
+
+```bash
+# Arch Linux
+sudo pacman -S figlet
+
+# Install additional fonts
+git clone https://github.com/xero/figlet-fonts
+sudo cp figlet-fonts/* /usr/share/figlet/
+
+# Generate ASCII
+figlet -f dos_rebel "HYPRLAND"
+```
+
+**Figlet fonts:** [github.com/xero/figlet-fonts](https://github.com/xero/figlet-fonts)
 
 **Important:** Keep ASCII art under 80 columns wide for compatibility.
 
@@ -74,8 +93,8 @@ idle_timeout=5
 time_format=3:04:05 PM
 date_format=Monday, January 2, 2006
 
-# Clock size: small, medium, large
-clock_size=medium
+# Clock style: kompaktblk (default, 3 rows), phmvga (2 rows, crisp), dos_rebel (8 rows, retro), plain (single line)
+clock_style=kompaktblk
 
 # ASCII variants (cycles every 5 minutes)
 ascii_1=
@@ -112,17 +131,17 @@ Go uses the reference time `01/02 03:04:05PM '06 -0700` (1234567 - memorable, ri
 
 ## Wallpapers
 
-### Location
-`/usr/share/sysc-greet/wallpapers/`
+There are two types of wallpapers, each stored in different locations and managed by different tools:
 
-### Supported Formats
-- **Static:** PNG, JPG (via `swww`)
-- **Video:** MP4, WebM (via `gslapper`)
+### 1. Themed Wallpapers (Static Images)
 
-### Theme Wallpapers
-Images named `sysc-greet-{theme}.png` are automatically matched to themes.
+**Location:** `/usr/share/sysc-greet/wallpapers/`
+**Managed by:** [swww](https://github.com/LGFae/swww) (Wayland wallpaper daemon)
+**Formats:** PNG, JPG
 
-**Included themes:**
+These auto-match your selected theme using the naming convention `sysc-greet-{theme}.png`.
+
+**Included themed wallpapers:**
 - `sysc-greet-dracula.png`
 - `sysc-greet-gruvbox.png`
 - `sysc-greet-nord.png`
@@ -133,33 +152,48 @@ Images named `sysc-greet-{theme}.png` are automatically matched to themes.
 - `sysc-greet-monochrome.png`
 - `sysc-greet-transishardjob.png`
 
-### Adding Custom Wallpapers
+**Adding/replacing themed wallpapers:**
 
 ```bash
-# Copy your wallpaper
-sudo cp ~/Pictures/my-awesome-wallpaper.png /usr/share/sysc-greet/wallpapers/
+# Replace an existing theme wallpaper
+sudo cp ~/my-nord-bg.png /usr/share/sysc-greet/wallpapers/sysc-greet-nord.png
+sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/sysc-greet-nord.png
+
+# Add a wallpaper for a new theme
+sudo cp ~/my-bg.png /usr/share/sysc-greet/wallpapers/sysc-greet-mytheme.png
+sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/sysc-greet-mytheme.png
+```
+
+### 2. Custom Wallpapers (Videos)
+
+**Location:** `/var/lib/greeter/Pictures/wallpapers/`
+**Managed by:** [gSlapper](https://github.com/Nomadcxx/gSlapper) (Video wallpaper manager)
+**Formats:** MP4, WebM
+
+Video wallpapers provide animated backgrounds with multi-monitor support.
+
+**Requirements:**
+```bash
+# Install gSlapper (if not already installed)
+yay -S gslapper
+# or build from source: https://github.com/Nomadcxx/gSlapper
+```
+
+**Adding video wallpapers:**
+
+```bash
+# Copy video to greeter's wallpaper directory
+sudo cp ~/Videos/cool-animation.mp4 /var/lib/greeter/Pictures/wallpapers/
 
 # Set correct ownership
-sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/my-awesome-wallpaper.png
-
-# For theme-matched wallpapers, use naming convention:
-sudo cp ~/my-nord-bg.png /usr/share/sysc-greet/wallpapers/sysc-greet-nord.png
+sudo chown greeter:greeter /var/lib/greeter/Pictures/wallpapers/cool-animation.mp4
 ```
 
-### Video Wallpapers
+### Accessing Wallpapers in Greeter
 
-Requires `gslapper` to be installed:
+Press `F1` (Settings) → Backgrounds → Select your wallpaper or video
 
-```bash
-# Copy video file
-sudo cp ~/Videos/cool-animation.mp4 /usr/share/sysc-greet/wallpapers/
-
-# Set ownership
-sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/cool-animation.mp4
-```
-
-### Accessing in Greeter
-Press `F1` → Backgrounds → Select your wallpaper or background effect
+Both static and video wallpapers will appear in the same menu.
 
 ---
 
