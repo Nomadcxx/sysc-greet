@@ -18,7 +18,7 @@ type ScreensaverConfig struct {
 	TimeFormat       string   // Time format string
 	DateFormat       string   // Date format string
 	ASCIIVariants    []string // Multiple ASCII art variants
-	ClockSize        string   // Clock size: "small", "medium", "large"
+	ClockStyle       string   // Clock style: "kompaktblk", "delta_corp", "phmvga", "dos_rebel", "plain"
 	AnimateOnStart   bool     // Enable animation when screensaver starts
 	AnimationType    string   // Animation type: "print", "none"
 	AnimationSpeed   int      // Animation speed in milliseconds per character
@@ -37,7 +37,7 @@ func loadScreensaverConfig() ScreensaverConfig {
 		TimeFormat:     "3:04:05 PM",
 		DateFormat:     "Monday, January 2, 2006",
 		ASCIIVariants:  []string{defaultASCII},
-		ClockSize:      "medium",
+		ClockStyle:     "kompaktblk",
 		AnimateOnStart: true,
 		AnimationType:  "print",
 		AnimationSpeed: 20,
@@ -128,8 +128,8 @@ func loadScreensaverConfig() ScreensaverConfig {
 			config.TimeFormat = value
 		case "date_format":
 			config.DateFormat = value
-		case "clock_size":
-			config.ClockSize = value
+		case "clock_style":
+			config.ClockStyle = value
 		case "animate_on_start":
 			config.AnimateOnStart = (strings.ToLower(value) == "true")
 		case "animation_type":
@@ -154,219 +154,39 @@ func loadScreensaverConfig() ScreensaverConfig {
 	return config
 }
 
-// Large ASCII digits generated with figlet kompaktblk font
-var largeDigits = map[rune][]string{
-	'0': {
-		"▄▀▀█▄ ",
-		"█▄▀ █ ",
-		" ▀▀▀  ",
-	},
-	'1': {
-		" ▄█   ",
-		"  █   ",
-		"▀▀▀▀▀ ",
-	},
-	'2': {
-		"▀▀▀▀█ ",
-		"█▀▀▀▀ ",
-		"▀▀▀▀▀ ",
-	},
-	'3': {
-		"▀▀▀▀▄ ",
-		"  ▀▀▄ ",
-		"▀▀▀▀  ",
-	},
-	'4': {
-		"█   █ ",
-		"▀▀▀▀█ ",
-		"    ▀ ",
-	},
-	'5': {
-		"█▀▀▀▀ ",
-		"▀▀▀▀█ ",
-		"▀▀▀▀▀ ",
-	},
-	'6': {
-		"█▀▀▀▀ ",
-		"█▀▀▀█ ",
-		"▀▀▀▀▀ ",
-	},
-	'7': {
-		"▀▀▀▀█ ",
-		"   █▀ ",
-		"   ▀  ",
-	},
-	'8': {
-		"█▀▀▀█ ",
-		"█▀▀▀█ ",
-		"▀▀▀▀▀ ",
-	},
-	'9': {
-		"█▀▀▀█ ",
-		"▀▀▀▀█ ",
-		"▀▀▀▀▀ ",
-	},
-	':': {
-		"  ▄   ",
-		"      ",
-		"  ▄   ",
-	},
-	' ': {
-		"      ",
-		"      ",
-		"      ",
-	},
-	'A': {
-		"▄▀▀▀▄ ",
-		"█▀▀▀█ ",
-		"▀   ▀ ",
-	},
-	'M': {
-		"█▀▄▀█ ",
-		"█   █ ",
-		"▀   ▀ ",
-	},
-	'P': {
-		"█▀▀▀▄ ",
-		"█▀▀▀  ",
-		"▀     ",
-	},
-}
+// renderStyledClock renders time string using the specified clock style
+func renderStyledClock(timeStr string, style string) []string {
+	// Get digit map for this style
+	digits := getClockStyleDigits(style)
 
-// Medium ASCII digit patterns for clock display
-var mediumDigits = map[rune][][]string{
-	'0': {
-		{"██", "██"},
-		{"█ █", "█ █"},
-		{"█ █", "█ █"},
-		{"██", "██"},
-	},
-	'1': {
-		{" █", " █"},
-		{"██", "██"},
-		{" █", " █"},
-		{"██", "██"},
-	},
-	'2': {
-		{"██", "██"},
-		{" █", " █"},
-		{"█ ", "█ "},
-		{"██", "██"},
-	},
-	'3': {
-		{"██", "██"},
-		{" █", " █"},
-		{" █", " █"},
-		{"██", "██"},
-	},
-	'4': {
-		{"█ █", "█ █"},
-		{"██", "██"},
-		{" █", " █"},
-		{" █", " █"},
-	},
-	'5': {
-		{"██", "██"},
-		{"█ ", "█ "},
-		{" █", " █"},
-		{"██", "██"},
-	},
-	'6': {
-		{"██", "██"},
-		{"█ ", "█ "},
-		{"█ █", "█ █"},
-		{"██", "██"},
-	},
-	'7': {
-		{"██", "██"},
-		{" █", " █"},
-		{" █", " █"},
-		{" █", " █"},
-	},
-	'8': {
-		{"██", "██"},
-		{"█ █", "█ █"},
-		{"█ █", "█ █"},
-		{"██", "██"},
-	},
-	'9': {
-		{"██", "██"},
-		{"█ █", "█ █"},
-		{" █", " █"},
-		{"██", "██"},
-	},
-	':': {
-		{"  ", "  "},
-		{"█ ", "█ "},
-		{"█ ", "█ "},
-		{"  ", "  "},
-	},
-	' ': {
-		{"  ", "  "},
-		{"  ", "  "},
-		{"  ", "  "},
-		{"  ", "  "},
-	},
-}
-
-// renderLargeClock renders time string using ASCII digit patterns
-func renderLargeClock(timeStr string, size string) []string {
-	switch size {
-	case "large":
-		// Get the height from first digit
-		if len(largeDigits['0']) == 0 {
-			return []string{timeStr}
-		}
-		height := len(largeDigits['0'])
-
-		// Build each line of the clock
-		var lines []string
-		for row := 0; row < height; row++ {
-			var line strings.Builder
-			for _, ch := range timeStr {
-				digitLines, ok := largeDigits[ch]
-				if !ok {
-					// Unknown character, use space
-					digitLines = largeDigits[' ']
-				}
-				if row < len(digitLines) {
-					line.WriteString(digitLines[row])
-				}
-			}
-			lines = append(lines, line.String())
-		}
-		return lines
-
-	case "medium":
-		// Get the height from first digit
-		if len(mediumDigits['0']) == 0 {
-			return []string{timeStr}
-		}
-		height := len(mediumDigits['0'])
-
-		// Build each line of the clock
-		var lines []string
-		for row := 0; row < height; row++ {
-			var line strings.Builder
-			for _, ch := range timeStr {
-				digitLines, ok := mediumDigits[ch]
-				if !ok {
-					// Unknown character, use space
-					digitLines = mediumDigits[' ']
-				}
-				if row < len(digitLines) && 1 < len(digitLines[row]) {
-					line.WriteString(digitLines[row][1]) // Use second variant
-					line.WriteString(" ")                // Space between digits
-				}
-			}
-			lines = append(lines, line.String())
-		}
-		return lines
-
-	default:
-		// Small - just return the plain string
+	// Plain style - return single line
+	if digits == nil {
 		return []string{timeStr}
 	}
+
+	// Get the height from first digit
+	if len(digits['0']) == 0 {
+		return []string{timeStr}
+	}
+	height := len(digits['0'])
+
+	// Build each line of the clock
+	var lines []string
+	for row := 0; row < height; row++ {
+		var line strings.Builder
+		for _, ch := range timeStr {
+			digitLines, ok := digits[ch]
+			if !ok {
+				// Unknown character, use space
+				digitLines = digits[' ']
+			}
+			if row < len(digitLines) {
+				line.WriteString(digitLines[row])
+			}
+		}
+		lines = append(lines, line.String())
+	}
+	return lines
 }
 
 // renderScreensaverView renders the screensaver with ASCII art, clock, and date
@@ -397,12 +217,12 @@ func renderScreensaverView(m model, termWidth, termHeight int) string {
 	currentTime := m.screensaverTime
 	timeStr := currentTime.Format(config.TimeFormat)
 	// Pad single-digit hours for consistent width in 12-hour format
-	if strings.Contains(config.TimeFormat, "3:04") && len(timeStr) > 0 && timeStr[0] != '1' && timeStr[1] == ':' {
+	if strings.Contains(config.TimeFormat, "3:04") && len(timeStr) > 1 && timeStr[0] != '1' && timeStr[1] == ':' {
 		timeStr = " " + timeStr
 	}
 	dateStr := strings.ToUpper(currentTime.Format(config.DateFormat))
 
-	clockLines := renderLargeClock(timeStr, config.ClockSize)
+	clockLines := renderStyledClock(timeStr, config.ClockStyle)
 
 	// Build content lines: ASCII art, blank line, clock, date
 	var contentLines []string
