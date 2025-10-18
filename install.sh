@@ -4,7 +4,7 @@
 
 set -e
 
-echo "sysc-greet installer"
+echo "sysc-greet installer v2"
 echo ""
 
 # Check if running as root
