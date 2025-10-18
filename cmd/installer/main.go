@@ -495,22 +495,24 @@ func checkDependencies(m *model) error {
 		return fmt.Errorf("missing: %s", strings.Join(missing, ", "))
 	}
 
-	// Detect package manager
-	packageManagers := map[string][]string{
-		"pacman": {"/usr/bin/pacman"},
-		"apt":    {"/usr/bin/apt"},
-		"dnf":    {"/usr/bin/dnf"},
-		"yay":    {"/usr/bin/yay"},
+	// Detect package manager (order matters - check base PM first, then helpers)
+	// Priority: native package managers first, then AUR helpers
+	packageManagers := []struct {
+		name string
+		path string
+	}{
+		{"pacman", "/usr/bin/pacman"},
+		{"apt", "/usr/bin/apt"},
+		{"apt", "/usr/bin/apt-get"}, // Fallback for older Debian/Ubuntu
+		{"dnf", "/usr/bin/dnf"},
+		{"yum", "/usr/bin/yum"}, // Older Fedora/RHEL
+		{"zypper", "/usr/bin/zypper"}, // openSUSE
+		{"apk", "/sbin/apk"}, // Alpine Linux
 	}
 
-	for pmName, paths := range packageManagers {
-		for _, path := range paths {
-			if _, err := os.Stat(path); err == nil {
-				m.packageManager = pmName
-				break
-			}
-		}
-		if m.packageManager != "" {
+	for _, pm := range packageManagers {
+		if _, err := os.Stat(pm.path); err == nil {
+			m.packageManager = pm.name
 			break
 		}
 	}
@@ -529,26 +531,61 @@ func installGreetd(m *model) error {
 	}
 
 	if m.packageManager == "" {
-		return fmt.Errorf("package manager not detected")
+		return fmt.Errorf("package manager not detected - install greetd manually")
 	}
 
 	var cmd *exec.Cmd
+	var updateCmd *exec.Cmd
+
 	switch m.packageManager {
 	case "pacman":
-		cmd = exec.Command("pacman", "-S", "--noconfirm", "greetd")
-	case "yay":
-		cmd = exec.Command("sudo", "-u", os.Getenv("SUDO_USER"), "yay", "-S", "--noconfirm", "greetd")
+		// Try AUR helper first if available, fall back to pacman
+		if _, err := exec.LookPath("yay"); err == nil {
+			// Use yay for AUR access (greetd might be in AUR)
+			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
+				cmd = exec.Command("sudo", "-u", sudoUser, "yay", "-S", "--noconfirm", "greetd")
+			} else {
+				cmd = exec.Command("yay", "-S", "--noconfirm", "greetd")
+			}
+		} else if _, err := exec.LookPath("paru"); err == nil {
+			// Alternative AUR helper
+			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
+				cmd = exec.Command("sudo", "-u", sudoUser, "paru", "-S", "--noconfirm", "greetd")
+			} else {
+				cmd = exec.Command("paru", "-S", "--noconfirm", "greetd")
+			}
+		} else {
+			// Standard pacman (official repos only)
+			cmd = exec.Command("pacman", "-S", "--noconfirm", "greetd")
+		}
+
 	case "apt":
-		exec.Command("apt-get", "update").Run()
+		// Update package list first for apt-based systems
+		updateCmd = exec.Command("apt-get", "update")
+		updateCmd.Run() // Ignore errors, proceed anyway
 		cmd = exec.Command("apt-get", "install", "-y", "greetd")
+
 	case "dnf":
 		cmd = exec.Command("dnf", "install", "-y", "greetd")
+
+	case "yum":
+		cmd = exec.Command("yum", "install", "-y", "greetd")
+
+	case "zypper":
+		cmd = exec.Command("zypper", "install", "-y", "greetd")
+
+	case "apk":
+		// Update package index first
+		updateCmd = exec.Command("apk", "update")
+		updateCmd.Run()
+		cmd = exec.Command("apk", "add", "greetd")
+
 	default:
-		return fmt.Errorf("unsupported package manager: %s", m.packageManager)
+		return fmt.Errorf("unsupported package manager '%s' - install greetd manually", m.packageManager)
 	}
 
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("package install failed")
+		return fmt.Errorf("failed to install greetd (try: manual installation)")
 	}
 
 	return nil
@@ -560,15 +597,33 @@ func installGslapper(m *model) error {
 		return nil
 	}
 
-	// Try AUR for Arch
-	if m.packageManager == "yay" {
-		cmd := exec.Command("sudo", "-u", os.Getenv("SUDO_USER"), "yay", "-S", "--noconfirm", "gslapper")
-		if err := cmd.Run(); err == nil {
-			return nil
+	// Try package manager first (Arch AUR)
+	if m.packageManager == "pacman" {
+		// Try AUR helpers
+		if _, err := exec.LookPath("yay"); err == nil {
+			var cmd *exec.Cmd
+			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
+				cmd = exec.Command("sudo", "-u", sudoUser, "yay", "-S", "--noconfirm", "gslapper")
+			} else {
+				cmd = exec.Command("yay", "-S", "--noconfirm", "gslapper")
+			}
+			if err := cmd.Run(); err == nil {
+				return nil // Success
+			}
+		} else if _, err := exec.LookPath("paru"); err == nil {
+			var cmd *exec.Cmd
+			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
+				cmd = exec.Command("sudo", "-u", sudoUser, "paru", "-S", "--noconfirm", "gslapper")
+			} else {
+				cmd = exec.Command("paru", "-S", "--noconfirm", "gslapper")
+			}
+			if err := cmd.Run(); err == nil {
+				return nil // Success
+			}
 		}
 	}
 
-	// Try building from source
+	// Fall back to building from source (works on all distros)
 	return buildGslapperFromSource(m)
 }
 
