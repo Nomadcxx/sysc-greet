@@ -134,9 +134,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
-			if m.step == stepComplete || m.step == stepWelcome {
+			// Allow exit from any step except during installation
+			if m.step != stepInstalling {
 				return m, tea.Quit
 			}
+			// During installation, Ctrl+C is disabled for safety
 		case "up", "k":
 			if m.step == stepWelcome && m.selectedOption > 0 {
 				m.selectedOption--
