@@ -39,6 +39,7 @@ type installStep int
 
 const (
 	stepWelcome installStep = iota
+	stepCompositorSelect
 	stepInstalling
 	stepComplete
 )
@@ -62,18 +63,20 @@ type installTask struct {
 }
 
 type model struct {
-	step             installStep
-	tasks            []installTask
-	currentTaskIndex int
-	width            int
-	height           int
-	spinner          spinner.Model
-	errors           []string
-	packageManager   string
-	greetdInstalled  bool
-	needsGreetd      bool
-	uninstallMode    bool
-	selectedOption   int // 0 = Install, 1 = Uninstall
+	step               installStep
+	tasks              []installTask
+	currentTaskIndex   int
+	width              int
+	height             int
+	spinner            spinner.Model
+	errors             []string
+	packageManager     string
+	greetdInstalled    bool
+	needsGreetd        bool
+	uninstallMode      bool
+	selectedOption     int    // 0 = Install, 1 = Uninstall
+	selectedCompositor string // "niri", "hyprland", or "sway"
+	compositorIndex    int    // Current selection in compositor menu
 }
 
 type taskCompleteMsg struct {
@@ -100,13 +103,21 @@ func newModel() model {
 		{name: "Enable service", description: "Enabling greetd service", execute: enableService, status: statusPending},
 	}
 
-	return model{
+	m := model{
 		step:             stepWelcome,
 		tasks:            tasks,
 		currentTaskIndex: -1,
 		spinner:          s,
 		errors:           []string{},
 	}
+
+	// Check for pre-selected compositor from environment variable
+	if comp := os.Getenv("SYSC_COMPOSITOR"); comp != "" {
+		m.selectedCompositor = comp
+		m.step = stepCompositorSelect // Will skip to installing after compositor validation
+	}
+
+	return m
 }
 
 func (m model) Init() tea.Cmd {
@@ -129,10 +140,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "up", "k":
 			if m.step == stepWelcome && m.selectedOption > 0 {
 				m.selectedOption--
+			} else if m.step == stepCompositorSelect && m.compositorIndex > 0 {
+				m.compositorIndex--
 			}
 		case "down", "j":
 			if m.step == stepWelcome && m.selectedOption < 1 {
 				m.selectedOption++
+			} else if m.step == stepCompositorSelect && m.compositorIndex < 2 {
+				m.compositorIndex++
 			}
 		case "enter":
 			if m.step == stepWelcome {
@@ -148,9 +163,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						{name: "Remove configs", description: "Removing configurations", execute: removeConfigs, status: statusPending},
 						{name: "Clean cache", description: "Cleaning cache directories", execute: cleanCache, optional: true, status: statusPending},
 					}
+					// Skip compositor selection for uninstall
+					m.step = stepInstalling
+					m.currentTaskIndex = 0
+					m.tasks[0].status = statusRunning
+					return m, tea.Batch(
+						m.spinner.Tick,
+						executeTask(0, &m),
+					)
+				} else {
+					// Go to compositor selection
+					m.step = stepCompositorSelect
+					return m, nil
 				}
+			} else if m.step == stepCompositorSelect {
+				// Set compositor based on selection
+				compositors := []string{"niri", "hyprland", "sway"}
+				m.selectedCompositor = compositors[m.compositorIndex]
 
-				// Start installation/uninstallation
+				// Start installation
 				m.step = stepInstalling
 				m.currentTaskIndex = 0
 				m.tasks[0].status = statusRunning
@@ -242,6 +273,8 @@ func (m model) View() string {
 	switch m.step {
 	case stepWelcome:
 		mainContent = m.renderWelcome()
+	case stepCompositorSelect:
+		mainContent = m.renderCompositorSelect()
 	case stepInstalling:
 		mainContent = m.renderInstalling()
 	case stepComplete:
@@ -300,6 +333,34 @@ func (m model) renderWelcome() string {
 	b.WriteString("    Removes sysc-greet from your system\n\n")
 
 	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Requires root privileges"))
+
+	return b.String()
+}
+
+func (m model) renderCompositorSelect() string {
+	var b strings.Builder
+
+	b.WriteString("Select Wayland compositor:\n\n")
+
+	compositors := []struct {
+		name string
+		desc string
+	}{
+		{"niri", "Tiling compositor with scrollable workspaces"},
+		{"hyprland", "Dynamic tiling compositor with extensive features"},
+		{"sway", "Stable i3-compatible tiling compositor"},
+	}
+
+	for i, comp := range compositors {
+		prefix := "  "
+		if i == m.compositorIndex {
+			prefix = lipgloss.NewStyle().Foreground(Primary).Render("▸ ")
+		}
+		b.WriteString(prefix + comp.name + "\n")
+		b.WriteString("    " + comp.desc + "\n\n")
+	}
+
+	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("The greeter will work identically on all compositors"))
 
 	return b.String()
 }
@@ -376,6 +437,8 @@ Press Enter to exit`
 func (m model) getHelpText() string {
 	switch m.step {
 	case stepWelcome:
+		return "↑/↓: Navigate  •  Enter: Continue  •  Ctrl+C: Quit"
+	case stepCompositorSelect:
 		return "↑/↓: Navigate  •  Enter: Continue  •  Ctrl+C: Quit"
 	case stepComplete:
 		return "Enter: Exit  •  Ctrl+C: Quit"
@@ -462,11 +525,11 @@ func checkDependencies(m *model) error {
 
 func installGreetd(m *model) error {
 	if m.greetdInstalled {
-		return nil // Already installed
+		return nil // Already installed - task will succeed silently
 	}
 
 	if m.packageManager == "" {
-		return fmt.Errorf("no package manager found")
+		return fmt.Errorf("package manager not detected")
 	}
 
 	var cmd *exec.Cmd
@@ -658,7 +721,13 @@ func setupCache(m *model) error {
 }
 
 func configureGreetd(m *model) error {
-	niriConfig := `// SYSC-Greet Niri config for greetd greeter session
+	var compositorConfig string
+	var greetdCommand string
+	var configPath string
+
+	switch m.selectedCompositor {
+	case "niri":
+		compositorConfig = `// SYSC-Greet Niri config for greetd greeter session
 // Monitors auto-detected by niri at runtime
 
 hotkey-overlay {
@@ -672,9 +741,6 @@ input {
         }
         repeat-delay 400
         repeat-rate 40
-    }
-
-    mouse {
     }
 
     touchpad {
@@ -716,22 +782,124 @@ spawn-sh-at-startup "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kit
 binds {
 }
 `
+		configPath = "/etc/greetd/niri-greeter-config.kdl"
+		greetdCommand = "niri -c /etc/greetd/niri-greeter-config.kdl"
 
-	if err := os.WriteFile("/etc/greetd/niri-greeter-config.kdl", []byte(niriConfig), 0644); err != nil {
-		return fmt.Errorf("niri config write failed")
+	case "hyprland":
+		compositorConfig = `# SYSC-Greet Hyprland config for greetd greeter session
+# Monitors auto-detected by Hyprland at runtime
+
+# No animations for faster greeter startup
+animations {
+    enabled = false
+}
+
+# Minimal decorations
+decoration {
+    rounding = 0
+    blur {
+        enabled = false
+    }
+}
+
+# Greeter doesn't need gaps
+general {
+    gaps_in = 0
+    gaps_out = 0
+    border_size = 0
+}
+
+# CHANGED 2025-10-18 - Disable Hyprland wallpaper/logo for greeter
+misc {
+    disable_hyprland_logo = true
+    disable_splash_rendering = true
+    background_color = rgb(000000)
+}
+
+# Input configuration
+input {
+    kb_layout = us
+    repeat_delay = 400
+    repeat_rate = 40
+
+    touchpad {
+        tap-to-click = true
+    }
+}
+
+# Disable all keybindings (security for greeter)
+# No binds = no user control
+
+# Window rules for kitty greeter
+windowrulev2 = fullscreen, class:^(kitty)$
+windowrulev2 = opacity 1.0 override, class:^(kitty)$
+
+# Layer rules for wallpaper daemon
+layerrule = blur, wallpaper
+
+# Startup applications
+exec-once = swww-daemon
+exec-once = XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
+`
+		configPath = "/etc/greetd/hyprland-greeter-config.conf"
+		greetdCommand = "Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
+
+	case "sway":
+		compositorConfig = `# SYSC-Greet Sway config for greetd greeter session
+# Monitors auto-detected by Sway at runtime
+
+# Disable window borders
+default_border none
+default_floating_border none
+
+# No gaps needed for greeter
+gaps inner 0
+gaps outer 0
+
+# Input configuration
+input * {
+    xkb_layout "us"
+    repeat_delay 400
+    repeat_rate 40
+}
+
+input type:touchpad {
+    tap enabled
+}
+
+# Disable all keybindings (security)
+
+# Window rules for kitty
+for_window [app_id="kitty"] fullscreen enable
+
+# Startup applications
+exec swww-daemon
+exec "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; swaymsg exit"
+`
+		configPath = "/etc/greetd/sway-greeter-config"
+		greetdCommand = "sway --unsupported-gpu -c /etc/greetd/sway-greeter-config"
+
+	default:
+		return fmt.Errorf("unknown compositor: %s", m.selectedCompositor)
 	}
 
-	greetdConfig := `[terminal]
+	// Write compositor config
+	if err := os.WriteFile(configPath, []byte(compositorConfig), 0644); err != nil {
+		return fmt.Errorf("compositor config write failed")
+	}
+
+	// Write greetd config
+	greetdConfig := fmt.Sprintf(`[terminal]
 vt = 1
 
 [default_session]
-command = "niri -c /etc/greetd/niri-greeter-config.kdl"
+command = "%s"
 user = "greeter"
 
 [initial_session]
-command = "niri -c /etc/greetd/niri-greeter-config.kdl"
+command = "%s"
 user = "greeter"
-`
+`, greetdCommand, greetdCommand)
 
 	if err := os.WriteFile("/etc/greetd/config.toml", []byte(greetdConfig), 0644); err != nil {
 		return fmt.Errorf("greetd config write failed")
