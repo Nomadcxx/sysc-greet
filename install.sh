@@ -1,6 +1,8 @@
 #!/bin/bash
-# sysc-greet one-line installer
-# Usage: curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo bash
+# sysc-greet installer
+# Usage:
+#   Download and run: curl -O https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh && sudo bash install.sh
+#   Or with compositor: sudo COMPOSITOR=niri bash install.sh
 
 set -e
 
@@ -10,7 +12,6 @@ echo ""
 # Check if running as root
 if [ "$EUID" -ne 0 ]; then
     echo "Error: This script must be run as root"
-    echo "Usage: curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo bash"
     exit 1
 fi
 
@@ -21,29 +22,43 @@ if ! command -v go &> /dev/null; then
     exit 1
 fi
 
-# Ask user for compositor choice
-echo "Select compositor:"
-echo "1) niri"
-echo "2) hyprland"
-echo "3) sway"
-read -p "Choice [1-3]: " choice < /dev/tty
+# Auto-detect compositor if not specified
+if [ -z "$COMPOSITOR" ]; then
+    echo "Auto-detecting compositor..."
+    if command -v niri &> /dev/null; then
+        COMPOSITOR="niri"
+        echo "Detected: niri"
+    elif command -v hyprland &> /dev/null || command -v Hyprland &> /dev/null; then
+        COMPOSITOR="hyprland"
+        echo "Detected: hyprland"
+    elif command -v sway &> /dev/null; then
+        COMPOSITOR="sway"
+        echo "Detected: sway"
+    else
+        echo "Error: No supported compositor found (niri, hyprland, or sway)"
+        echo "Install one of them first, or specify: sudo COMPOSITOR=niri bash install.sh"
+        exit 1
+    fi
+else
+    echo "Using specified compositor: $COMPOSITOR"
+fi
 
-case $choice in
-    1) COMPOSITOR="niri" ;;
-    2) COMPOSITOR="hyprland" ;;
-    3) COMPOSITOR="sway" ;;
-    *) echo "Invalid choice"; exit 1 ;;
-esac
-
-echo "Selected: $COMPOSITOR"
 echo ""
 
-# Check for compositor
-if ! command -v $COMPOSITOR &> /dev/null; then
-    echo "Error: $COMPOSITOR is not installed"
-    echo "Please install $COMPOSITOR first"
-    exit 1
-fi
+# Validate compositor choice
+case $COMPOSITOR in
+    niri|hyprland|sway)
+        if ! command -v $COMPOSITOR &> /dev/null && ! command -v ${COMPOSITOR^} &> /dev/null; then
+            echo "Error: $COMPOSITOR is not installed"
+            exit 1
+        fi
+        ;;
+    *)
+        echo "Error: Invalid compositor '$COMPOSITOR'"
+        echo "Supported: niri, hyprland, sway"
+        exit 1
+        ;;
+esac
 
 # Create temp directory
 TEMP_DIR=$(mktemp -d)
