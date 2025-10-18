@@ -94,6 +94,9 @@ func newModel() model {
 		{name: "Check privileges", description: "Checking root access", execute: checkPrivileges, status: statusPending},
 		{name: "Check dependencies", description: "Checking system dependencies", execute: checkDependencies, status: statusPending},
 		{name: "Install greetd", description: "Installing greetd daemon", execute: installGreetd, optional: false, status: statusPending},
+		{name: "Install kitty", description: "Installing kitty terminal", execute: installKitty, optional: false, status: statusPending},
+		{name: "Install swww", description: "Installing wallpaper daemon", execute: installSwww, optional: false, status: statusPending},
+		{name: "Install compositor", description: "Installing Wayland compositor", execute: installCompositor, optional: false, status: statusPending},
 		{name: "Install gslapper", description: "Installing video wallpaper support", execute: installGslapper, optional: true, status: statusPending},
 		{name: "Build binary", description: "Building sysc-greet", execute: buildBinary, status: statusPending},
 		{name: "Install binary", description: "Installing to system", execute: installBinary, status: statusPending},
@@ -638,6 +641,239 @@ func installGreetd(m *model) error {
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to install greetd (try: manual installation)")
+	}
+
+	return nil
+}
+
+func installSwww(m *model) error {
+	// Check if already installed
+	if _, err := exec.LookPath("swww"); err == nil {
+		return nil // Already installed
+	}
+
+	if m.packageManager == "" {
+		return fmt.Errorf("package manager not detected - install swww manually")
+	}
+
+	var cmd *exec.Cmd
+
+	switch m.packageManager {
+	case "pacman":
+		// swww is in official Arch repos
+		cmd = exec.Command("pacman", "-S", "--noconfirm", "swww")
+
+	case "apt":
+		// For Debian/Ubuntu, swww might need to be built from source
+		// Try apt first, fall back to cargo if not available
+		testCmd := exec.Command("apt-cache", "show", "swww")
+		if testCmd.Run() == nil {
+			cmd = exec.Command("apt-get", "install", "-y", "swww")
+		} else {
+			// Build from cargo
+			return buildSwwwFromCargo(m)
+		}
+
+	case "dnf":
+		// Fedora - try dnf, fall back to cargo
+		cmd = exec.Command("dnf", "install", "-y", "swww")
+
+	case "yum":
+		cmd = exec.Command("yum", "install", "-y", "swww")
+
+	case "zypper":
+		cmd = exec.Command("zypper", "install", "-y", "swww")
+
+	case "apk":
+		// Alpine - swww might not be in repos, build from cargo
+		testCmd := exec.Command("apk", "search", "swww")
+		if testCmd.Run() == nil {
+			cmd = exec.Command("apk", "add", "swww")
+		} else {
+			return buildSwwwFromCargo(m)
+		}
+
+	default:
+		return fmt.Errorf("unsupported package manager '%s' - install swww manually", m.packageManager)
+	}
+
+	if err := cmd.Run(); err != nil {
+		// If package manager install fails, try building from cargo
+		return buildSwwwFromCargo(m)
+	}
+
+	return nil
+}
+
+func installKitty(m *model) error {
+	// Check if already installed
+	if _, err := exec.LookPath("kitty"); err == nil {
+		return nil // Already installed
+	}
+
+	if m.packageManager == "" {
+		return fmt.Errorf("package manager not detected - install kitty manually")
+	}
+
+	var cmd *exec.Cmd
+
+	switch m.packageManager {
+	case "pacman":
+		cmd = exec.Command("pacman", "-S", "--noconfirm", "kitty")
+
+	case "apt":
+		cmd = exec.Command("apt-get", "install", "-y", "kitty")
+
+	case "dnf":
+		cmd = exec.Command("dnf", "install", "-y", "kitty")
+
+	case "yum":
+		cmd = exec.Command("yum", "install", "-y", "kitty")
+
+	case "zypper":
+		cmd = exec.Command("zypper", "install", "-y", "kitty")
+
+	case "apk":
+		cmd = exec.Command("apk", "add", "kitty")
+
+	default:
+		return fmt.Errorf("unsupported package manager '%s' - install kitty manually", m.packageManager)
+	}
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to install kitty")
+	}
+
+	return nil
+}
+
+func installCompositor(m *model) error {
+	// Map compositor selection to binary names
+	compositorBinaries := map[string][]string{
+		"niri":     {"niri"},
+		"hyprland": {"Hyprland", "hyprland"},
+		"sway":     {"sway"},
+	}
+
+	// Check if compositor already installed
+	if binaries, ok := compositorBinaries[m.selectedCompositor]; ok {
+		for _, bin := range binaries {
+			if _, err := exec.LookPath(bin); err == nil {
+				return nil // Already installed
+			}
+		}
+	}
+
+	if m.packageManager == "" {
+		return fmt.Errorf("package manager not detected - install %s manually", m.selectedCompositor)
+	}
+
+	var cmd *exec.Cmd
+
+	// Map compositor names to package names per distro
+	switch m.packageManager {
+	case "pacman":
+		// All three compositors available in Arch official/AUR
+		switch m.selectedCompositor {
+		case "niri":
+			// niri is in AUR, try yay/paru first
+			if _, err := exec.LookPath("yay"); err == nil {
+				if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" && sudoUser != "root" {
+					cmd = exec.Command("su", "-", sudoUser, "-c", "yay -S --noconfirm niri")
+				} else {
+					return fmt.Errorf("niri requires AUR access - install manually")
+				}
+			} else if _, err := exec.LookPath("paru"); err == nil {
+				if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" && sudoUser != "root" {
+					cmd = exec.Command("su", "-", sudoUser, "-c", "paru -S --noconfirm niri")
+				} else {
+					return fmt.Errorf("niri requires AUR access - install manually")
+				}
+			} else {
+				return fmt.Errorf("niri requires AUR helper (yay/paru) - install manually")
+			}
+		case "hyprland":
+			cmd = exec.Command("pacman", "-S", "--noconfirm", "hyprland")
+		case "sway":
+			cmd = exec.Command("pacman", "-S", "--noconfirm", "sway")
+		}
+
+	case "apt":
+		// Debian/Ubuntu
+		switch m.selectedCompositor {
+		case "niri":
+			return fmt.Errorf("niri not available in apt repos - build from source manually")
+		case "hyprland":
+			return fmt.Errorf("hyprland not in standard apt repos - see https://hyprland.org for installation")
+		case "sway":
+			cmd = exec.Command("apt-get", "install", "-y", "sway")
+		}
+
+	case "dnf":
+		// Fedora
+		switch m.selectedCompositor {
+		case "niri":
+			return fmt.Errorf("niri not available in dnf repos - build from source manually")
+		case "hyprland":
+			return fmt.Errorf("hyprland not in standard dnf repos - see https://hyprland.org for installation")
+		case "sway":
+			cmd = exec.Command("dnf", "install", "-y", "sway")
+		}
+
+	case "yum":
+		// RHEL/CentOS
+		switch m.selectedCompositor {
+		case "sway":
+			cmd = exec.Command("yum", "install", "-y", "sway")
+		default:
+			return fmt.Errorf("%s not available via yum - install manually", m.selectedCompositor)
+		}
+
+	case "zypper":
+		// openSUSE
+		switch m.selectedCompositor {
+		case "hyprland":
+			return fmt.Errorf("hyprland may require Tumbleweed or manual install")
+		case "sway":
+			cmd = exec.Command("zypper", "install", "-y", "sway")
+		default:
+			return fmt.Errorf("%s may not be in zypper repos - install manually", m.selectedCompositor)
+		}
+
+	case "apk":
+		// Alpine
+		switch m.selectedCompositor {
+		case "sway":
+			cmd = exec.Command("apk", "add", "sway")
+		default:
+			return fmt.Errorf("%s may not be in apk repos - install manually", m.selectedCompositor)
+		}
+
+	default:
+		return fmt.Errorf("unsupported package manager '%s' - install %s manually", m.packageManager, m.selectedCompositor)
+	}
+
+	if cmd == nil {
+		return fmt.Errorf("%s installation command not configured", m.selectedCompositor)
+	}
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to install %s - you may need to install manually", m.selectedCompositor)
+	}
+
+	return nil
+}
+
+func buildSwwwFromCargo(m *model) error {
+	// Check for cargo
+	if _, err := exec.LookPath("cargo"); err != nil {
+		return fmt.Errorf("cargo not found - install rust/cargo or swww manually")
+	}
+
+	// Install swww via cargo
+	cmd := exec.Command("cargo", "install", "swww")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("cargo install failed - install swww manually")
 	}
 
 	return nil
