@@ -122,8 +122,44 @@ Go uses the reference time `01/02 03:04:05PM '06 -0700` (1234567 - memorable, ri
 ### Theme Wallpapers
 Images named `sysc-greet-{theme}.png` are automatically matched to themes.
 
+**Included themes:**
+- `sysc-greet-dracula.png`
+- `sysc-greet-gruvbox.png`
+- `sysc-greet-nord.png`
+- `sysc-greet-tokyo-night.png`
+- `sysc-greet-catppuccin.png`
+- `sysc-greet-material.png`
+- `sysc-greet-solarized.png`
+- `sysc-greet-monochrome.png`
+- `sysc-greet-transishardjob.png`
+
+### Adding Custom Wallpapers
+
+```bash
+# Copy your wallpaper
+sudo cp ~/Pictures/my-awesome-wallpaper.png /usr/share/sysc-greet/wallpapers/
+
+# Set correct ownership
+sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/my-awesome-wallpaper.png
+
+# For theme-matched wallpapers, use naming convention:
+sudo cp ~/my-nord-bg.png /usr/share/sysc-greet/wallpapers/sysc-greet-nord.png
+```
+
+### Video Wallpapers
+
+Requires `gslapper` to be installed:
+
+```bash
+# Copy video file
+sudo cp ~/Videos/cool-animation.mp4 /usr/share/sysc-greet/wallpapers/
+
+# Set ownership
+sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/cool-animation.mp4
+```
+
 ### Accessing in Greeter
-Press `F2` → Backgrounds → Select your wallpaper or background effect
+Press `F1` → Backgrounds → Select your wallpaper or background effect
 
 ---
 
@@ -131,7 +167,10 @@ Press `F2` → Backgrounds → Select your wallpaper or background effect
 
 ### Configuration Files
 - **greetd config:** `/etc/greetd/config.toml`
-- **Niri config:** `/etc/greetd/niri-greeter-config.kdl`
+- **Compositor configs:**
+  - Niri: `/etc/greetd/niri-greeter-config.kdl`
+  - Hyprland: `/etc/greetd/hyprland-greeter-config.conf`
+  - Sway: `/etc/greetd/sway-greeter-config`
 - **Kitty config:** `/etc/greetd/kitty.conf`
 
 ### Data Directories

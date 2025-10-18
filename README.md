@@ -25,6 +25,16 @@ yay -S sysc-greet
 paru -S sysc-greet
 ```
 
+### Automated Installer (Recommended)
+
+The installer lets you choose your compositor and handles all configuration:
+
+```bash
+git clone https://github.com/Nomadcxx/sysc-greet
+cd sysc-greet/sysc-greet
+go run ./cmd/installer/
+```
+
 ### Quick Install Script
 
 ```bash
@@ -36,7 +46,7 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.
 **Requirements:**
 - Go 1.21+
 - greetd
-- niri (compositor)
+- Wayland compositor (niri, hyprland, or sway)
 - kitty (terminal)
 - swww (wallpaper daemon)
 - gslapper (optional, for video wallpapers)
@@ -62,16 +72,25 @@ sudo cp config/kitty-greeter.conf /etc/greetd/kitty.conf
 
 **Configure greetd** (`/etc/greetd/config.toml`):
 
+Choose your compositor: niri, hyprland, or sway
+
 ```toml
 [terminal]
 vt = 1
 
 [default_session]
+# For niri:
 command = "niri -c /etc/greetd/niri-greeter-config.kdl"
+# For hyprland:
+# command = "Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
+# For sway:
+# command = "sway --unsupported-gpu -c /etc/greetd/sway-greeter-config"
 user = "greeter"
 ```
 
-**Create niri greeter config** (`/etc/greetd/niri-greeter-config.kdl`):
+**Create compositor config:**
+
+**For niri** (`/etc/greetd/niri-greeter-config.kdl`):
 
 ```kdl
 // SYSC-Greet Niri config for greetd greeter session
@@ -135,9 +154,33 @@ sudo chmod 755 /var/lib/greeter
 sudo systemctl enable greetd.service
 ```
 
-## Configuration
+## Customization
 
-**For detailed configuration options, see [CONFIGURATION.md](https://github.com/Nomadcxx/sysc-greet/blob/master/CONFIGURATION.md)**
+### Wallpapers
+
+Add your own wallpapers to make the greeter match your setup.
+
+**Location:** `/usr/share/sysc-greet/wallpapers/`
+
+**Supported formats:**
+- Static images: PNG, JPG
+- Videos: MP4, WebM (requires gslapper)
+
+**Theme-matched wallpapers:**
+Name your wallpaper `sysc-greet-{theme}.png` to auto-match themes.
+Example: `sysc-greet-nord.png` appears when Nord theme is active.
+
+**Adding custom wallpapers:**
+```bash
+# Copy your wallpaper
+sudo cp ~/my-wallpaper.png /usr/share/sysc-greet/wallpapers/
+
+# Make it accessible to greeter user
+sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/my-wallpaper.png
+```
+
+**Accessing wallpapers:**
+Press `F1` (Settings) → Backgrounds → Select your wallpaper
 
 ### ASCII Art Format
 
@@ -161,18 +204,20 @@ colors=#ff5555,#50fa7b,#bd93f9
 
 **Note:** `colors` define theme color overrides (accent, success, info)
 
+**For more customization options (screensaver, compositor configs, etc.), see [CONFIGURATION.md](https://github.com/Nomadcxx/sysc-greet/blob/master/CONFIGURATION.md)**
+
 ## Usage
 
 ### Key Bindings
 
-- **F2** - Settings menu (themes, borders, backgrounds)
-- **F3** - Session selection
+- **F1** - Settings menu (themes, borders, backgrounds)
+- **F2** - Session selection
+- **F3** - Release notes
 - **F4** - Power menu (shutdown/reboot)
-- **F5** - Release notes
 - **Page Up/Down** - Cycle ASCII variants
 - **Tab** - Navigate fields
 - **Enter** - Submit/Continue
-- **Esc** - Cancel/Return
+- **Esc** - Cancel/Return to previous screen
 
 ### Test Mode
 
