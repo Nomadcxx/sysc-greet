@@ -111,6 +111,9 @@ func newModel() model {
 		errors:           []string{},
 	}
 
+	// Detect package manager during initialization (not in async task)
+	detectPackageManager(&m)
+
 	// Check for pre-selected compositor from environment variable
 	if comp := os.Getenv("SYSC_COMPOSITOR"); comp != "" {
 		m.selectedCompositor = comp
@@ -486,9 +489,11 @@ func executeTask(index int, m *model) tea.Cmd {
 		// Simulate work delay for visibility
 		time.Sleep(200 * time.Millisecond)
 
-		err := m.tasks[index].execute(m)
+		err := m.tasks[index].execute(m) // Pass pointer so model changes persist
 
 		if err != nil {
+			// DEBUG: Print error to stderr so we can see what's failing
+			fmt.Fprintf(os.Stderr, "\n[DEBUG] Task '%s' failed: %v\n", m.tasks[index].name, err)
 			return taskCompleteMsg{
 				index:   index,
 				success: false,
@@ -514,21 +519,7 @@ func checkPrivileges(m *model) error {
 	return nil
 }
 
-func checkDependencies(m *model) error {
-	missing := []string{}
-
-	// Check critical deps
-	if _, err := exec.LookPath("go"); err != nil {
-		missing = append(missing, "go")
-	}
-	if _, err := exec.LookPath("systemctl"); err != nil {
-		missing = append(missing, "systemd")
-	}
-
-	if len(missing) > 0 {
-		return fmt.Errorf("missing: %s", strings.Join(missing, ", "))
-	}
-
+func detectPackageManager(m *model) {
 	// Detect package manager (order matters - check base PM first, then helpers)
 	// Priority: native package managers first, then AUR helpers
 	packageManagers := []struct {
@@ -547,14 +538,35 @@ func checkDependencies(m *model) error {
 	for _, pm := range packageManagers {
 		if _, err := os.Stat(pm.path); err == nil {
 			m.packageManager = pm.name
+			fmt.Fprintf(os.Stderr, "[DEBUG] Detected package manager: %s at %s\n", pm.name, pm.path)
 			break
 		}
+	}
+
+	if m.packageManager == "" {
+		fmt.Fprintf(os.Stderr, "[DEBUG] No package manager detected!\n")
 	}
 
 	// Check if greetd installed
 	_, err := exec.LookPath("greetd")
 	m.greetdInstalled = (err == nil)
 	m.needsGreetd = !m.greetdInstalled
+}
+
+func checkDependencies(m *model) error {
+	missing := []string{}
+
+	// Check critical deps
+	if _, err := exec.LookPath("go"); err != nil {
+		missing = append(missing, "go")
+	}
+	if _, err := exec.LookPath("systemctl"); err != nil {
+		missing = append(missing, "systemd")
+	}
+
+	if len(missing) > 0 {
+		return fmt.Errorf("missing: %s", strings.Join(missing, ", "))
+	}
 
 	return nil
 }
