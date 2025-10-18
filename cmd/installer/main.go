@@ -93,7 +93,7 @@ func newModel() model {
 	tasks := []installTask{
 		{name: "Check privileges", description: "Checking root access", execute: checkPrivileges, status: statusPending},
 		{name: "Check dependencies", description: "Checking system dependencies", execute: checkDependencies, status: statusPending},
-		{name: "Install greetd", description: "Installing greetd daemon", execute: installGreetd, optional: true, status: statusPending},
+		{name: "Install greetd", description: "Installing greetd daemon", execute: installGreetd, optional: false, status: statusPending},
 		{name: "Install gslapper", description: "Installing video wallpaper support", execute: installGslapper, optional: true, status: statusPending},
 		{name: "Build binary", description: "Building sysc-greet", execute: buildBinary, status: statusPending},
 		{name: "Install binary", description: "Installing to system", execute: installBinary, status: statusPending},
