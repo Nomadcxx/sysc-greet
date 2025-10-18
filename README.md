@@ -10,9 +10,7 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 - **Background Effects**: Fire (DOOM PSX), Matrix rain, ASCII rain, Static patterns
 - **7 Border Styles**: Classic, Modern, Minimal, ASCII-1, ASCII-2, Wave, Pulse
 - **Screensaver**: Configurable idle timeout with ASCII art cycling
-- **Multiple ASCII Variants**: Page Up/Down navigation per session
 - **Video Wallpapers**: Multi-monitor support via gslapper
-- **Session Management**: Auto-detection of X11/Wayland sessions
 - **Preference Caching**: Theme, background, border, session persistence
 
 ## Installation
@@ -25,7 +23,7 @@ yay -S sysc-greet
 paru -S sysc-greet
 ```
 
-### Automated Installer (Recommended)
+### Installer (Recommended)
 
 The installer lets you choose your compositor and handles all configuration:
 
@@ -72,71 +70,33 @@ sudo cp config/kitty-greeter.conf /etc/greetd/kitty.conf
 
 **Configure greetd** (`/etc/greetd/config.toml`):
 
-Choose your compositor: niri, hyprland, or sway
+Choose your compositor and update the command below:
 
 ```toml
 [terminal]
 vt = 1
 
 [default_session]
-# For niri:
+# Pick one:
 command = "niri -c /etc/greetd/niri-greeter-config.kdl"
-# For hyprland:
 # command = "Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
-# For sway:
 # command = "sway --unsupported-gpu -c /etc/greetd/sway-greeter-config"
 user = "greeter"
 ```
 
 **Create compositor config:**
 
-**For niri** (`/etc/greetd/niri-greeter-config.kdl`):
+Copy the appropriate config file to `/etc/greetd/`:
 
-```kdl
-// SYSC-Greet Niri config for greetd greeter session
-hotkey-overlay {
-    skip-at-startup
-}
+```bash
+# For niri:
+sudo cp config/niri-greeter-config.kdl /etc/greetd/
 
-input {
-    keyboard {
-        xkb {
-            layout "us"
-        }
-        repeat-delay 400
-        repeat-rate 40
-    }
-    touchpad {
-        tap;
-    }
-}
+# For hyprland:
+sudo cp config/hyprland-greeter-config.conf /etc/greetd/
 
-layer-rule {
-    match namespace="^wallpaper$"
-    place-within-backdrop true
-}
-
-layout {
-    gaps 0
-    center-focused-column "never"
-    focus-ring { off }
-    border { off }
-}
-
-animations {
-    off
-}
-
-window-rule {
-    match app-id="kitty"
-    opacity 0.90
-}
-
-spawn-at-startup "swww-daemon"
-spawn-sh-at-startup "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
-
-binds {
-}
+# For sway:
+sudo cp config/sway-greeter-config /etc/greetd/
 ```
 
 **Create greeter user:**
@@ -158,29 +118,36 @@ sudo systemctl enable greetd.service
 
 ### Wallpapers
 
-Add your own wallpapers to make the greeter match your setup.
+There are two types of wallpapers you can use:
 
-**Location:** `/usr/share/sysc-greet/wallpapers/`
+#### 1. Themed Wallpapers (Static Images)
 
-**Supported formats:**
-- Static images: PNG, JPG
-- Videos: MP4, WebM (requires gslapper)
+These auto-match your selected theme and are stored in `/usr/share/sysc-greet/wallpapers/`.
 
-**Theme-matched wallpapers:**
-Name your wallpaper `sysc-greet-{theme}.png` to auto-match themes.
-Example: `sysc-greet-nord.png` appears when Nord theme is active.
+**Format:** `sysc-greet-{theme}.png`
 
-**Adding custom wallpapers:**
+**Example:** `sysc-greet-nord.png` automatically shows when Nord theme is active.
+
+**Adding themed wallpapers:**
 ```bash
-# Copy your wallpaper
-sudo cp ~/my-wallpaper.png /usr/share/sysc-greet/wallpapers/
+sudo cp ~/my-nord-bg.png /usr/share/sysc-greet/wallpapers/sysc-greet-nord.png
+sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/sysc-greet-nord.png
+```
 
-# Make it accessible to greeter user
-sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/my-wallpaper.png
+#### 2. Custom Wallpapers (Videos)
+
+Video wallpapers are managed by [gSlapper](https://github.com/Nomadcxx/gSlapper) and stored in `/var/lib/greeter/Pictures/wallpapers/`.
+
+**Supported formats:** MP4, WebM
+
+**Adding video wallpapers:**
+```bash
+sudo cp ~/Videos/cool-animation.mp4 /var/lib/greeter/Pictures/wallpapers/
+sudo chown greeter:greeter /var/lib/greeter/Pictures/wallpapers/cool-animation.mp4
 ```
 
 **Accessing wallpapers:**
-Press `F1` (Settings) → Backgrounds → Select your wallpaper
+Press `F1` (Settings) → Backgrounds → Select your wallpaper or video
 
 ### ASCII Art Format
 
