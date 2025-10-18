@@ -26,7 +26,7 @@ echo "Select compositor:"
 echo "1) niri"
 echo "2) hyprland"
 echo "3) sway"
-read -p "Choice [1-3]: " choice
+read -p "Choice [1-3]: " choice < /dev/tty
 
 case $choice in
     1) COMPOSITOR="niri" ;;
