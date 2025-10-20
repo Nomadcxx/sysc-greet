@@ -372,9 +372,6 @@ type model struct {
 	screensaverPrint  *animations.PrintEffect // CHANGED 2025-10-11 - Print effect animation for screensaver
 	screensaverActive bool                    // CHANGED 2025-10-11 - Track if screensaver just activated
 
-	// CAPS LOCK detection
-	capsLockOn bool // Track CAPS LOCK state
-
 	// ASCII navigation fields for multi-variant support
 	asciiArtIndex      int         // Current variant index (0-indexed)
 	asciiArtCount      int         // Total variants available
@@ -866,22 +863,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case ModePassword:
 		if m.focusState == FocusPassword {
-			// Detect CAPS LOCK based on key input
-			if keyMsg, ok := msg.(tea.KeyMsg); ok {
-				key := keyMsg.String()
-				// Check if it's a single letter key
-				if len(key) == 1 {
-					char := rune(key[0])
-					// If it's an uppercase letter and shift is not pressed, CAPS LOCK is on
-					if char >= 'A' && char <= 'Z' {
-						m.capsLockOn = true
-					} else if char >= 'a' && char <= 'z' {
-						// Lowercase letter means CAPS LOCK is off
-						m.capsLockOn = false
-					}
-				}
-			}
-			
 			var cmd tea.Cmd
 			m.passwordInput, cmd = m.passwordInput.Update(msg)
 			cmds = append(cmds, cmd)

@@ -140,15 +140,6 @@ func (m model) renderMainForm(width int) string {
 		}
 		parts = append(parts, passwordRow)
 
-		// CAPS LOCK warning below password input
-		if m.capsLockOn && m.focusState == FocusPassword {
-			capsLockStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#FF5555")).
-				Bold(true)
-			parts = append(parts, "")
-			parts = append(parts, capsLockStyle.Render("<CAPS LOCK ON>"))
-		}
-
 		// CHANGED 2025-10-05 - Display error message below password in main form
 		if m.errorMessage != "" {
 			errorStyle := lipgloss.NewStyle().
