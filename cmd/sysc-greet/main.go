@@ -1650,8 +1650,8 @@ func main() {
 	flag.BoolVar(&config.TestMode, "test", false, "Enable test mode (no actual authentication)")
 	flag.BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	flag.BoolVar(&screensaverTestMode, "screensaver", false, "Start directly in screensaver mode for testing")
-	flag.BoolVar(&config.ShowTime, "time", false, "Display current time")
-	flag.StringVar(&config.ThemeName, "theme", "", "Theme name to use")
+	flag.StringVar(&config.ThemeName, "theme", "", "Theme name (dracula, gruvbox, material, nord, tokyo-night, catppuccin, solarized, monochrome, transishardjob)")
+	flag.BoolVar(&config.ShowTime, "time", false, "") // Hidden flag - not shown in help
 
 
 	// Add help text
@@ -1661,7 +1661,18 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS]\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "sysc-greet - A terminal greeter for greetd\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
-		flag.PrintDefaults()
+		// Manually print flags (excluding hidden ones)
+		fmt.Fprintf(os.Stderr, "  -debug\n")
+		fmt.Fprintf(os.Stderr, "    	Enable debug output\n")
+		fmt.Fprintf(os.Stderr, "  -screensaver\n")
+		fmt.Fprintf(os.Stderr, "    	Start directly in screensaver mode for testing\n")
+		fmt.Fprintf(os.Stderr, "  -test\n")
+		fmt.Fprintf(os.Stderr, "    	Enable test mode (no actual authentication)\n")
+		fmt.Fprintf(os.Stderr, "  -theme string\n")
+		fmt.Fprintf(os.Stderr, "    	Theme name (dracula, gruvbox, material, nord, tokyo-night, catppuccin, solarized, monochrome, transishardjob)\n")
+		fmt.Fprintf(os.Stderr, "  -v	Show version information (shorthand)\n")
+		fmt.Fprintf(os.Stderr, "  -version\n")
+		fmt.Fprintf(os.Stderr, "    	Show version information\n")
 		fmt.Fprintf(os.Stderr, "\nConfiguration:\n")
 		fmt.Fprintf(os.Stderr, "  ASCII configs: /usr/share/sysc-greet/ascii_configs/\n")
 		fmt.Fprintf(os.Stderr, "\nKey Bindings:\n")
