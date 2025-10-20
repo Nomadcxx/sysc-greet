@@ -3,13 +3,19 @@
 
 .PHONY: all build install installer test clean verify
 
+# Version info
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE ?= $(shell date -u +"%Y-%m-%d %H:%M:%S UTC")
+LDFLAGS := -X 'main.Version=$(VERSION)' -X 'main.GitCommit=$(COMMIT)' -X 'main.BuildDate=$(BUILD_DATE)'
+
 # Default target
 all: build
 
 # Build the main greeter binary
 build:
-	@echo "Building sysc-greet..."
-	@go build -buildvcs=false -o sysc-greet ./cmd/sysc-greet/
+	@echo "Building sysc-greet $(VERSION)..."
+	@go build -buildvcs=false -ldflags "$(LDFLAGS)" -o sysc-greet ./cmd/sysc-greet/
 	@echo "✓ Binary built successfully"
 
 # Build the installer

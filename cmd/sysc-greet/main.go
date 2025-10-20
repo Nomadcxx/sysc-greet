@@ -24,6 +24,13 @@ import (
 	"github.com/mbndr/figlet4go"
 )
 
+// Version info - set via ldflags during build
+var (
+	Version   = "dev"
+	GitCommit = "unknown"
+	BuildDate = "unknown"
+)
+
 // CHANGED 2025-10-06 - Add debug logging to file
 var debugLog *log.Logger
 
@@ -1650,7 +1657,10 @@ func main() {
 	config := Config{}
 
 	var screensaverTestMode bool // CHANGED 2025-10-11 - Add screensaver test mode flag
+	var showVersion bool
 
+	flag.BoolVar(&showVersion, "version", false, "Show version information")
+	flag.BoolVar(&showVersion, "v", false, "Show version information (shorthand)")
 	flag.BoolVar(&config.TestMode, "test", false, "Enable test mode (no actual authentication)")
 	flag.BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	flag.BoolVar(&screensaverTestMode, "screensaver", false, "Start directly in screensaver mode for testing")
@@ -1682,6 +1692,14 @@ func main() {
 	}
 
 	flag.Parse()
+
+	// Handle version flag
+	if showVersion {
+		fmt.Printf("sysc-greet %s\n", Version)
+		fmt.Printf("Commit: %s\n", GitCommit)
+		fmt.Printf("Built: %s\n", BuildDate)
+		os.Exit(0)
+	}
 
 	// SECURITY: Prevent test mode in production environment
 	// Test mode bypasses authentication and should only be used for development

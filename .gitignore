@@ -21,6 +21,9 @@ logs/
 !CHANGELOG.txt
 !TODO.txt
 
+# Internal development tracking
+TODO.md
+
 # Build artifacts
 *.o
 *.so
