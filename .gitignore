@@ -49,6 +49,9 @@ CRUSH.md
 # Testing documentation (internal use)
 TESTING.md
 
+# Internal messages and drafts
+MESSAGE.md
+
 # IDE
 .vscode/
 .idea/
