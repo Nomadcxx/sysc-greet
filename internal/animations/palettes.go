@@ -198,6 +198,32 @@ func GetRainPalette(themeName string) []string {
 	}
 }
 
+// GetFireworksPalette returns theme-specific fireworks colors
+func GetFireworksPalette(themeName string) []string {
+	switch strings.ToLower(themeName) {
+	case "dracula":
+		return []string{"#ff5555", "#ff79c6", "#bd93f9", "#8be9fd", "#50fa7b", "#ffb86c", "#ffffff"}
+	case "catppuccin", "catppuccin-mocha":
+		return []string{"#f38ba8", "#f5c2e7", "#cba6f7", "#89b4fa", "#89dceb", "#a6e3a1", "#f9e2af", "#ffffff"}
+	case "nord":
+		return []string{"#bf616a", "#d08770", "#ebcb8b", "#a3be8c", "#88c0d0", "#81a1c1", "#b48ead", "#ffffff"}
+	case "tokyo-night", "tokyonight":
+		return []string{"#f7768e", "#ff9e64", "#e0af68", "#9ece6a", "#7aa2f7", "#bb9af7", "#7dcfff", "#ffffff"}
+	case "gruvbox":
+		return []string{"#fb4934", "#fe8019", "#fabd2f", "#b8bb26", "#83a598", "#d3869b", "#ffffff"}
+	case "material":
+		return []string{"#f07178", "#f78c6c", "#ffcb6b", "#c3e88d", "#82aaff", "#c792ea", "#89ddff", "#ffffff"}
+	case "solarized":
+		return []string{"#dc322f", "#cb4b16", "#b58900", "#859900", "#2aa198", "#268bd2", "#6c71c4", "#ffffff"}
+	case "monochrome":
+		return []string{"#5a5a5a", "#7a5a7a", "#9a9a9a", "#bababa", "#ffffff"}
+	case "transishardjob":
+		return []string{"#55cdfc", "#f7a8b8", "#ffffff", "#f7a8b8", "#55cdfc", "#ffffff"}
+	default:
+		return []string{"#ff0000", "#ff8000", "#ffff00", "#80ff00", "#00ff80", "#00ffff", "#8000ff", "#ff00ff", "#ffffff"}
+	}
+}
+
 // CHANGED 2025-10-10 - Screensaver palette for theme-aware colors
 // GetScreensaverPalette returns theme-specific colors for screensaver elements
 // Returns: [background, ascii_primary, ascii_secondary, clock_primary, clock_secondary, date_color]

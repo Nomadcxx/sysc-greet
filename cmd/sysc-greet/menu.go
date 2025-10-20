@@ -52,14 +52,16 @@ func (m model) navigateToBordersSubmenu() (tea.Model, tea.Cmd) {
 func (m model) navigateToBackgroundsSubmenu() (tea.Model, tea.Cmd) {
 	// Build menu with checkbox indicators
 	fireEnabled := m.selectedBackground == "fire" || m.enableFire
-	rainEnabled := m.selectedBackground == "ascii-rain" // CHANGED 2025-10-08 - Add ascii-rain option
-	matrixEnabled := m.selectedBackground == "matrix"   // Add matrix option
+	rainEnabled := m.selectedBackground == "ascii-rain"     // CHANGED 2025-10-08 - Add ascii-rain option
+	matrixEnabled := m.selectedBackground == "matrix"       // Add matrix option
+	fireworksEnabled := m.selectedBackground == "fireworks" // Add fireworks option
 
 	m.menuOptions = []string{
 		"← Back",
 		formatCheckbox("Fire", fireEnabled),
-		formatCheckbox("ASCII Rain", rainEnabled), // CHANGED 2025-10-08 - Add ascii-rain option
-		formatCheckbox("Matrix", matrixEnabled),   // Add matrix option
+		formatCheckbox("ASCII Rain", rainEnabled),     // CHANGED 2025-10-08 - Add ascii-rain option
+		formatCheckbox("Matrix", matrixEnabled),       // Add matrix option
+		formatCheckbox("Fireworks", fireworksEnabled), // Add fireworks option
 	}
 	m.mode = ModeBackgroundsSubmenu
 	m.menuIndex = 0

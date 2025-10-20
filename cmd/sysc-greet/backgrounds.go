@@ -7,7 +7,7 @@ import (
 )
 
 // Background Effects - Extracted during Phase 5 refactoring
-// This file contains background animation effects (fire, matrix, rain)
+// This file contains background animation effects (fire, matrix, rain, fireworks)
 
 // applyBackgroundAnimation routes to the appropriate background effect based on selection
 func (m model) applyBackgroundAnimation(content string, width, height int) string {
@@ -18,13 +18,14 @@ func (m model) applyBackgroundAnimation(content string, width, height int) strin
 		return m.addMatrixEffect(content, width, height)
 	case "ascii-rain": // CHANGED 2025-10-08 - Add ascii rain effect
 		return m.addAsciiRain(content, width, height)
+	case "fireworks": // Add fireworks effect rendering
+		return m.addFireworksEffect(content, width, height)
 	case "none":
 		fallthrough
 	default:
 		return content
 	}
 }
-
 
 // addFireEffect renders the fire background using the internal fire effect engine
 // Fire effect background rendering
@@ -108,6 +109,32 @@ func (m model) addMatrixEffect(content string, width, height int) string {
 
 	// For now, just return matrix (content will be overlaid by main rendering)
 	return matrixBackground
+}
+
+// addFireworksEffect renders the fireworks background effect
+func (m model) addFireworksEffect(content string, width, height int) string {
+	if m.fireworksEffect == nil {
+		return content
+	}
+
+	// Only resize if dimensions actually changed
+	if m.lastFireworksWidth != width || m.lastFireworksHeight != height {
+		m.fireworksEffect.Resize(width, height)
+		m.lastFireworksWidth = width
+		m.lastFireworksHeight = height
+	}
+
+	// Update palette from current theme
+	m.fireworksEffect.UpdatePalette(animations.GetFireworksPalette(m.currentTheme))
+
+	// Update fireworks simulation
+	m.fireworksEffect.Update(m.animationFrame)
+
+	// Render fireworks background
+	fireworksBackground := m.fireworksEffect.Render()
+
+	// For now, just return fireworks (content will be overlaid by main rendering)
+	return fireworksBackground
 }
 
 // getBackgroundColor returns the background color (always BgBase to prevent bleeding)
