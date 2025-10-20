@@ -372,6 +372,8 @@ type model struct {
 	asciiArtCount      int         // Total variants available
 	asciiMaxHeight     int         // Max height for normalization
 	currentASCIIConfig ASCIIConfig // Cached config for current session
+
+	capsLockOn bool // CAPS LOCK state detected via kitty keyboard protocol
 }
 
 type sessionSelectedMsg sessions.Session
@@ -849,6 +851,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case ModePassword:
 		if m.focusState == FocusPassword {
+			// Check CAPS LOCK state via kitty keyboard protocol
+			if keyMsg, ok := msg.(tea.KeyMsg); ok {
+				key := keyMsg.Key()
+				m.capsLockOn = (key.Mod & tea.ModCapsLock) != 0
+				
+				// Debug: log modifier state
+				if m.config.Debug {
+					fmt.Fprintf(os.Stderr, "CAPS DEBUG: Mod=%d CapsLock=%v (bit check: %d)\n", 
+						key.Mod, m.capsLockOn, key.Mod&tea.ModCapsLock)
+				}
+			}
+
 			var cmd tea.Cmd
 			m.passwordInput, cmd = m.passwordInput.Update(msg)
 			cmds = append(cmds, cmd)
