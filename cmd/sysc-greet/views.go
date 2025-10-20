@@ -208,22 +208,18 @@ func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
 
 	separator := "· ─ ─·-─────────────────────────────────────────────────────────────────-·─ ─ ·"
 
-	features := []string{
-		"Features:",
-		"  • 9 Themes: Dracula, Gruvbox, Material, Nord, Tokyo Night, Catppuccin, Solarized, Monochrome, TransIsHardJob",
-		"  • Background Animations: Fire (DOOM-style), Rain, Matrix",
-		"  • 7 Border Styles: Classic, Modern, Minimal, ASCII-1, ASCII-2, Wave, Pulse",
-		"  • Preference Caching: Remembers theme, background, border, and session",
-		"  • Key Bindings: F2 Menu • F3 Sessions • F4 Power • F5 Release Notes",
+	updates := []string{
+		"Updates:",
+		"  • Fireworks background animation with particle physics",
+		"  • Version flag: --version/-v shows build info",
+		"  • Username persistence with auto-advance to password",
+		"  • Themed wallpaper persistence fixes",
+		"  • Power menu reliability improvements",
+		"  • Screensaver clock styles and animations",
+		"  • Installer: better package manager detection",
+		"  • Installer: compositor validation before install",
+		"  • Critical async state bug fixes",
 		"",
-	}
-
-	thanks := []string{
-		"Thanks:",
-		"  • Original tuigreet by apognu",
-		"  • Bubble Tea framework by Charm",
-		"  • Lipgloss styling library by Charm",
-		"  • Go community",
 	}
 
 	// Define width first, then build content
@@ -251,24 +247,17 @@ func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
 	// Separator (left-aligned, no centering)
 	contentLines = append(contentLines, lipgloss.NewStyle().Foreground(FgMuted).Render(separator))
 
-	// Add features (left-aligned)
-	for _, line := range features {
-		if strings.HasPrefix(line, "Features:") {
+	// Add updates (left-aligned)
+	for _, line := range updates {
+		if strings.HasPrefix(line, "Updates:") {
 			contentLines = append(contentLines, lipgloss.NewStyle().Bold(true).Foreground(Accent).Render(line))
 		} else {
 			contentLines = append(contentLines, lipgloss.NewStyle().Foreground(FgPrimary).Render(line))
 		}
 	}
 
-	// Add thanks (left-aligned)
-	for _, line := range thanks {
-		if strings.HasPrefix(line, "Thanks:") {
-			contentLines = append(contentLines, lipgloss.NewStyle().Bold(true).Foreground(Accent).Render(line))
-		} else {
-			contentLines = append(contentLines, lipgloss.NewStyle().Foreground(FgPrimary).Render(line))
-		}
-	}
-
+	// Add signoff
+	contentLines = append(contentLines, lipgloss.NewStyle().Foreground(FgMuted).Render("-RAMA"))
 	contentLines = append(contentLines, "")
 
 	// Bottom separator (left-aligned)
