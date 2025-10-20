@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"image/color"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -256,10 +255,7 @@ type ASCIIConfig struct {
 type Config struct {
 	TestMode  bool
 	Debug     bool
-	Greeting  string
 	ShowTime  bool
-	ShowIssue bool
-	Width     int
 	ThemeName string
 }
 
@@ -301,7 +297,6 @@ type model struct {
 	theme           themesOld.Theme
 	mode            ViewMode
 	config          Config
-	issueContent    string
 	startTime       time.Time
 
 	// Terminal dimensions
@@ -476,14 +471,6 @@ func initialModel(config Config, screensaverMode bool) model {
 		sessionIndex = 0
 	}
 
-	// Load issue file content if requested
-	var issueContent string
-	if config.ShowIssue {
-		if content, err := ioutil.ReadFile("/etc/issue"); err == nil {
-			issueContent = strings.TrimSpace(string(content))
-		}
-	}
-
 	// Load themes from directory
 	themesDir := "themes"
 	loadedThemes, err := themesOld.LoadThemesFromDir(themesDir)
@@ -525,7 +512,6 @@ func initialModel(config Config, screensaverMode bool) model {
 		theme:               currentTheme,
 		mode:                initialMode,
 		config:              config,
-		issueContent:        issueContent,
 		startTime:           time.Now(),
 		width:               80,
 		height:              24,
@@ -1664,12 +1650,9 @@ func main() {
 	flag.BoolVar(&config.TestMode, "test", false, "Enable test mode (no actual authentication)")
 	flag.BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	flag.BoolVar(&screensaverTestMode, "screensaver", false, "Start directly in screensaver mode for testing")
-	flag.StringVar(&config.Greeting, "greeting", "", "Custom greeting message")
 	flag.BoolVar(&config.ShowTime, "time", false, "Display current time")
-	flag.BoolVar(&config.ShowIssue, "issue", false, "Display system issue file")
-	flag.IntVar(&config.Width, "width", 80, "Width of the main prompt")
 	flag.StringVar(&config.ThemeName, "theme", "", "Theme name to use")
-	// CHANGED 2025-10-12 - Removed -font flag (figlet no longer used)
+
 
 	// Add help text
 	// CHANGED 2025-10-12 - Updated help text to reflect sysc-greet branding
