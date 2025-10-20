@@ -204,7 +204,6 @@ var sessionPalettes = map[string]ColorPalette{
 	},
 }
 
-
 // ASCII art generator with proper Unicode block character support
 // CHANGED 2025-09-29 - Fixed Unicode block character handling issue in figlet4go
 // Removed old session art generation
@@ -269,7 +268,7 @@ const (
 	ModeThemesSubmenu      ViewMode = "themes_submenu"
 	ModeBordersSubmenu     ViewMode = "borders_submenu"
 	ModeBackgroundsSubmenu ViewMode = "backgrounds_submenu"
-	ModeWallpaperSubmenu ViewMode = "wallpaper_submenu" // CHANGED 2025-10-03 - Add wallpaper submenu for gslapper videos
+	ModeWallpaperSubmenu   ViewMode = "wallpaper_submenu" // CHANGED 2025-10-03 - Add wallpaper submenu for gslapper videos
 	// CHANGED 2025-10-01 - Added release notes mode
 	ModeReleaseNotes ViewMode = "release_notes"
 	// CHANGED 2025-10-10 - Added screensaver mode
@@ -349,6 +348,11 @@ type model struct {
 	lastMatrixWidth  int
 	lastMatrixHeight int
 
+	// Fireworks effect instance
+	fireworksEffect     *animations.FireworksEffect
+	lastFireworksWidth  int
+	lastFireworksHeight int
+
 	// CHANGED 2025-10-04 - Separate flags for multiple backgrounds
 	enableFire bool
 
@@ -356,10 +360,10 @@ type model struct {
 	errorMessage string
 
 	// CHANGED 2025-10-10 - Screensaver fields
-	idleTimer         time.Time // Time when idle started
-	screensaverTime   time.Time // Current time for screensaver display
+	idleTimer         time.Time               // Time when idle started
+	screensaverTime   time.Time               // Current time for screensaver display
 	screensaverPrint  *animations.PrintEffect // CHANGED 2025-10-11 - Print effect animation for screensaver
-	screensaverActive bool      // CHANGED 2025-10-11 - Track if screensaver just activated
+	screensaverActive bool                    // CHANGED 2025-10-11 - Track if screensaver just activated
 
 	// ASCII navigation fields for multi-variant support
 	asciiArtIndex      int         // Current variant index (0-indexed)
@@ -548,6 +552,8 @@ func initialModel(config Config, screensaverMode bool) model {
 		rainEffect: animations.NewRainEffect(80, 30, animations.GetRainPalette("default")),
 		// Initialize matrix effect with default size
 		matrixEffect: animations.NewMatrixEffect(80, 30, animations.GetMatrixPalette("default")),
+		// Initialize fireworks effect with default size
+		fireworksEffect: animations.NewFireworksEffect(80, 30, animations.GetFireworksPalette("default")),
 	}
 
 	// CHANGED 2025-10-03 - Load cached preferences including session
@@ -673,6 +679,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.matrixEffect.Update(m.animationFrame)
 		}
 
+		// Update fireworks when fireworks background is selected
+		if m.selectedBackground == "fireworks" && m.fireworksEffect != nil {
+			m.fireworksEffect.Update(m.animationFrame)
+		}
+
 		cmds = append(cmds, doTick())
 
 	case sessionSelectedMsg:
@@ -793,8 +804,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// FIXED 2025-10-17 - Return to login mode (not password mode) so user can fix username
 			m.errorMessage = msg
 			m.mode = ModeLogin
-			m.usernameInput.SetValue("")  // Clear username field
-			m.passwordInput.SetValue("")  // Clear password field
+			m.usernameInput.SetValue("") // Clear username field
+			m.passwordInput.SetValue("") // Clear password field
 			m.usernameInput.Focus()
 			m.passwordInput.Blur()
 			m.focusState = FocusUsername
@@ -804,8 +815,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// FIXED 2025-10-17 - Return to login mode (not password mode) so user can fix username
 		m.errorMessage = msg.Error()
 		m.mode = ModeLogin
-		m.usernameInput.SetValue("")  // Clear username field
-		m.passwordInput.SetValue("")  // Clear password field
+		m.usernameInput.SetValue("") // Clear username field
+		m.passwordInput.SetValue("") // Clear password field
 		m.usernameInput.Focus()
 		m.passwordInput.Blur()
 		m.focusState = FocusUsername
@@ -1281,13 +1292,21 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					} else {
 						m.selectedBackground = "none"
 					}
+				case "Fireworks": // Add fireworks option
+					// Fireworks is exclusive - disable others
+					m.enableFire = false
+					if m.selectedBackground != "fireworks" {
+						m.selectedBackground = "fireworks"
+					} else {
+						m.selectedBackground = "none"
+					}
 				}
 
 				// Update selectedBackground based on enabled flags
-				// Priority: Fire > Matrix > ASCII Rain > none
+				// Priority: Fire > Matrix > ASCII Rain > Fireworks > none
 				if m.enableFire {
 					m.selectedBackground = "fire"
-				} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" {
+				} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" {
 					m.selectedBackground = "none"
 				}
 				// CHANGED 2025-10-03 - Save background preference
@@ -1468,6 +1487,23 @@ func (m model) View() tea.View {
 		)
 		view.BackgroundColor = BgBase
 		return view
+	} else if m.selectedBackground == "fireworks" && (m.mode == ModeLogin || m.mode == ModePassword) {
+		// Render fireworks as full background
+		backgroundContent := m.addFireworksEffect("", termWidth, termHeight)
+
+		// Center the UI content
+		contentWidth := lipgloss.Width(content)
+		contentHeight := lipgloss.Height(content)
+		uiX := (termWidth - contentWidth) / 2
+		uiY := (termHeight - contentHeight) / 2
+
+		// Create canvas with two layers: fireworks as background, UI centered on top
+		view.Layer = lipgloss.NewCanvas(
+			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
+			lipgloss.NewLayer(content).X(uiX).Y(uiY),
+		)
+		view.BackgroundColor = BgBase
+		return view
 	}
 
 	// CHANGED 2025-10-06 - Use X/Y positioning instead of Place() to avoid ghosting
@@ -1528,9 +1564,7 @@ func (m model) renderMainView(termWidth, termHeight int) string {
 // Includes: renderDualBorderLayout, renderASCII1/2/3/4BorderLayout, renderASCIIBorderFallback,
 // getInnerBorderStyle, getOuterBorderStyle, getInnerBorderColor, getOuterBorderColor
 
-
 // Render form with monochrome colors
-
 
 // Implement actual border style functionality
 
@@ -1539,17 +1573,10 @@ func (m model) renderMainView(termWidth, termHeight int) string {
 // Background effect functions moved to backgrounds.go
 // Includes: applyBackgroundAnimation, addMatrixRain, addFireEffect, addAsciiRain, addMatrixEffect, getBackgroundColor
 
-
-
-
-
-
-
 // UI component functions moved to ui_components.go
 // Includes: renderMonochromeForm, renderMainForm, renderSessionSelector, renderSessionDropdown, renderMainHelp
 
 // Animation helper functions moved to theme.go
-
 
 func (m model) authenticate(username, password string) tea.Cmd {
 	return func() tea.Msg {

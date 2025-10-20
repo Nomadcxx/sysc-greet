@@ -14,6 +14,13 @@ test-*
 logs/
 *.log
 
+# Text files (except documentation)
+*.txt
+!README.txt
+!LICENSE.txt
+!CHANGELOG.txt
+!TODO.txt
+
 # Build artifacts
 *.o
 *.so
@@ -28,6 +35,16 @@ logs/
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# AI Assistant generated documentation
+CLAUDE.md
+AGENTS.md
+opencode.md
+CRUSH.md
+
+# Testing documentation (internal use)
+TESTING.md
 
 # IDE
 .vscode/
@@ -36,3 +53,47 @@ Thumbs.db
 *~
 .nfo
 cmd/sysc-greet/sysc-greet
+
+# Development tools and editor files
+.vim/
+.#*
+TAGS
+
+# Environment and local configuration
+.env
+*.env
+config.local
+
+# Go-specific files
+go.work
+gomobile/
+
+# Test and coverage files
+coverage.txt
+profile.out
+*.test
+
+# Build and distribution
+dist/
+bin/
+*.deb
+*.rpm
+
+# Archive and compressed files
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.zip
+*.rar
+*.7z
+
+# Cache and temporary files
+*.cache
+*.temp
+.tmp/
+.cache/
+
+# Dependency directories
+node_modules/
+vendor/
