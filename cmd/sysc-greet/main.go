@@ -271,7 +271,8 @@ const (
 	ModeThemesSubmenu      ViewMode = "themes_submenu"
 	ModeBordersSubmenu     ViewMode = "borders_submenu"
 	ModeBackgroundsSubmenu ViewMode = "backgrounds_submenu"
-	ModeWallpaperSubmenu   ViewMode = "wallpaper_submenu" // CHANGED 2025-10-03 - Add wallpaper submenu for gslapper videos
+	ModeWallpaperSubmenu   ViewMode = "wallpaper_submenu"
+	ModeASCIIEffectsSubmenu ViewMode = "ascii_effects_submenu"
 	// CHANGED 2025-10-01 - Added release notes mode
 	ModeReleaseNotes ViewMode = "release_notes"
 	// CHANGED 2025-10-10 - Added screensaver mode
@@ -374,7 +375,12 @@ type model struct {
 	currentASCIIConfig ASCIIConfig // Cached config for current session
 
 	capsLockOn bool // CAPS LOCK state detected via kitty keyboard protocol
+	
+	// ASCII Effects
+	typewriterTicker *animations.TypewriterTicker // Typewriter ticker for session roasts
+	printEffect      *animations.PrintEffect      // Print effect for ASCII art
 }
+
 
 type sessionSelectedMsg sessions.Session
 type powerSelectedMsg string
@@ -549,6 +555,8 @@ func initialModel(config Config, screensaverMode bool) model {
 		matrixEffect: animations.NewMatrixEffect(80, 30, animations.GetMatrixPalette("default")),
 		// Initialize fireworks effect with default size
 		fireworksEffect: animations.NewFireworksEffect(80, 30, animations.GetFireworksPalette("default")),
+		// TypewriterTicker is nil by default, initialized when user enables it
+		typewriterTicker: nil,
 	}
 
 	// CHANGED 2025-10-03 - Load cached preferences including session
@@ -706,6 +714,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		m.sessionDropdownOpen = false
+		
+		// Update typewriter ticker for new session
+		if m.typewriterTicker != nil {
+			if m.config.Debug {
+				logDebug("Updating ticker for session: %s", session.Name)
+			}
+			m.typewriterTicker.UpdateWM(session.Name)
+		}
 
 		// FIXED 2025-10-17 - Clear and reload username when session changes
 		if previousSession != "" && previousSession != session.Name {
@@ -921,6 +937,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				"Borders",
 				"Backgrounds",
 				"Wallpaper",
+				"ASCII Effects",
 			}
 			return m, nil
 		}
@@ -1004,7 +1021,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			m.mode = ModeLogin
 			return m, nil
 		// Add escape handling for submenus
-		case ModeThemesSubmenu, ModeBordersSubmenu, ModeBackgroundsSubmenu, ModeWallpaperSubmenu:
+		case ModeThemesSubmenu, ModeBordersSubmenu, ModeBackgroundsSubmenu, ModeWallpaperSubmenu, ModeASCIIEffectsSubmenu:
 			// Go back to main menu
 			m.mode = ModeMenu
 			m.menuOptions = []string{
@@ -1013,6 +1030,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				"Borders",
 				"Backgrounds",
 				"Wallpaper",
+				"ASCII Effects",
 			}
 			m.menuIndex = 0
 			return m, nil
@@ -1037,6 +1055,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				m.sessionIndex--
 				session := m.sessions[m.sessionIndex]
 				m.selectedSession = &session
+				// Update typewriter ticker for new session
+				if m.typewriterTicker != nil {
+					m.typewriterTicker.UpdateWM(session.Name)
+				}
 			}
 			return m, nil
 		} else if m.mode == ModePower {
@@ -1044,7 +1066,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				m.powerIndex--
 			}
 			return m, nil
-		} else if m.mode == ModeMenu || m.mode == ModeThemesSubmenu || m.mode == ModeBordersSubmenu || m.mode == ModeBackgroundsSubmenu || m.mode == ModeWallpaperSubmenu {
+		} else if m.mode == ModeMenu || m.mode == ModeThemesSubmenu || m.mode == ModeBordersSubmenu || m.mode == ModeBackgroundsSubmenu || m.mode == ModeWallpaperSubmenu || m.mode == ModeASCIIEffectsSubmenu {
 			// Removed ModeVideoWallpapersSubmenu from navigation
 			if m.menuIndex > 0 {
 				m.menuIndex--
@@ -1056,6 +1078,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				m.sessionIndex--
 				session := m.sessions[m.sessionIndex]
 				m.selectedSession = &session
+				// Update typewriter ticker for new session
+				if m.typewriterTicker != nil {
+					m.typewriterTicker.UpdateWM(session.Name)
+				}
 			}
 			return m, nil
 		}
@@ -1066,13 +1092,17 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				m.sessionIndex++
 				session := m.sessions[m.sessionIndex]
 				m.selectedSession = &session
+				// Update typewriter ticker for new session
+				if m.typewriterTicker != nil {
+					m.typewriterTicker.UpdateWM(session.Name)
+				}
 			}
 			return m, nil
 		} else if m.mode == ModePower {
 			if m.powerIndex < len(m.powerOptions)-1 {
 				m.powerIndex++
 			}
-		} else if m.mode == ModeMenu || m.mode == ModeThemesSubmenu || m.mode == ModeBordersSubmenu || m.mode == ModeBackgroundsSubmenu || m.mode == ModeWallpaperSubmenu {
+		} else if m.mode == ModeMenu || m.mode == ModeThemesSubmenu || m.mode == ModeBordersSubmenu || m.mode == ModeBackgroundsSubmenu || m.mode == ModeWallpaperSubmenu || m.mode == ModeASCIIEffectsSubmenu {
 			// Removed ModeVideoWallpapersSubmenu from navigation
 			if m.menuIndex < len(m.menuOptions)-1 {
 				m.menuIndex++
@@ -1084,6 +1114,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				m.sessionIndex++
 				session := m.sessions[m.sessionIndex]
 				m.selectedSession = &session
+				// Update typewriter ticker for new session
+				if m.typewriterTicker != nil {
+					m.typewriterTicker.UpdateWM(session.Name)
+				}
 			}
 			return m, nil
 		}
@@ -1188,12 +1222,15 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			case "Wallpaper":
 				newModel, cmd := m.navigateToWallpaperSubmenu()
 				return newModel.(model), cmd
+			case "ASCII Effects":
+				newModel, cmd := m.navigateToASCIIEffectsSubmenu()
+				return newModel.(model), cmd
 			}
 			return m, nil
 		}
 
 		// Handle submenu selections
-		if m.mode == ModeThemesSubmenu || m.mode == ModeBordersSubmenu || m.mode == ModeBackgroundsSubmenu || m.mode == ModeWallpaperSubmenu {
+		if m.mode == ModeThemesSubmenu || m.mode == ModeBordersSubmenu || m.mode == ModeBackgroundsSubmenu || m.mode == ModeWallpaperSubmenu || m.mode == ModeASCIIEffectsSubmenu {
 			selectedOption := m.menuOptions[m.menuIndex]
 
 			// Handle "← Back" option for all submenus
@@ -1205,6 +1242,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					"Borders",
 					"Backgrounds",
 					"Wallpaper",
+					"ASCII Effects",
 				}
 				m.menuIndex = 0
 				return m, nil
@@ -1319,11 +1357,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				// Priority: Fire > Matrix > ASCII Rain > Fireworks > none
 				if m.enableFire {
 					m.selectedBackground = "fire"
-				} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" {
+				} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" && m.selectedBackground != "ticker" {
 					m.selectedBackground = "none"
 				}
-				// CHANGED 2025-10-03 - Save background preference
-				// CHANGED 2025-10-03 - Skip saving in test mode
+				// Save background preference
 				if !m.config.TestMode {
 					sessionName := ""
 					if m.selectedSession != nil {
@@ -1336,8 +1373,55 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						Session:     sessionName,
 					})
 				}
-				// CHANGED 2025-10-06 - Refresh menu to update checkboxes
+				// Refresh menu to update checkboxes
 				newModel, cmd := m.navigateToBackgroundsSubmenu()
+				return newModel.(model), cmd
+			case ModeASCIIEffectsSubmenu:
+				// Handle ASCII Effects submenu selections
+				optionName := strings.TrimPrefix(selectedOption, "[✓] ")
+				optionName = strings.TrimPrefix(optionName, "[ ] ")
+				
+				switch optionName {
+				case "Typewriter":
+					// Typewriter is exclusive - disable other backgrounds/effects
+					m.enableFire = false
+					if m.selectedBackground != "ticker" {
+						m.selectedBackground = "ticker"
+						// Initialize ticker if not already done
+						if m.typewriterTicker == nil && m.selectedSession != nil {
+							m.typewriterTicker = animations.NewTypewriterTicker(m.selectedSession.Name)
+						}
+					} else {
+						m.selectedBackground = "none"
+					}
+				case "Print":
+					// Print is exclusive - disable other backgrounds/effects
+					m.enableFire = false
+					if m.selectedBackground != "print" {
+						m.selectedBackground = "print"
+						// Initialize print effect (will be created when ASCII loads)
+						// Print effect needs ASCII art which is loaded per-session
+					} else {
+						m.selectedBackground = "none"
+						m.printEffect = nil
+					}
+				}
+				
+				// Save preference
+				if !m.config.TestMode {
+					sessionName := ""
+					if m.selectedSession != nil {
+						sessionName = m.selectedSession.Name
+					}
+					cache.SavePreferences(cache.UserPreferences{
+						Theme:       m.currentTheme,
+						Background:  m.selectedBackground,
+						BorderStyle: m.selectedBorderStyle,
+						Session:     sessionName,
+					})
+				}
+				// Refresh menu to update checkboxes
+				newModel, cmd := m.navigateToASCIIEffectsSubmenu()
 				return newModel.(model), cmd
 			case ModeWallpaperSubmenu:
 				// Use modular wallpaper handler
@@ -1421,7 +1505,7 @@ func (m model) View() tea.View {
 	case ModePower:
 		// Fixed missing power menu rendering
 		content = m.renderPowerView(termWidth, termHeight)
-	case ModeMenu, ModeThemesSubmenu, ModeBordersSubmenu, ModeBackgroundsSubmenu, ModeWallpaperSubmenu:
+	case ModeMenu, ModeThemesSubmenu, ModeBordersSubmenu, ModeBackgroundsSubmenu, ModeWallpaperSubmenu, ModeASCIIEffectsSubmenu:
 		// Removed ModeVideoWallpapersSubmenu from rendering
 		content = m.renderMenuView(termWidth, termHeight)
 	case ModeReleaseNotes:

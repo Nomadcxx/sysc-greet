@@ -71,26 +71,35 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	// Create inner border container with user-selected style
 	innerBorderColor := m.getInnerBorderColor()
 
-	// Standard SESSIONS title
+	// TypewriterTicker replaces SESSIONS title when enabled
 	var titleLine string
-	titleText := "SESSIONS"
-	slashes := strings.Repeat("/", 7)
-
-	// Use shorter dashes for minimal border style
-	dashCount := 30
-	if m.selectedBorderStyle == "minimal" {
-		dashCount = 4
+	
+	// Show typewriter text if ticker is enabled as background
+	if m.selectedBackground == "ticker" && m.typewriterTicker != nil {
+		tickerText := m.typewriterTicker.GetTypewriterText(innerWidth - 6)
+		titleLine = lipgloss.NewStyle().
+			Foreground(innerBorderColor).
+			Bold(true).
+			Width(innerWidth - 6).
+			Align(lipgloss.Center).
+			Render(tickerText)
+	} else {
+		// Standard SESSIONS title
+		titleText := "SESSIONS"
+		slashes := strings.Repeat("/", 7)
+		dashCount := 30
+		if m.selectedBorderStyle == "minimal" {
+			dashCount = 4
+		}
+		dashes := strings.Repeat("─", dashCount)
+		
+		titleLine = lipgloss.NewStyle().
+			Foreground(innerBorderColor).
+			Bold(true).
+			Width(innerWidth - 6).
+			Align(lipgloss.Center).
+			Render(dashes + slashes + titleText + slashes + dashes)
 	}
-	dashes := strings.Repeat("─", dashCount)
-
-	// CHANGED 2025-10-06 - Re-added Align() for title centering WITHIN fixed width
-	// NOTE: This Align() is safe because it's within a fixed Width() container, not used with Place()
-	titleLine = lipgloss.NewStyle().
-		Foreground(innerBorderColor).
-		Bold(true).
-		Width(innerWidth - 6).
-		Align(lipgloss.Center).
-		Render(dashes + slashes + titleText + slashes + dashes)
 
 	// Add title as first element
 	contentWithTitle := []string{titleLine}

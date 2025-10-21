@@ -1,161 +1,110 @@
 package animations
 
 import (
-	"strings"
-	"time"
-	"unicode/utf8"
+"strings"
+"time"
 )
 
-// PrintEffect manages the typewriter animation state
+// PrintEffect creates a typewriter/printer effect for ASCII art
+// Inspired by TTE's print effect - prints line by line with a print head
+// Used by both screensaver and ASCII effects
 type PrintEffect struct {
-	lines          []string
-	currentLine    int
-	currentChar    int
-	charDelay      time.Duration
-	printHeadChar  rune
-	showPrintHead  bool
-	complete       bool
-	lastTickTime   time.Time
-	cycleVariants  bool
-	variantIndex   int
-	allVariants    []string
-	cycleDuration  time.Duration
-	cycleStartTime time.Time
+lines       []string      // ASCII art lines
+currentLine int           // Current line being printed
+currentCol  int           // Current column position in line
+revealed    []string      // Fully revealed lines
+lastUpdate  time.Time     // Last update time
+charDelay   time.Duration // Delay between printing characters
+complete    bool          // Animation complete
 }
 
-// NewPrintEffect creates a new typewriter animation effect
-func NewPrintEffect(text string, charDelay time.Duration) *PrintEffect {
-	lines := strings.Split(text, "\n")
-	return &PrintEffect{
-		lines:         lines,
-		currentLine:   0,
-		currentChar:   0,
-		charDelay:     charDelay,
-		printHeadChar: '█',
-		showPrintHead: true,
-		complete:      false,
-		lastTickTime:  time.Now(),
-	}
+// NewPrintEffect creates a new print effect for ASCII art
+func NewPrintEffect(asciiArt string, charDelay time.Duration) *PrintEffect {
+lines := strings.Split(asciiArt, "\n")
+
+// Remove empty trailing lines
+for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
+lines = lines[:len(lines)-1]
 }
 
-// NewPrintEffectWithVariants creates a print effect that cycles through multiple ASCII variants
-func NewPrintEffectWithVariants(variants []string, charDelay, cycleDuration time.Duration) *PrintEffect {
-	if len(variants) == 0 {
-		return NewPrintEffect("", charDelay)
-	}
-
-	lines := strings.Split(variants[0], "\n")
-	return &PrintEffect{
-		lines:          lines,
-		currentLine:    0,
-		currentChar:    0,
-		charDelay:      charDelay,
-		printHeadChar:  '█',
-		showPrintHead:  true,
-		complete:       false,
-		lastTickTime:   time.Now(),
-		cycleVariants:  true,
-		variantIndex:   0,
-		allVariants:    variants,
-		cycleDuration:  cycleDuration,
-		cycleStartTime: time.Now(),
-	}
+return &PrintEffect{
+lines:       lines,
+currentLine: 0,
+currentCol:  0,
+revealed:    []string{},
+lastUpdate:  time.Now(),
+charDelay:   charDelay,
+complete:    false,
+}
 }
 
-// Tick advances the animation if enough time has passed
-func (p *PrintEffect) Tick(currentTime time.Time) bool {
-	// Check if we should cycle to next variant
-	if p.cycleVariants && p.complete {
-		elapsed := currentTime.Sub(p.cycleStartTime)
-		if elapsed >= p.cycleDuration {
-			// Move to next variant
-			p.variantIndex = (p.variantIndex + 1) % len(p.allVariants)
-			p.Reset(p.allVariants[p.variantIndex])
-			return true
-		}
-		return false // Animation complete, waiting for cycle time
-	}
-
-	if p.complete {
-		return false // No more changes
-	}
-
-	// Check if enough time has passed for next character
-	if currentTime.Sub(p.lastTickTime) < p.charDelay {
-		return false
-	}
-
-	p.lastTickTime = currentTime
-
-	if p.currentLine >= len(p.lines) {
-		p.complete = true
-		p.showPrintHead = false
-		return false
-	}
-
-	currentLineText := p.lines[p.currentLine]
-	lineLength := utf8.RuneCountInString(currentLineText)
-
-	if p.currentChar < lineLength {
-		// Advance character in current line
-		p.currentChar++
-		return true
-	} else {
-		// Move to next line
-		p.currentLine++
-		p.currentChar = 0
-		return true
-	}
+// Tick advances the print effect animation based on current time
+func (p *PrintEffect) Tick(currentTime time.Time) {
+if p.complete || p.currentLine >= len(p.lines) {
+p.complete = true
+return
 }
 
-// Reset resets the animation with new text
-func (p *PrintEffect) Reset(text string) {
-	p.lines = strings.Split(text, "\n")
-	p.currentLine = 0
-	p.currentChar = 0
-	p.complete = false
-	p.showPrintHead = true
-	p.lastTickTime = time.Now()
-	p.cycleStartTime = time.Now()
+// Check if enough time has passed to print next character
+if currentTime.Sub(p.lastUpdate) >= p.charDelay {
+currentLineText := p.lines[p.currentLine]
+
+if p.currentCol < len(currentLineText) {
+// Print next character
+p.currentCol++
+p.lastUpdate = currentTime
+} else {
+// Line complete - move to next line
+p.revealed = append(p.revealed, currentLineText)
+p.currentLine++
+p.currentCol = 0
+p.lastUpdate = currentTime
+}
+}
 }
 
-// GetVisibleLines returns the currently visible lines (completed + current line being typed)
+// GetVisibleLines returns the currently visible lines (for rendering)
 func (p *PrintEffect) GetVisibleLines() []string {
-	var visible []string
-
-	for lineIdx, line := range p.lines {
-		if lineIdx < p.currentLine {
-			// Completed line
-			visible = append(visible, line)
-		} else if lineIdx == p.currentLine {
-			// Current line being typed
-			if p.currentChar > 0 {
-				runes := []rune(line)
-				visibleRunes := runes[:min(p.currentChar, len(runes))]
-				visibleText := string(visibleRunes)
-
-				// Add print head if not at end of line
-				if p.showPrintHead && p.currentChar < len(runes) {
-					visibleText += string(p.printHeadChar)
-				}
-
-				visible = append(visible, visibleText)
-			} else if p.showPrintHead {
-				visible = append(visible, string(p.printHeadChar))
-			}
-		}
-		// Lines below current line are not shown yet
-	}
-
-	return visible
+if p.complete {
+return p.lines
 }
 
-// IsComplete returns whether the animation has finished
+var result []string
+result = append(result, p.revealed...)
+
+// Add currently printing line with print head
+if p.currentLine < len(p.lines) {
+currentLineText := p.lines[p.currentLine]
+var currentLine string
+
+if p.currentCol > 0 {
+currentLine = currentLineText[:p.currentCol]
+}
+// Add print head character
+currentLine += "█"
+
+result = append(result, currentLine)
+}
+
+return result
+}
+
+// IsComplete returns whether the animation is complete
 func (p *PrintEffect) IsComplete() bool {
-	return p.complete
+return p.complete
 }
 
-// SetSpeed updates the character delay
-func (p *PrintEffect) SetSpeed(charDelay time.Duration) {
-	p.charDelay = charDelay
+// Reset restarts the print effect animation
+func (p *PrintEffect) Reset(asciiArt string) {
+lines := strings.Split(asciiArt, "\n")
+for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
+lines = lines[:len(lines)-1]
+}
+
+p.lines = lines
+p.currentLine = 0
+p.currentCol = 0
+p.revealed = []string{}
+p.lastUpdate = time.Now()
+p.complete = false
 }

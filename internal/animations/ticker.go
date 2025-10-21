@@ -337,3 +337,122 @@ func getRoastForWM(wmName string) string {
 	// Default roast for unknown WMs
 	return "Your WM: So obscure even I don't have a roast for it │ "
 }
+
+// TypewriterTicker types out text one character at a time with a block cursor
+// This provides a "typewriter" effect for the roast messages
+type TypewriterTicker struct {
+roasts       []string        // All roast messages
+currentWM    string          // Current WM name
+roastIndex   int             // Current message index
+charIndex    int             // Current character being typed
+lastUpdate   time.Time       // Last update time
+charDelay    time.Duration   // Delay between characters (typing speed)
+messageDelay time.Duration   // Delay after complete message
+paused       bool            // Are we paused after message?
+pauseUntil   time.Time       // When to unpause
+}
+
+// NewTypewriterTicker creates a new typewriter ticker
+func NewTypewriterTicker(wmName string) *TypewriterTicker {
+return &TypewriterTicker{
+roasts:       splitRoasts(getRoastForWM(wmName)),
+currentWM:    wmName,
+roastIndex:   0,
+charIndex:    0,
+lastUpdate:   time.Now(),
+charDelay:    time.Millisecond * 50, // 50ms per character (adjustable typing speed)
+messageDelay: time.Second * 2,        // 2 second pause after complete message
+paused:      false,
+pauseUntil:   time.Now(),
+}
+}
+
+// UpdateWM changes the roast text when WM selection changes
+func (t *TypewriterTicker) UpdateWM(wmName string) {
+if wmName != t.currentWM {
+t.roasts = splitRoasts(getRoastForWM(wmName))
+t.currentWM = wmName
+t.roastIndex = 0
+t.charIndex = 0
+t.paused = false
+t.lastUpdate = time.Now()
+}
+}
+
+// GetTypewriterText returns the current typewriter text with block cursor
+func (t *TypewriterTicker) GetTypewriterText(width int) string {
+now := time.Now()
+
+// Handle paused state (after complete message)
+if t.paused {
+if now.Before(t.pauseUntil) {
+// Still paused - show complete message
+if len(t.roasts) > 0 {
+message := t.roasts[t.roastIndex]
+if len(message) <= width {
+// Center the message
+padding := (width - len(message)) / 2
+return strings.Repeat(" ", padding) + message + strings.Repeat(" ", width-len(message)-padding)
+}
+// Truncate if too long
+return message[:width]
+}
+return strings.Repeat(" ", width)
+}
+// Pause over - move to next message
+t.roastIndex = (t.roastIndex + 1) % len(t.roasts)
+t.charIndex = 0
+t.paused = false
+t.lastUpdate = now
+}
+
+// Check if we need to type next character
+if now.Sub(t.lastUpdate) >= t.charDelay {
+if len(t.roasts) == 0 {
+return strings.Repeat(" ", width)
+}
+
+currentMessage := t.roasts[t.roastIndex]
+
+// Check if message is complete
+if t.charIndex >= len(currentMessage) {
+// Message complete - start pause
+t.paused = true
+t.pauseUntil = now.Add(t.messageDelay)
+// Return complete message (will be displayed during pause)
+if len(currentMessage) <= width {
+padding := (width - len(currentMessage)) / 2
+return strings.Repeat(" ", padding) + currentMessage + strings.Repeat(" ", width-len(currentMessage)-padding)
+}
+return currentMessage[:width]
+}
+
+// Type next character
+t.charIndex++
+t.lastUpdate = now
+}
+
+// Build current typed text with cursor
+if len(t.roasts) == 0 {
+return strings.Repeat(" ", width)
+}
+
+currentMessage := t.roasts[t.roastIndex]
+typedText := currentMessage[:t.charIndex]
+
+// Add block cursor (█)
+result := typedText + "█"
+
+// Center it if it fits
+if len(result) <= width {
+padding := (width - len(result)) / 2
+return strings.Repeat(" ", padding) + result + strings.Repeat(" ", width-len(result)-padding)
+}
+
+// If too long, truncate (shouldn't happen with proper width)
+if len(result) > width {
+return result[:width]
+}
+
+return result
+}

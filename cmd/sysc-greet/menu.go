@@ -52,16 +52,16 @@ func (m model) navigateToBordersSubmenu() (tea.Model, tea.Cmd) {
 func (m model) navigateToBackgroundsSubmenu() (tea.Model, tea.Cmd) {
 	// Build menu with checkbox indicators
 	fireEnabled := m.selectedBackground == "fire" || m.enableFire
-	rainEnabled := m.selectedBackground == "ascii-rain"     // CHANGED 2025-10-08 - Add ascii-rain option
-	matrixEnabled := m.selectedBackground == "matrix"       // Add matrix option
-	fireworksEnabled := m.selectedBackground == "fireworks" // Add fireworks option
+	rainEnabled := m.selectedBackground == "ascii-rain"
+	matrixEnabled := m.selectedBackground == "matrix"
+	fireworksEnabled := m.selectedBackground == "fireworks"
 
 	m.menuOptions = []string{
 		"← Back",
 		formatCheckbox("Fire", fireEnabled),
-		formatCheckbox("ASCII Rain", rainEnabled),     // CHANGED 2025-10-08 - Add ascii-rain option
-		formatCheckbox("Matrix", matrixEnabled),       // Add matrix option
-		formatCheckbox("Fireworks", fireworksEnabled), // Add fireworks option
+		formatCheckbox("ASCII Rain", rainEnabled),
+		formatCheckbox("Matrix", matrixEnabled),
+		formatCheckbox("Fireworks", fireworksEnabled),
 	}
 	m.mode = ModeBackgroundsSubmenu
 	m.menuIndex = 0
@@ -77,3 +77,19 @@ func formatCheckbox(label string, checked bool) string {
 }
 
 // Removed navigateToVideoWallpapersSubmenu
+
+// navigateToASCIIEffectsSubmenu switches to the ASCII effects submenu
+func (m model) navigateToASCIIEffectsSubmenu() (tea.Model, tea.Cmd) {
+	// Check which effects are enabled
+	typewriterEnabled := m.selectedBackground == "ticker"
+	printEnabled := m.selectedBackground == "print"
+	
+	m.menuOptions = []string{
+		"← Back",
+		formatCheckbox("Typewriter", typewriterEnabled),
+		formatCheckbox("Print", printEnabled),
+	}
+	m.mode = ModeASCIIEffectsSubmenu
+	m.menuIndex = 0
+	return m, nil
+}
