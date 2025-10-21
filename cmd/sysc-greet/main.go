@@ -688,6 +688,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selectedBackground == "matrix" && m.matrixEffect != nil {
 			m.matrixEffect.Update(m.animationFrame)
 		}
+		
+		// Update print effect when print is selected
+		if m.selectedBackground == "print" && m.printEffect != nil {
+			m.printEffect.Tick(m.screensaverTime)
+		}
 
 		// Update fireworks when fireworks background is selected
 		if m.selectedBackground == "fireworks" && m.fireworksEffect != nil {
@@ -722,6 +727,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.typewriterTicker.UpdateWM(session.Name)
 		}
+		
+		// Update print effect for new session
+		m.resetPrintEffectForSession(session.Name)
 
 		// FIXED 2025-10-17 - Clear and reload username when session changes
 		if previousSession != "" && previousSession != session.Name {
@@ -1059,6 +1067,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				if m.typewriterTicker != nil {
 					m.typewriterTicker.UpdateWM(session.Name)
 				}
+				// Update print effect for new session
+				m.resetPrintEffectForSession(session.Name)
 			}
 			return m, nil
 		} else if m.mode == ModePower {
@@ -1082,6 +1092,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				if m.typewriterTicker != nil {
 					m.typewriterTicker.UpdateWM(session.Name)
 				}
+				// Update print effect for new session
+				m.resetPrintEffectForSession(session.Name)
 			}
 			return m, nil
 		}
@@ -1096,6 +1108,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				if m.typewriterTicker != nil {
 					m.typewriterTicker.UpdateWM(session.Name)
 				}
+				// Update print effect for new session
+				m.resetPrintEffectForSession(session.Name)
 			}
 			return m, nil
 		} else if m.mode == ModePower {
@@ -1118,6 +1132,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				if m.typewriterTicker != nil {
 					m.typewriterTicker.UpdateWM(session.Name)
 				}
+				// Update print effect for new session
+				m.resetPrintEffectForSession(session.Name)
 			}
 			return m, nil
 		}
@@ -1154,6 +1170,16 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					if m.asciiArtIndex < 0 {
 						m.asciiArtIndex = m.asciiArtCount - 1
 					}
+					
+					// Reset print effect with new ASCII if enabled
+					if m.selectedBackground == "print" && m.printEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
+						variantIndex := m.asciiArtIndex
+						if variantIndex >= len(asciiConfig.ASCIIVariants) {
+							variantIndex = 0
+						}
+						ascii := asciiConfig.ASCIIVariants[variantIndex]
+						m.printEffect.Reset(ascii)
+					}
 				}
 			}
 			return m, nil
@@ -1189,6 +1215,16 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.asciiArtIndex++
 					if m.asciiArtIndex >= m.asciiArtCount {
 						m.asciiArtIndex = 0
+					}
+					
+					// Reset print effect with new ASCII if enabled
+					if m.selectedBackground == "print" && m.printEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
+						variantIndex := m.asciiArtIndex
+						if variantIndex >= len(asciiConfig.ASCIIVariants) {
+							variantIndex = 0
+						}
+						ascii := asciiConfig.ASCIIVariants[variantIndex]
+						m.printEffect.Reset(ascii)
 					}
 				}
 			}
@@ -1399,8 +1435,47 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.enableFire = false
 					if m.selectedBackground != "print" {
 						m.selectedBackground = "print"
-						// Initialize print effect (will be created when ASCII loads)
-						// Print effect needs ASCII art which is loaded per-session
+						// Initialize print effect with current session's ASCII art
+						if m.selectedSession != nil {
+							// Load ASCII config for current session
+							sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
+							
+							// Map session names to config file names
+							var configFileName string
+							switch sessionName {
+							case "gnome":
+								configFileName = "gnome_desktop"
+							case "i3":
+								configFileName = "i3wm"
+							case "bspwm":
+								configFileName = "bspwm_manager"
+							case "plasma":
+								configFileName = "kde"
+							case "xmonad":
+								configFileName = "xmonad"
+							default:
+								configFileName = sessionName
+							}
+							
+							configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+								// Get current ASCII variant
+								variantIndex := m.asciiArtIndex
+								if variantIndex >= len(asciiConfig.ASCIIVariants) {
+									variantIndex = 0
+								}
+								ascii := asciiConfig.ASCIIVariants[variantIndex]
+								// Fast print speed for main UI (3ms per char = very fast)
+								m.printEffect = animations.NewPrintEffect(ascii, time.Millisecond*3)
+								if m.config.Debug {
+									logDebug("Print effect initialized with ASCII (%d lines)", len(strings.Split(ascii, "\n")))
+								}
+							} else {
+								if m.config.Debug {
+									logDebug("Cannot load ASCII config from: %s", configPath)
+								}
+							}
+						}
 					} else {
 						m.selectedBackground = "none"
 						m.printEffect = nil

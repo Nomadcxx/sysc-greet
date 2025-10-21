@@ -203,6 +203,16 @@ func (m model) getSessionASCII() string {
 	}
 
 	currentASCII := asciiConfig.ASCIIVariants[variantIndex]
+	
+	// Use print effect if enabled
+	if m.selectedBackground == "print" && m.printEffect != nil {
+		// Get visible lines from print effect
+		visibleLines := m.printEffect.GetVisibleLines()
+		currentASCII = strings.Join(visibleLines, "\n")
+		if m.config.Debug && len(visibleLines) > 0 {
+			logDebug("Print effect rendering %d lines (complete: %v)", len(visibleLines), m.printEffect.IsComplete())
+		}
+	}
 
 	// CHANGED 2025-10-11 - Removed height normalization padding to ensure consistent 2-line spacing
 	// All WM ASCII art now maintains natural height for consistent distance to border elements
@@ -721,3 +731,38 @@ func (m model) getSessionArt(sessionName string) string {
 	return m.getSessionASCII()
 }
 
+
+// resetPrintEffectForSession resets the print effect with the specified session's ASCII
+func (m *model) resetPrintEffectForSession(sessionName string) {
+if m.selectedBackground != "print" || m.printEffect == nil {
+return
+}
+
+// Map session names to config file names
+sessionLower := strings.ToLower(strings.Fields(sessionName)[0])
+var configFileName string
+switch sessionLower {
+case "gnome":
+configFileName = "gnome_desktop"
+case "i3":
+configFileName = "i3wm"
+case "bspwm":
+configFileName = "bspwm_manager"
+case "plasma":
+configFileName = "kde"
+case "xmonad":
+configFileName = "xmonad"
+default:
+configFileName = sessionLower
+}
+
+configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+variantIndex := m.asciiArtIndex
+if variantIndex >= len(asciiConfig.ASCIIVariants) {
+variantIndex = 0
+}
+ascii := asciiConfig.ASCIIVariants[variantIndex]
+m.printEffect.Reset(ascii)
+}
+}

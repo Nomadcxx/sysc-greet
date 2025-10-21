@@ -39,9 +39,23 @@ complete:    false,
 }
 
 // Tick advances the print effect animation based on current time
+// Animation loops automatically after completion
 func (p *PrintEffect) Tick(currentTime time.Time) {
-if p.complete || p.currentLine >= len(p.lines) {
+// Check if animation is complete
+if p.currentLine >= len(p.lines) {
+if !p.complete {
 p.complete = true
+p.lastUpdate = currentTime
+}
+// Wait 2 seconds after completion before restarting
+if currentTime.Sub(p.lastUpdate) >= time.Second*2 {
+// Restart the animation
+p.currentLine = 0
+p.currentCol = 0
+p.revealed = []string{}
+p.complete = false
+p.lastUpdate = currentTime
+}
 return
 }
 
@@ -49,8 +63,8 @@ return
 if currentTime.Sub(p.lastUpdate) >= p.charDelay {
 currentLineText := p.lines[p.currentLine]
 
-if p.currentCol < len(currentLineText) {
-// Print next character
+if p.currentCol < len([]rune(currentLineText)) {
+// Print next character (use rune count for proper multi-byte handling)
 p.currentCol++
 p.lastUpdate = currentTime
 } else {
@@ -72,14 +86,29 @@ return p.lines
 var result []string
 result = append(result, p.revealed...)
 
-// Add currently printing line with print head
+// Add currently printing line with trailing effect
 if p.currentLine < len(p.lines) {
 currentLineText := p.lines[p.currentLine]
+runes := []rune(currentLineText)
+
 var currentLine string
 
 if p.currentCol > 0 {
-currentLine = currentLineText[:p.currentCol]
+// Show revealed portion
+if p.currentCol <= len(runes) {
+currentLine = string(runes[:p.currentCol])
+} else {
+currentLine = currentLineText
 }
+
+// Add trail effect: show shading blocks trailing the print head
+// Trail: ░▒▓█ (3 shade blocks before print head)
+currentLine += "░▒▓"
+} else {
+// Just starting - show partial trail
+currentLine = "▒▓"
+}
+
 // Add print head character
 currentLine += "█"
 
