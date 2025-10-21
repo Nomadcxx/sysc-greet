@@ -144,7 +144,9 @@ func (m model) renderMainForm(width int) string {
 		if m.capsLockOn && m.focusState == FocusPassword {
 			capsLockStyle := lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#FF5555")).
-				Bold(true)
+				Bold(true).
+				Align(lipgloss.Center).
+				Width(width)
 			parts = append(parts, "")
 			parts = append(parts, capsLockStyle.Render("⚠ CAPS LOCK ON"))
 		}

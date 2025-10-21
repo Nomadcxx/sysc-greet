@@ -612,7 +612,14 @@ func initialModel(config Config, screensaverMode bool) model {
 }
 
 func (m model) Init() tea.Cmd {
-	return tea.Batch(textinput.Blink, m.spinner.Tick, doTick())
+	// Request keyboard enhancements to get CAPS LOCK state reporting
+	// RequestUniformKeyLayout enables kitty flags 4+8 which includes lock key state reporting
+	return tea.Batch(
+		textinput.Blink,
+		m.spinner.Tick,
+		doTick(),
+		tea.RequestUniformKeyLayout,
+	)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -818,6 +825,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, textinput.Blink
 
 	case tea.KeyMsg:
+		// CHANGED 2025-10-21 - Detect CAPS LOCK from kitty keyboard protocol
+		// Kitty keyboard protocol sends CAPS LOCK and NUM LOCK as ModCapsLock and ModNumLock
+		key := msg.Key()
+		m.capsLockOn = (key.Mod & tea.ModCapsLock) != 0
+		
+		if m.config.Debug {
+			// Log ALL key presses to debug what modifiers are being sent
+			fmt.Fprintf(os.Stderr, "KEY: %q | Mod=%08b (%d) | CapsLock=%v\n", 
+				key.Text, key.Mod, key.Mod, m.capsLockOn)
+		}
+		
 		// CHANGED 2025-10-12 - Handle screensaver exit on any key press
 		if m.mode == ModeScreensaver {
 			return handleScreensaverInput(m, msg)
@@ -851,18 +869,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case ModePassword:
 		if m.focusState == FocusPassword {
-			// Check CAPS LOCK state via kitty keyboard protocol
-			if keyMsg, ok := msg.(tea.KeyMsg); ok {
-				key := keyMsg.Key()
-				m.capsLockOn = (key.Mod & tea.ModCapsLock) != 0
-				
-				// Debug: log modifier state
-				if m.config.Debug {
-					fmt.Fprintf(os.Stderr, "CAPS DEBUG: Mod=%d CapsLock=%v (bit check: %d)\n", 
-						key.Mod, m.capsLockOn, key.Mod&tea.ModCapsLock)
-				}
-			}
-
 			var cmd tea.Cmd
 			m.passwordInput, cmd = m.passwordInput.Update(msg)
 			cmds = append(cmds, cmd)
@@ -1735,6 +1741,7 @@ func main() {
 
 	// Initialize Bubble Tea program with proper screen management
 	// CHANGED 2025-09-29 - Handle TTY access gracefully for different environments
+	// CHANGED 2025-10-21 - Enable kitty keyboard protocol for CAPS LOCK detection
 	opts := []tea.ProgramOption{}
 
 	// Check if we can access TTY before using alt screen
@@ -1750,7 +1757,7 @@ func main() {
 			opts = append(opts, tea.WithMouseCellMotion())
 		}
 	}
-
+	
 	p := tea.NewProgram(initialModel(config, screensaverTestMode), opts...)
 
 	if _, err := p.Run(); err != nil {
