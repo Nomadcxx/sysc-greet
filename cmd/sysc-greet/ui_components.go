@@ -114,30 +114,13 @@ func (m model) renderMainForm(width int) string {
 
 		passwordInput := inputStyle.Render(m.passwordInput.View())
 
-		// Add spinner if user is typing password
-		var passwordRow string
-		if m.passwordInput.Value() != "" {
-			// Show spinner when password is being entered
-			spinnerView := lipgloss.NewStyle().
-				Foreground(Primary).
-				Render(m.spinner.View())
-
-			passwordRow = lipgloss.JoinHorizontal(
-				lipgloss.Left,
-				passwordLabel,
-				" ",
-				passwordInput,
-				" ",
-				spinnerView,
-			)
-		} else {
-			passwordRow = lipgloss.JoinHorizontal(
-				lipgloss.Left,
-				passwordLabel,
-				" ",
-				passwordInput,
-			)
-		}
+		// Simple password row without spinner
+		passwordRow := lipgloss.JoinHorizontal(
+			lipgloss.Left,
+			passwordLabel,
+			" ",
+			passwordInput,
+		)
 		parts = append(parts, passwordRow)
 
 		// CAPS LOCK warning
