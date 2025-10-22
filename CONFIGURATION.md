@@ -4,6 +4,7 @@
 - [ASCII Art Customization](#ascii-art-customization)
 - [Screensaver Configuration](#screensaver-configuration)
 - [Wallpapers](#wallpapers)
+- [Keyboard Layout](#keyboard-layout)
 - [Key Locations](#key-locations)
 
 ---
@@ -195,6 +196,50 @@ sudo chown greeter:greeter /var/lib/greeter/Pictures/wallpapers/cool-animation.m
 Press `F1` (Settings) → Backgrounds → Select your wallpaper or video
 
 Both static and video wallpapers will appear in the same menu.
+
+---
+
+## Keyboard Layout
+
+sysc-greet runs inside a compositor, so keyboard layout is set there.
+
+### niri
+
+Edit `/etc/greetd/niri-greeter-config.kdl`:
+
+```kdl
+input {
+    keyboard {
+        xkb {
+            layout "de"
+        }
+    }
+}
+```
+
+### sway
+
+Edit `/etc/greetd/sway-greeter-config`:
+
+```bash
+input * {
+    xkb_layout "de"
+}
+```
+
+### hyprland
+
+Edit `/etc/greetd/hyprland-greeter.conf`:
+
+```ini
+input {
+    kb_layout = de
+}
+```
+
+Replace `de` with your layout (`us`, `fr`, `es`, `uk`, etc). Full list in `/usr/share/X11/xkb/rules/base.lst`.
+
+Restart greetd after changes: `sudo systemctl restart greetd`
 
 ---
 
