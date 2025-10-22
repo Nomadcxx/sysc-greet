@@ -221,16 +221,16 @@ func getRoastForWM(wmName string) string {
 			"Your right-click was problematic; consider it canceled │ " +
 			"We liberated your desktop from X11's toxic flexibility │ " +
 			"Dynamic workspaces: Dynamic enough to disappear when you need them most │ " +
-			"Dynamic theming: Themes that adapt to your apps, by breaking them one hue at a time │ " +
-			"Open-source openness: Openly open to contributions, openly closing doors │ " +
+			"Dynamic theming: Themes that adapt to your apps, by breaking them│ " +
+			"Open-source openness: Openly open to cancelling devs we dislike │ " +
 			"Why is all my text aligning left? │ " +
-			"False consciousness in flat design: Flat design falsifies consciousness, falsifying flatness as the form of unalienated formlessness │ " +
-			"In the vein of de Beauvoir's second sex, GNOME's desktop emerges as the secondary interface, imposing a restrained phenomenology that denies the transcendence of taskbars │ ",
+			"False consciousness in flat design │ " +
+			"Dunning Kruger neckbeards conflating political praxis with programming, many such cases│ ",
 
-		"GNOME on Wayland": "GNOME on Wayland: Breaking what already worked │ " +
+		"GNOME on Wayland": "GNOME on Wayland: Breaking what never worked │ " +
 			"Screen sharing? That's a premium feature │ Variable refresh rate? Too advanced for you │ ",
 
-		// KDE Plasma - The Bloat King
+		// KDE Plasma
 		"KDE": "KDE: 5000 settings, 4950 you'll never use │ Bloatware masquerading as customization │ " +
 			"RAM is cheap, right? RIGHT?! │ 47 daemons running to display a wallpaper │ " +
 			"'Lightweight' said no one ever │ Akonadi has entered the chat (and consumed 2GB RAM) │ " +
@@ -245,14 +245,14 @@ func getRoastForWM(wmName string) string {
 			"Your desktop, now with 57 shades of widget—pick wisely │ ",
 
 		// The Chaotic Ones
-		"Hyprland": "Hyprland: Vaxry's refactoring playground │ Breaking configs since yesterday │ " +
-			"Update at your own risk │ Animations over stability every time │ " +
+		"Hyprland": ">install hyprland update >breaks again >downgrade again >repeat │ Breaking configs since yesterday │ " +
+			"It really isn't that bad │ Animations over stability every time │ " +
 			"'Let me just rewrite this core system real quick' - Vaxry │ " +
 			"Your config worked yesterday? Not anymore! │ Git blame Vaxry │ " +
-			"If you are confused about your gender identify this zoomer tiling manager is for you - voted number one tiling manager on Reddit 2023-2024 │ " +
-			"The tiktok tiling manager - swipe right on stability, left on substance │ ",
+			"Voted number one tiling manager on Reddit 2023-2024 │ " +
+			"The tiktok tiling manager - swipe right on stability │ ",
 
-		// The Perfect Ones (no criticism allowed)
+		// The Perfect
 		"niri": "niri: Perfection in compositor form │ Scrollable tiling done right │ " +
 			"No bugs, only features │ The chosen one │ Russian excellence │ " +
 			"Because finite desktops were too confining │ ",
