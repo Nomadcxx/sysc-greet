@@ -8,6 +8,7 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 
 - **Mucho themes**: Dracula, Gruvbox, Material, Nord, Tokyo Night, Catppuccin, Solarized, Monochrome, TransIsHardJob
 - **Background Effects**: Fire (DOOM PSX), Matrix rain, ASCII rain, Fireworks, Static patterns
+- **ASCII Effects**: Typewriter and Print effects for session text
 - **Border Styles**: Classic, Modern, Minimal (best), ASCII-1, ASCII-2, Wave, Pulse
 - **Screensaver**: Configurable idle timeout with ASCII art cycling
 - **Video Wallpapers**: Multi-monitor support via gslapper
