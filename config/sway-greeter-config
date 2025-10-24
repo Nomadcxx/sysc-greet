@@ -20,6 +20,9 @@ input type:touchpad {
     tap enabled
 }
 
+# Uncomment to hide cursor after 1 second of inactivity
+# seat * hide_cursor 1000
+
 # Disable all keybindings (security)
 # Empty config = no keys work
 

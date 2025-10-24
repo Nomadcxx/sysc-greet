@@ -199,6 +199,43 @@ Both static and video wallpapers will appear in the same menu.
 
 ---
 
+## Cursor Visibility
+
+Kitty auto-hides the cursor after 3 seconds of inactivity. To hide it permanently, add compositor options:
+
+### niri
+
+Edit `/etc/greetd/niri-greeter-config.kdl`:
+
+```kdl
+cursor {
+    hide-when-typing
+    hide-after-inactive-ms 1000
+}
+```
+
+### sway
+
+Edit `/etc/greetd/sway-greeter-config`:
+
+```bash
+seat * hide_cursor 1000
+```
+
+### hyprland
+
+Edit `/etc/greetd/hyprland-greeter-config.conf`:
+
+```ini
+cursor {
+    invisible = true
+}
+```
+
+Restart greetd after changes: `sudo systemctl restart greetd`
+
+---
+
 ## Keyboard Layout
 
 sysc-greet runs inside a compositor, so keyboard layout is set there.
