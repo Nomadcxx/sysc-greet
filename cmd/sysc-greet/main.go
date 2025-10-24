@@ -586,6 +586,10 @@ func initialModel(config Config, screensaverMode bool) model {
 					}
 				}
 			}
+			// Load cached ASCII variant index
+			if prefs.ASCIIIndex > 0 {
+				m.asciiArtIndex = prefs.ASCIIIndex
+			}
 			// FIXED 2025-10-17 - Load username and auto-advance to password if matches current session
 			if prefs.Username != "" && m.selectedSession != nil && prefs.Session == m.selectedSession.Name {
 				m.usernameInput.SetValue(prefs.Username)
@@ -767,7 +771,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					Background:  m.selectedBackground,
 					BorderStyle: m.selectedBorderStyle,
 					Session:     session.Name,
-					Username:    m.usernameInput.Value(), // Save current username value
+					Username:    m.usernameInput.Value(),
+					ASCIIIndex:  m.asciiArtIndex,
 				})
 			}
 			return m, tea.Batch(cmds...)
@@ -820,6 +825,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					BorderStyle: m.selectedBorderStyle,
 					Session:     sessionName,
 					Username:    username,
+					ASCIIIndex:  m.asciiArtIndex,
 				})
 				logDebug("Saved username '%s' for session: %s", username, sessionName)
 			}
@@ -1171,6 +1177,18 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						m.asciiArtIndex = m.asciiArtCount - 1
 					}
 					
+					// Save ASCII index preference
+					if !m.config.TestMode && m.selectedSession != nil {
+						cache.SavePreferences(cache.UserPreferences{
+							Theme:       m.currentTheme,
+							Background:  m.selectedBackground,
+							BorderStyle: m.selectedBorderStyle,
+							Session:     m.selectedSession.Name,
+							Username:    m.usernameInput.Value(),
+							ASCIIIndex:  m.asciiArtIndex,
+						})
+					}
+					
 					// Reset print effect with new ASCII if enabled
 					if m.selectedBackground == "print" && m.printEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
 						variantIndex := m.asciiArtIndex
@@ -1215,6 +1233,18 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.asciiArtIndex++
 					if m.asciiArtIndex >= m.asciiArtCount {
 						m.asciiArtIndex = 0
+					}
+					
+					// Save ASCII index preference
+					if !m.config.TestMode && m.selectedSession != nil {
+						cache.SavePreferences(cache.UserPreferences{
+							Theme:       m.currentTheme,
+							Background:  m.selectedBackground,
+							BorderStyle: m.selectedBorderStyle,
+							Session:     m.selectedSession.Name,
+							Username:    m.usernameInput.Value(),
+							ASCIIIndex:  m.asciiArtIndex,
+						})
 					}
 					
 					// Reset print effect with new ASCII if enabled
@@ -1305,6 +1335,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							Background:  m.selectedBackground,
 							BorderStyle: m.selectedBorderStyle,
 							Session:     sessionName,
+						ASCIIIndex:  m.asciiArtIndex,
 						})
 					}
 				}
@@ -1349,6 +1380,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						Background:  m.selectedBackground,
 						BorderStyle: m.selectedBorderStyle,
 						Session:     sessionName,
+						ASCIIIndex:  m.asciiArtIndex,
 					})
 				}
 				m.mode = ModeLogin
@@ -1407,6 +1439,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						Background:  m.selectedBackground,
 						BorderStyle: m.selectedBorderStyle,
 						Session:     sessionName,
+						ASCIIIndex:  m.asciiArtIndex,
 					})
 				}
 				// Refresh menu to update checkboxes
@@ -1493,6 +1526,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						Background:  m.selectedBackground,
 						BorderStyle: m.selectedBorderStyle,
 						Session:     sessionName,
+						ASCIIIndex:  m.asciiArtIndex,
 					})
 				}
 				// Refresh menu to update checkboxes
