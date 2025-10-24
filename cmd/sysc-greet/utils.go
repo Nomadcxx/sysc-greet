@@ -73,3 +73,32 @@ func extractCharsWithAnsi(line string) []string {
 
 	return chars
 }
+
+// getThemeColorsForBeams returns color palette for beams effect based on theme
+func getThemeColorsForBeams(themeName string) ([]string, []string) {
+	var beamGradientStops []string
+	var finalGradientStops []string
+	
+	switch themeName {
+	case "dracula":
+		beamGradientStops = []string{"#ffffff", "#8be9fd", "#bd93f9"}
+		finalGradientStops = []string{"#6272a4", "#bd93f9", "#f8f8f2"}
+	case "gruvbox":
+		beamGradientStops = []string{"#ffffff", "#fabd2f", "#fe8019"}
+		finalGradientStops = []string{"#504945", "#fabd2f", "#ebdbb2"}
+	case "nord":
+		beamGradientStops = []string{"#ffffff", "#88c0d0", "#81a1c1"}
+		finalGradientStops = []string{"#434c5e", "#88c0d0", "#eceff4"}
+	case "tokyo-night":
+		beamGradientStops = []string{"#ffffff", "#7dcfff", "#bb9af7"}
+		finalGradientStops = []string{"#414868", "#7aa2f7", "#c0caf5"}
+	case "catppuccin":
+		beamGradientStops = []string{"#ffffff", "#89dceb", "#cba6f7"}
+		finalGradientStops = []string{"#45475a", "#cba6f7", "#cdd6f4"}
+	default:
+		beamGradientStops = []string{"#ffffff", "#00D1FF", "#8A008A"}
+		finalGradientStops = []string{"#4A4A4A", "#00D1FF", "#FFFFFF"}
+	}
+	
+	return beamGradientStops, finalGradientStops
+}

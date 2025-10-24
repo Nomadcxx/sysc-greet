@@ -79,9 +79,11 @@ func (m model) renderMenuView(termWidth, termHeight int) string {
 	case ModeBordersSubmenu:
 		title = "///// Borders ////"
 	case ModeBackgroundsSubmenu:
-		title = "/// Backgrounds ///" // Add backgrounds title
+		title = "/// Backgrounds ///"
 	case ModeWallpaperSubmenu:
-		title = "/// Wallpapers ////" // Add wallpapers title
+		title = "/// Wallpapers ////"
+	case ModeASCIIEffectsSubmenu:
+		title = "// ASCII Effects //"
 	default:
 		title = "///// Menu //////"
 	}

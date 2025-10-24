@@ -83,11 +83,13 @@ func (m model) navigateToASCIIEffectsSubmenu() (tea.Model, tea.Cmd) {
 	// Check which effects are enabled
 	typewriterEnabled := m.selectedBackground == "ticker"
 	printEnabled := m.selectedBackground == "print"
+	beamsEnabled := m.selectedBackground == "beams"
 	
 	m.menuOptions = []string{
 		"← Back",
 		formatCheckbox("Typewriter", typewriterEnabled),
 		formatCheckbox("Print", printEnabled),
+		formatCheckbox("Beams", beamsEnabled),
 	}
 	m.mode = ModeASCIIEffectsSubmenu
 	m.menuIndex = 0

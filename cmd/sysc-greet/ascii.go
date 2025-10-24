@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Nomadcxx/sysc-greet/internal/animations"
 	"github.com/charmbracelet/lipgloss/v2"
 )
 
@@ -212,6 +213,12 @@ func (m model) getSessionASCII() string {
 		if m.config.Debug && len(visibleLines) > 0 {
 			logDebug("Print effect rendering %d lines (complete: %v)", len(visibleLines), m.printEffect.IsComplete())
 		}
+	}
+	
+	// Use beams effect if enabled
+	if m.selectedBackground == "beams" && m.beamsEffect != nil {
+		// Beams effect renders with its own colors
+		return m.beamsEffect.Render()
 	}
 
 	// CHANGED 2025-10-11 - Removed height normalization padding to ensure consistent 2-line spacing
@@ -764,5 +771,60 @@ variantIndex = 0
 }
 ascii := asciiConfig.ASCIIVariants[variantIndex]
 m.printEffect.Reset(ascii)
+}
+}
+
+// resetBeamsEffectForSession resets the beams effect with the specified session's ASCII
+func (m *model) resetBeamsEffectForSession(sessionName string) {
+if m.selectedBackground != "beams" || m.beamsEffect == nil {
+return
+}
+
+sessionLower := strings.ToLower(strings.Fields(sessionName)[0])
+var configFileName string
+switch sessionLower {
+case "gnome":
+configFileName = "gnome_desktop"
+case "i3":
+configFileName = "i3wm"
+case "bspwm":
+configFileName = "bspwm_manager"
+case "plasma":
+configFileName = "kde"
+case "xmonad":
+configFileName = "xmonad"
+default:
+configFileName = sessionLower
+}
+
+configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+variantIndex := m.asciiArtIndex
+if variantIndex >= len(asciiConfig.ASCIIVariants) {
+variantIndex = 0
+}
+ascii := asciiConfig.ASCIIVariants[variantIndex]
+
+// Recalculate dimensions for the new ASCII
+lines := strings.Split(ascii, "\n")
+asciiHeight := len(lines)
+asciiWidth := 0
+for _, line := range lines {
+if len([]rune(line)) > asciiWidth {
+asciiWidth = len([]rune(line))
+}
+}
+
+// Get current theme colors
+beamColors, finalColors := getThemeColorsForBeams(m.currentTheme)
+
+// Reinitialize beams effect completely with new dimensions and colors
+m.beamsEffect = animations.NewBeamsTextEffect(animations.BeamsTextConfig{
+Width:               asciiWidth,
+Height:              asciiHeight,
+Text:                ascii,
+BeamGradientStops:   beamColors,
+FinalGradientStops:  finalColors,
+})
 }
 }

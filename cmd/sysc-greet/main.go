@@ -377,8 +377,9 @@ type model struct {
 	capsLockOn bool // CAPS LOCK state detected via kitty keyboard protocol
 	
 	// ASCII Effects
-	typewriterTicker *animations.TypewriterTicker // Typewriter ticker for session roasts
-	printEffect      *animations.PrintEffect      // Print effect for ASCII art
+	typewriterTicker *animations.TypewriterTicker  // Typewriter ticker for session roasts
+	printEffect      *animations.PrintEffect       // Print effect for ASCII art
+	beamsEffect      *animations.BeamsTextEffect   // Beams text effect for ASCII art
 }
 
 
@@ -697,6 +698,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selectedBackground == "print" && m.printEffect != nil {
 			m.printEffect.Tick(m.screensaverTime)
 		}
+		
+		// Update beams effect when beams is selected
+		if m.selectedBackground == "beams" && m.beamsEffect != nil {
+			m.beamsEffect.Update()
+		}
 
 		// Update fireworks when fireworks background is selected
 		if m.selectedBackground == "fireworks" && m.fireworksEffect != nil {
@@ -734,6 +740,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		
 		// Update print effect for new session
 		m.resetPrintEffectForSession(session.Name)
+		m.resetBeamsEffectForSession(session.Name)
 
 		// FIXED 2025-10-17 - Clear and reload username when session changes
 		if previousSession != "" && previousSession != session.Name {
@@ -1075,6 +1082,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				}
 				// Update print effect for new session
 				m.resetPrintEffectForSession(session.Name)
+				m.resetBeamsEffectForSession(session.Name)
+
 			}
 			return m, nil
 		} else if m.mode == ModePower {
@@ -1100,6 +1109,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				}
 				// Update print effect for new session
 				m.resetPrintEffectForSession(session.Name)
+			m.resetBeamsEffectForSession(session.Name)
+
 			}
 			return m, nil
 		}
@@ -1116,6 +1127,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				}
 				// Update print effect for new session
 				m.resetPrintEffectForSession(session.Name)
+				m.resetBeamsEffectForSession(session.Name)
+
 			}
 			return m, nil
 		} else if m.mode == ModePower {
@@ -1140,6 +1153,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				}
 				// Update print effect for new session
 				m.resetPrintEffectForSession(session.Name)
+			m.resetBeamsEffectForSession(session.Name)
+
 			}
 			return m, nil
 		}
@@ -1198,6 +1213,28 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						ascii := asciiConfig.ASCIIVariants[variantIndex]
 						m.printEffect.Reset(ascii)
 					}
+				
+				// Reset beams effect with new ASCII if enabled
+				if m.selectedBackground == "beams" && m.beamsEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
+					variantIndex := m.asciiArtIndex
+					if variantIndex >= len(asciiConfig.ASCIIVariants) {
+						variantIndex = 0
+					}
+					ascii := asciiConfig.ASCIIVariants[variantIndex]
+					
+					lines := strings.Split(ascii, "\n")
+					asciiHeight := len(lines)
+					asciiWidth := 0
+					for _, line := range lines {
+						if len([]rune(line)) > asciiWidth {
+							asciiWidth = len([]rune(line))
+						}
+					}
+					
+					m.beamsEffect.Resize(asciiWidth, asciiHeight)
+					m.beamsEffect.UpdateText(ascii)
+				}
+
 				}
 			}
 			return m, nil
@@ -1256,6 +1293,28 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						ascii := asciiConfig.ASCIIVariants[variantIndex]
 						m.printEffect.Reset(ascii)
 					}
+				
+				// Reset beams effect with new ASCII if enabled
+				if m.selectedBackground == "beams" && m.beamsEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
+					variantIndex := m.asciiArtIndex
+					if variantIndex >= len(asciiConfig.ASCIIVariants) {
+						variantIndex = 0
+					}
+					ascii := asciiConfig.ASCIIVariants[variantIndex]
+					
+					lines := strings.Split(ascii, "\n")
+					asciiHeight := len(lines)
+					asciiWidth := 0
+					for _, line := range lines {
+						if len([]rune(line)) > asciiWidth {
+							asciiWidth = len([]rune(line))
+						}
+					}
+					
+					m.beamsEffect.Resize(asciiWidth, asciiHeight)
+					m.beamsEffect.UpdateText(ascii)
+				}
+
 				}
 			}
 			return m, nil
@@ -1337,6 +1396,12 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							Session:     sessionName,
 						ASCIIIndex:  m.asciiArtIndex,
 						})
+
+// Reinitialize beams effect with new theme colors if active
+if m.selectedBackground == "beams" && m.beamsEffect != nil && m.selectedSession != nil {
+logDebug("Theme changed to %s - reinitializing beams", themeName)
+m.resetBeamsEffectForSession(m.selectedSession.Name)
+}
 					}
 				}
 				m.mode = ModeLogin
@@ -1513,6 +1578,65 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						m.selectedBackground = "none"
 						m.printEffect = nil
 					}
+			case "Beams":
+				m.enableFire = false
+				if m.selectedBackground != "beams" {
+					m.selectedBackground = "beams"
+					if m.selectedSession != nil {
+						sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
+						
+						var configFileName string
+						switch sessionName {
+						case "gnome":
+							configFileName = "gnome_desktop"
+						case "i3":
+							configFileName = "i3wm"
+						case "bspwm":
+							configFileName = "bspwm_manager"
+						case "plasma":
+							configFileName = "kde"
+						case "xmonad":
+							configFileName = "xmonad"
+						default:
+							configFileName = sessionName
+						}
+						
+						configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+						if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+							variantIndex := m.asciiArtIndex
+							if variantIndex >= len(asciiConfig.ASCIIVariants) {
+								variantIndex = 0
+							}
+							ascii := asciiConfig.ASCIIVariants[variantIndex]
+							
+							beamColors, finalColors := getThemeColorsForBeams(m.currentTheme)
+							
+							lines := strings.Split(ascii, "\n")
+							asciiHeight := len(lines)
+							asciiWidth := 0
+							for _, line := range lines {
+								if len([]rune(line)) > asciiWidth {
+									asciiWidth = len([]rune(line))
+								}
+							}
+							
+							m.beamsEffect = animations.NewBeamsTextEffect(animations.BeamsTextConfig{
+								Width:               asciiWidth,
+								Height:              asciiHeight,
+								Text:                ascii,
+								BeamGradientStops:   beamColors,
+								FinalGradientStops:  finalColors,
+							})
+							if m.config.Debug {
+								logDebug("Beams effect initialized")
+							}
+						}
+					}
+				} else {
+					m.selectedBackground = "none"
+					m.beamsEffect = nil
+				}
+
 				}
 				
 				// Save preference
