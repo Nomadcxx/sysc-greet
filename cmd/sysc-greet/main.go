@@ -381,6 +381,7 @@ type model struct {
 	printEffect      *animations.PrintEffect       // Print effect for ASCII art
 	beamsEffect      *animations.BeamsTextEffect   // Beams text effect for ASCII art
 	pourEffect       *animations.PourEffect        // Pour effect for ASCII art
+	aquariumEffect   *animations.AquariumEffect    // Aquarium background effect
 }
 
 

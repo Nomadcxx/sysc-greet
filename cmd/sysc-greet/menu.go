@@ -55,6 +55,7 @@ func (m model) navigateToBackgroundsSubmenu() (tea.Model, tea.Cmd) {
 	rainEnabled := m.selectedBackground == "ascii-rain"
 	matrixEnabled := m.selectedBackground == "matrix"
 	fireworksEnabled := m.selectedBackground == "fireworks"
+	aquariumEnabled := m.selectedBackground == "aquarium"
 
 	m.menuOptions = []string{
 		"← Back",
@@ -62,6 +63,7 @@ func (m model) navigateToBackgroundsSubmenu() (tea.Model, tea.Cmd) {
 		formatCheckbox("ASCII Rain", rainEnabled),
 		formatCheckbox("Matrix", matrixEnabled),
 		formatCheckbox("Fireworks", fireworksEnabled),
+		formatCheckbox("Aquarium", aquariumEnabled),
 	}
 	m.mode = ModeBackgroundsSubmenu
 	m.menuIndex = 0

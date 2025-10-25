@@ -146,3 +146,104 @@ func getThemeColorsForPour(themeName string) []string {
 		return []string{"#8A008A", "#00D1FF", "#FFFFFF"}
 	}
 }
+
+// getThemeColorsForAquarium returns color palette for aquarium effect based on theme
+func getThemeColorsForAquarium(themeName string) (fishColors, waterColors, seaweedColors []string, bubbleColor, diverColor, boatColor, mermaidColor, anchorColor string) {
+	// Normalize theme name to lowercase for comparison
+	themeName = strings.ToLower(themeName)
+
+	switch themeName {
+	case "dracula":
+		fishColors = []string{"#ff79c6", "#bd93f9", "#8be9fd", "#50fa7b", "#ffb86c"}
+		waterColors = []string{"#6272a4", "#c2b280"}
+		seaweedColors = []string{"#44475a", "#50fa7b", "#8be9fd"}
+		bubbleColor = "#8be9fd"
+		diverColor = "#f8f8f2"
+		boatColor = "#ffb86c"
+		mermaidColor = "#ff79c6"
+		anchorColor = "#6272a4"
+	case "gruvbox":
+		fishColors = []string{"#fe8019", "#fabd2f", "#b8bb26", "#83a598", "#d3869b"}
+		waterColors = []string{"#458588", "#d79921"}
+		seaweedColors = []string{"#3c3836", "#98971a", "#b8bb26"}
+		bubbleColor = "#83a598"
+		diverColor = "#ebdbb2"
+		boatColor = "#fabd2f"
+		mermaidColor = "#d3869b"
+		anchorColor = "#504945"
+	case "nord":
+		fishColors = []string{"#88c0d0", "#81a1c1", "#5e81ac", "#8fbcbb", "#b48ead"}
+		waterColors = []string{"#5e81ac", "#d08770"}
+		seaweedColors = []string{"#2e3440", "#a3be8c", "#8fbcbb"}
+		bubbleColor = "#88c0d0"
+		diverColor = "#eceff4"
+		boatColor = "#d08770"
+		mermaidColor = "#b48ead"
+		anchorColor = "#4c566a"
+	case "tokyo-night":
+		fishColors = []string{"#7aa2f7", "#bb9af7", "#7dcfff", "#9ece6a", "#f7768e"}
+		waterColors = []string{"#7aa2f7", "#e0af68"}
+		seaweedColors = []string{"#1a1b26", "#9ece6a", "#7dcfff"}
+		bubbleColor = "#7dcfff"
+		diverColor = "#c0caf5"
+		boatColor = "#e0af68"
+		mermaidColor = "#bb9af7"
+		anchorColor = "#414868"
+	case "catppuccin":
+		fishColors = []string{"#f5c2e7", "#cba6f7", "#89dceb", "#a6e3a1", "#fab387"}
+		waterColors = []string{"#89b4fa", "#f9e2af"}
+		seaweedColors = []string{"#1e1e2e", "#a6e3a1", "#94e2d5"}
+		bubbleColor = "#89dceb"
+		diverColor = "#cdd6f4"
+		boatColor = "#fab387"
+		mermaidColor = "#f5c2e7"
+		anchorColor = "#45475a"
+	case "material":
+		fishColors = []string{"#82aaff", "#c792ea", "#89ddff", "#c3e88d", "#f78c6c"}
+		waterColors = []string{"#82aaff", "#ffcb6b"}
+		seaweedColors = []string{"#263238", "#c3e88d", "#89ddff"}
+		bubbleColor = "#89ddff"
+		diverColor = "#eceff1"
+		boatColor = "#ffcb6b"
+		mermaidColor = "#c792ea"
+		anchorColor = "#37474f"
+	case "solarized":
+		fishColors = []string{"#268bd2", "#2aa198", "#859900", "#cb4b16", "#6c71c4"}
+		waterColors = []string{"#268bd2", "#b58900"}
+		seaweedColors = []string{"#002b36", "#859900", "#2aa198"}
+		bubbleColor = "#2aa198"
+		diverColor = "#fdf6e3"
+		boatColor = "#cb4b16"
+		mermaidColor = "#d33682"
+		anchorColor = "#073642"
+	case "monochrome":
+		fishColors = []string{"#9a9a9a", "#bababa", "#dadada", "#c0c0c0", "#808080"}
+		waterColors = []string{"#5a5a5a", "#8a8a8a"}
+		seaweedColors = []string{"#1a1a1a", "#5a5a5a", "#7a7a7a"}
+		bubbleColor = "#c0c0c0"
+		diverColor = "#ffffff"
+		boatColor = "#9a9a9a"
+		mermaidColor = "#bababa"
+		anchorColor = "#3a3a3a"
+	case "transishardjob":
+		fishColors = []string{"#55cdfc", "#f7a8b8", "#ffffff", "#f7a8b8", "#55cdfc"}
+		waterColors = []string{"#55cdfc", "#f7a8b8"}
+		seaweedColors = []string{"#1a1a1a", "#55cdfc", "#f7a8b8"}
+		bubbleColor = "#ffffff"
+		diverColor = "#ffffff"
+		boatColor = "#f7a8b8"
+		mermaidColor = "#f7a8b8"
+		anchorColor = "#1a1a1a"
+	default:
+		fishColors = []string{"#00D1FF", "#8A008A", "#FF00FF", "#00FFFF", "#FFFF00"}
+		waterColors = []string{"#0066CC", "#FFD700"}
+		seaweedColors = []string{"#1a1a1a", "#00FF00", "#00D1FF"}
+		bubbleColor = "#00FFFF"
+		diverColor = "#FFFFFF"
+		boatColor = "#FFD700"
+		mermaidColor = "#FF00FF"
+		anchorColor = "#4A4A4A"
+	}
+
+	return
+}
