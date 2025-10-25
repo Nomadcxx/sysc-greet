@@ -20,6 +20,8 @@ func (m model) applyBackgroundAnimation(content string, width, height int) strin
 		return m.addAsciiRain(content, width, height)
 	case "fireworks": // Add fireworks effect rendering
 		return m.addFireworksEffect(content, width, height)
+	case "aquarium":
+		return m.addAquariumEffect(content, width, height)
 	case "none":
 		fallthrough
 	default:
@@ -135,6 +137,26 @@ func (m model) addFireworksEffect(content string, width, height int) string {
 
 	// For now, just return fireworks (content will be overlaid by main rendering)
 	return fireworksBackground
+}
+
+// addAquariumEffect renders the aquarium background effect
+func (m model) addAquariumEffect(content string, width, height int) string {
+	if m.aquariumEffect == nil {
+		return content
+	}
+
+	// Resize if dimensions changed
+	if m.lastAquariumWidth != width || m.lastAquariumHeight != height {
+		m.aquariumEffect.Resize(width, height)
+		m.lastAquariumWidth = width
+		m.lastAquariumHeight = height
+	}
+
+	// Render aquarium (it handles its own updates in the main loop)
+	aquariumBackground := m.aquariumEffect.Render()
+
+	// Return aquarium as full background
+	return aquariumBackground
 }
 
 // getBackgroundColor returns the background color (always BgBase to prevent bleeding)

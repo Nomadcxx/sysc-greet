@@ -127,7 +127,8 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	// CHANGED 2025-10-08 - Also remove outer border for ticker
 	// Add matrix to backgrounds that remove outer border
 	// Add fireworks to backgrounds that remove outer border
-	if m.selectedBackground == "fire" || m.selectedBackground == "ascii-rain" || m.selectedBackground == "matrix" || m.selectedBackground == "ticker" || m.selectedBackground == "fire+rain" || m.selectedBackground == "fireworks" {
+	// Add aquarium to backgrounds that remove outer border
+	if m.selectedBackground == "fire" || m.selectedBackground == "ascii-rain" || m.selectedBackground == "matrix" || m.selectedBackground == "ticker" || m.selectedBackground == "fire+rain" || m.selectedBackground == "fireworks" || m.selectedBackground == "aquarium" {
 		helpText := m.renderMainHelp()
 		helpStyle := lipgloss.NewStyle().
 			Foreground(FgMuted).

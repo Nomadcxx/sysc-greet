@@ -382,6 +382,9 @@ type model struct {
 	beamsEffect      *animations.BeamsTextEffect   // Beams text effect for ASCII art
 	pourEffect       *animations.PourEffect        // Pour effect for ASCII art
 	aquariumEffect   *animations.AquariumEffect    // Aquarium background effect
+	lastAquariumWidth  int
+	lastAquariumHeight int
+	aquariumFrameSkip  int                          // Frame counter for throttling aquarium to 20fps
 }
 
 
@@ -558,6 +561,8 @@ func initialModel(config Config, screensaverMode bool) model {
 		matrixEffect: animations.NewMatrixEffect(80, 30, animations.GetMatrixPalette("default")),
 		// Initialize fireworks effect with default size
 		fireworksEffect: animations.NewFireworksEffect(80, 30, animations.GetFireworksPalette("default")),
+		// Aquarium is nil by default, initialized when user enables it
+		aquariumEffect: nil,
 		// TypewriterTicker is nil by default, initialized when user enables it
 		typewriterTicker: nil,
 	}
@@ -714,6 +719,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Update fireworks when fireworks background is selected
 		if m.selectedBackground == "fireworks" && m.fireworksEffect != nil {
 			m.fireworksEffect.Update(m.animationFrame)
+		}
+
+		// Update aquarium when aquarium background is selected
+		// Throttle to ~20fps (aquarium is designed for 20fps, we tick at 33fps)
+		if m.selectedBackground == "aquarium" && m.aquariumEffect != nil {
+			m.aquariumFrameSkip++
+			if m.aquariumFrameSkip >= 2 {
+				m.aquariumEffect.Update()
+				m.aquariumFrameSkip = 0
+			}
 		}
 
 		cmds = append(cmds, doTick())
@@ -1520,13 +1535,37 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					} else {
 						m.selectedBackground = "none"
 					}
+				case "Aquarium":
+					// Aquarium is exclusive - disable others
+					m.enableFire = false
+					if m.selectedBackground != "aquarium" {
+						m.selectedBackground = "aquarium"
+						// Initialize aquarium effect with placeholder dimensions
+						// The resize logic in addAquariumEffect() will handle proper sizing
+						fishColors, waterColors, seaweedColors, bubbleColor, diverColor, boatColor, mermaidColor, anchorColor := getThemeColorsForAquarium(m.currentTheme)
+						m.aquariumEffect = animations.NewAquariumEffect(animations.AquariumConfig{
+							Width:         80,
+							Height:        30,
+							FishColors:    fishColors,
+							WaterColors:   waterColors,
+							SeaweedColors: seaweedColors,
+							BubbleColor:   bubbleColor,
+							DiverColor:    diverColor,
+							BoatColor:     boatColor,
+							MermaidColor:  mermaidColor,
+							AnchorColor:   anchorColor,
+						})
+					} else {
+						m.selectedBackground = "none"
+						m.aquariumEffect = nil
+					}
 				}
 
 				// Update selectedBackground based on enabled flags
-				// Priority: Fire > Matrix > ASCII Rain > Fireworks > none
+				// Priority: Fire > Matrix > ASCII Rain > Fireworks > Aquarium > none
 				if m.enableFire {
 					m.selectedBackground = "fire"
-				} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" && m.selectedBackground != "ticker" {
+				} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" && m.selectedBackground != "aquarium" && m.selectedBackground != "ticker" {
 					m.selectedBackground = "none"
 				}
 				// Save background preference
@@ -1935,6 +1974,23 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: fireworks as background, UI centered on top
+		view.Layer = lipgloss.NewCanvas(
+			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
+			lipgloss.NewLayer(content).X(uiX).Y(uiY),
+		)
+		view.BackgroundColor = BgBase
+		return view
+	} else if m.selectedBackground == "aquarium" && (m.mode == ModeLogin || m.mode == ModePassword) {
+		// Render aquarium as full background
+		backgroundContent := m.addAquariumEffect("", termWidth, termHeight)
+
+		// Center the UI content
+		contentWidth := lipgloss.Width(content)
+		contentHeight := lipgloss.Height(content)
+		uiX := (termWidth - contentWidth) / 2
+		uiY := (termHeight - contentHeight) / 2
+
+		// Create canvas with two layers: aquarium as background, UI centered on top
 		view.Layer = lipgloss.NewCanvas(
 			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
 			lipgloss.NewLayer(content).X(uiX).Y(uiY),
