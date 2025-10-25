@@ -964,8 +964,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				"Themes",
 				"Borders",
 				"Backgrounds",
-				"Wallpaper",
 				"ASCII Effects",
+				"Wallpaper",
 			}
 			return m, nil
 		}
@@ -1259,7 +1259,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			return m, nil
 		}
 
-	case "pgdn", "page down":
+	case "pgdn", "pgdown", "page down":
+		if m.config.Debug {
+			logDebug("Page Down pressed - mode: %v, session: %v", m.mode, m.selectedSession)
+		}
 		if m.mode == ModeLogin || m.mode == ModePassword {
 			if m.selectedSession != nil {
 				// Load config to get variant count

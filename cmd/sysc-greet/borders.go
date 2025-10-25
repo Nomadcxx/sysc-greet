@@ -374,7 +374,7 @@ func (m model) getOuterBorderStyle() lipgloss.Border {
 	case "classic":
 		return lipgloss.DoubleBorder()
 	case "modern":
-		return lipgloss.ThickBorder() // Use thick outer for modern double-border look
+		return lipgloss.HiddenBorder() // Hide outer border for clean modern look
 	case "minimal":
 		return lipgloss.HiddenBorder() // Hide outer for clean minimal look
 	case "ascii":

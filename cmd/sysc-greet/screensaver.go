@@ -203,15 +203,20 @@ func renderScreensaverView(m model, termWidth, termHeight int) string {
 	dateStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(palette[5]))
 	printHeadStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(palette[2])).Bold(true)
 
-	// Cycle through ASCII variants every 5 minutes
+	// Cycle through ASCII variants every 30 seconds
 	// CHANGED 2025-10-12 - Fix screensaver starting at ascii_2 instead of ascii_1
-	// Calculate minutes since screensaver activation, not since idle start
-	minutesSinceActivation := 0
+	// Calculate seconds since screensaver activation for faster cycling
+	secondsSinceActivation := 0
 	if m.screensaverActive {
-		minutesSinceActivation = int(time.Since(m.screensaverTime).Minutes())
+		secondsSinceActivation = int(time.Since(m.screensaverTime).Seconds())
 	}
-	variantIndex := (minutesSinceActivation / 5) % len(config.ASCIIVariants)
+	variantIndex := (secondsSinceActivation / 30) % len(config.ASCIIVariants)
 	selectedASCII := config.ASCIIVariants[variantIndex]
+
+	if m.config.Debug {
+		logDebug("Screensaver: %d variants loaded, showing variant %d (after %d seconds)",
+			len(config.ASCIIVariants), variantIndex, secondsSinceActivation)
+	}
 
 	// Get current time and date
 	currentTime := m.screensaverTime
