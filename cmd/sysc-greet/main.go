@@ -722,13 +722,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Update aquarium when aquarium background is selected
-		// Throttle to ~20fps (aquarium is designed for 20fps, we tick at 33fps)
+		// Update every tick (30ms) - close to syscgo's 50ms update rate
 		if m.selectedBackground == "aquarium" && m.aquariumEffect != nil {
-			m.aquariumFrameSkip++
-			if m.aquariumFrameSkip >= 2 {
-				m.aquariumEffect.Update()
-				m.aquariumFrameSkip = 0
-			}
+			m.aquariumEffect.Update()
 		}
 
 		cmds = append(cmds, doTick())
@@ -1453,6 +1449,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						logDebug("Theme changed to %s - reinitializing pour", themeName)
 						m.resetPourEffectForSession(m.selectedSession.Name)
 					}
+					// Aquarium updates palette automatically via UpdatePalette() in backgrounds.go
 					}
 				m.mode = ModeLogin
 				}
@@ -1540,12 +1537,19 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.enableFire = false
 					if m.selectedBackground != "aquarium" {
 						m.selectedBackground = "aquarium"
-						// Initialize aquarium effect with placeholder dimensions
-						// The resize logic in addAquariumEffect() will handle proper sizing
+						// Initialize aquarium effect with actual terminal dimensions
+						width := m.width
+						height := m.height
+						if width == 0 {
+							width = 80
+						}
+						if height == 0 {
+							height = 30
+						}
 						fishColors, waterColors, seaweedColors, bubbleColor, diverColor, boatColor, mermaidColor, anchorColor := getThemeColorsForAquarium(m.currentTheme)
 						m.aquariumEffect = animations.NewAquariumEffect(animations.AquariumConfig{
-							Width:         80,
-							Height:        30,
+							Width:         width,
+							Height:        height,
 							FishColors:    fishColors,
 							WaterColors:   waterColors,
 							SeaweedColors: seaweedColors,
@@ -1555,6 +1559,9 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							MermaidColor:  mermaidColor,
 							AnchorColor:   anchorColor,
 						})
+						// Initialize dimension cache to match creation dimensions
+						m.lastAquariumWidth = width
+						m.lastAquariumHeight = height
 					} else {
 						m.selectedBackground = "none"
 						m.aquariumEffect = nil

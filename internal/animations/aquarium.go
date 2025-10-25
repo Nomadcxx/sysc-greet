@@ -173,14 +173,14 @@ func (a *AquariumEffect) init() {
 	a.diver = &Diver{
 		x:         -20,
 		y:         float64(a.height - diverHeight - 2), // Place above bottom with margin
-		speed:     0.3,
+		speed:     0.03, // Reduced 10x for sysc-greet
 		direction: 1,
 		pattern:   diverPattern,
 		swimPhase: 0,
 	}
 
-	// Create initial fish (mostly small/tiny)
-	fishCount := 8 + a.rng.Intn(15)
+	// Create initial fish (mostly small/tiny) - reduced for gradual appearance
+	fishCount := 3 + a.rng.Intn(6) // Start with 3-8 fish instead of 8-23
 	for i := 0; i < fishCount; i++ {
 		a.spawnFish()
 	}
@@ -213,7 +213,7 @@ func (a *AquariumEffect) init() {
 	a.boat = &Boat{
 		x:         float64(a.rng.Intn(a.width)),
 		y:         float64(oceanY - boatHeight), // Above ocean surface
-		speed:     0.4,
+		speed:     0.04, // Reduced 10x for sysc-greet
 		direction: boatDirection,
 		pattern:   boatPattern,
 		boatType:  boatType,
@@ -258,7 +258,7 @@ func (a *AquariumEffect) spawnFish() {
 		size = 1 // 30% small
 	}
 
-	speed := 0.5 + a.rng.Float64()*1.5
+	speed := (0.5 + a.rng.Float64()*1.5) / 10.0 // Reduced 10x for sysc-greet
 	if size == 0 {
 		speed *= 1.8 // Tiny fish fastest
 	} else if size == 1 {
@@ -302,7 +302,7 @@ func (a *AquariumEffect) spawnMediumFish() {
 		x = float64(a.width + 15)
 	}
 
-	speed := 0.4 + a.rng.Float64()*0.8
+	speed := (0.4 + a.rng.Float64()*0.8) / 10.0 // Reduced 10x for sysc-greet
 	color := a.fishColors[a.rng.Intn(len(a.fishColors))]
 
 	oceanY := int(float64(a.height) * 0.15)
@@ -337,7 +337,7 @@ func (a *AquariumEffect) spawnLargeFish() {
 		x = float64(a.width + 20)
 	}
 
-	speed := 0.3 + a.rng.Float64()*0.5
+	speed := (0.3 + a.rng.Float64()*0.5) / 10.0 // Reduced 10x for sysc-greet
 	color := a.fishColors[a.rng.Intn(len(a.fishColors))]
 
 	oceanY := int(float64(a.height) * 0.15)
@@ -595,7 +595,7 @@ func (a *AquariumEffect) spawnMermaid() {
 	a.mermaid = &Mermaid{
 		x:         x,
 		y:         float64(minY + a.rng.Intn(maxY-minY+1)),
-		speed:     0.2 + a.rng.Float64()*0.3,
+		speed:     (0.2 + a.rng.Float64()*0.3) / 10.0, // Reduced 10x for sysc-greet
 		direction: direction,
 		pattern:   mermaidPattern,
 		swimPhase: 0,
@@ -697,7 +697,7 @@ func (a *AquariumEffect) Update() {
 				a.diver = &Diver{
 					x:         -20,
 					y:         float64(a.height - diverHeight - 2),
-					speed:     0.3,
+					speed:     0.03, // Reduced 10x for sysc-greet
 					direction: 1,
 					pattern:   diverPattern,
 					swimPhase: 0,
@@ -992,4 +992,23 @@ func reverseString(s string) string {
 		runes[i], runes[j] = runes[j], runes[i]
 	}
 	return string(runes)
+}
+
+// UpdatePalette updates the aquarium colors for theme changes
+func (a *AquariumEffect) UpdatePalette(fishColors, waterColors, seaweedColors []string, bubbleColor, diverColor, boatColor, mermaidColor string) {
+	a.fishColors = fishColors
+	a.waterColors = waterColors
+	a.seaweedColors = seaweedColors
+	a.bubbleColor = bubbleColor
+	a.diverColor = diverColor
+	a.boatColor = boatColor
+	a.mermaidColor = mermaidColor
+
+	// Update existing entity colors
+	for i := range a.fish {
+		a.fish[i].color = fishColors[a.rng.Intn(len(fishColors))]
+	}
+	for i := range a.seaweed {
+		a.seaweed[i].colors = seaweedColors
+	}
 }

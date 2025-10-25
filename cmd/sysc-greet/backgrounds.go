@@ -152,6 +152,10 @@ func (m model) addAquariumEffect(content string, width, height int) string {
 		m.lastAquariumHeight = height
 	}
 
+	// Update palette from current theme
+	fishColors, waterColors, seaweedColors, bubbleColor, diverColor, boatColor, mermaidColor, _ := getThemeColorsForAquarium(m.currentTheme)
+	m.aquariumEffect.UpdatePalette(fishColors, waterColors, seaweedColors, bubbleColor, diverColor, boatColor, mermaidColor)
+
 	// Render aquarium (it handles its own updates in the main loop)
 	aquariumBackground := m.aquariumEffect.Render()
 
