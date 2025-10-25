@@ -380,6 +380,7 @@ type model struct {
 	typewriterTicker *animations.TypewriterTicker  // Typewriter ticker for session roasts
 	printEffect      *animations.PrintEffect       // Print effect for ASCII art
 	beamsEffect      *animations.BeamsTextEffect   // Beams text effect for ASCII art
+	pourEffect       *animations.PourEffect        // Pour effect for ASCII art
 }
 
 
@@ -704,6 +705,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.beamsEffect.Update()
 		}
 
+		// Update pour effect when pour is selected
+		if m.selectedBackground == "pour" && m.pourEffect != nil {
+			m.pourEffect.Update()
+		}
+
 		// Update fireworks when fireworks background is selected
 		if m.selectedBackground == "fireworks" && m.fireworksEffect != nil {
 			m.fireworksEffect.Update(m.animationFrame)
@@ -738,9 +744,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.typewriterTicker.UpdateWM(session.Name)
 		}
 		
-		// Update print effect for new session
+		// Update ASCII effects for new session
 		m.resetPrintEffectForSession(session.Name)
 		m.resetBeamsEffectForSession(session.Name)
+		m.resetPourEffectForSession(session.Name)
 
 		// FIXED 2025-10-17 - Clear and reload username when session changes
 		if previousSession != "" && previousSession != session.Name {
@@ -1080,9 +1087,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				if m.typewriterTicker != nil {
 					m.typewriterTicker.UpdateWM(session.Name)
 				}
-				// Update print effect for new session
+				// Update ASCII effects for new variant
 				m.resetPrintEffectForSession(session.Name)
 				m.resetBeamsEffectForSession(session.Name)
+				m.resetPourEffectForSession(session.Name)
 
 			}
 			return m, nil
@@ -1107,9 +1115,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				if m.typewriterTicker != nil {
 					m.typewriterTicker.UpdateWM(session.Name)
 				}
-				// Update print effect for new session
+				// Update ASCII effects for new session
 				m.resetPrintEffectForSession(session.Name)
-			m.resetBeamsEffectForSession(session.Name)
+				m.resetBeamsEffectForSession(session.Name)
+				m.resetPourEffectForSession(session.Name)
 
 			}
 			return m, nil
@@ -1125,9 +1134,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				if m.typewriterTicker != nil {
 					m.typewriterTicker.UpdateWM(session.Name)
 				}
-				// Update print effect for new session
+				// Update ASCII effects for new variant
 				m.resetPrintEffectForSession(session.Name)
 				m.resetBeamsEffectForSession(session.Name)
+				m.resetPourEffectForSession(session.Name)
 
 			}
 			return m, nil
@@ -1151,9 +1161,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				if m.typewriterTicker != nil {
 					m.typewriterTicker.UpdateWM(session.Name)
 				}
-				// Update print effect for new session
+				// Update ASCII effects for new session
 				m.resetPrintEffectForSession(session.Name)
-			m.resetBeamsEffectForSession(session.Name)
+				m.resetBeamsEffectForSession(session.Name)
+				m.resetPourEffectForSession(session.Name)
 
 			}
 			return m, nil
@@ -1221,7 +1232,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						variantIndex = 0
 					}
 					ascii := asciiConfig.ASCIIVariants[variantIndex]
-					
+
 					lines := strings.Split(ascii, "\n")
 					asciiHeight := len(lines)
 					asciiWidth := 0
@@ -1230,9 +1241,17 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							asciiWidth = len([]rune(line))
 						}
 					}
-					
+
 					m.beamsEffect.Resize(asciiWidth, asciiHeight)
 					m.beamsEffect.UpdateText(ascii)
+				}
+
+				// Reset pour effect with new ASCII if enabled
+				if m.selectedBackground == "pour" && m.pourEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
+					session := m.selectedSession
+					if session != nil {
+						m.resetPourEffectForSession(session.Name)
+					}
 				}
 
 				}
@@ -1301,7 +1320,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						variantIndex = 0
 					}
 					ascii := asciiConfig.ASCIIVariants[variantIndex]
-					
+
 					lines := strings.Split(ascii, "\n")
 					asciiHeight := len(lines)
 					asciiWidth := 0
@@ -1310,9 +1329,17 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							asciiWidth = len([]rune(line))
 						}
 					}
-					
+
 					m.beamsEffect.Resize(asciiWidth, asciiHeight)
 					m.beamsEffect.UpdateText(ascii)
+				}
+
+				// Reset pour effect with new ASCII if enabled
+				if m.selectedBackground == "pour" && m.pourEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
+					session := m.selectedSession
+					if session != nil {
+						m.resetPourEffectForSession(session.Name)
+					}
 				}
 
 				}
@@ -1398,10 +1425,14 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						})
 
 					
-					// Reinitialize beams effect with new theme colors if active
+					// Reinitialize ASCII effects with new theme colors if active
 					if m.selectedBackground == "beams" && m.beamsEffect != nil && m.selectedSession != nil {
 						logDebug("Theme changed to %s - reinitializing beams", themeName)
 						m.resetBeamsEffectForSession(m.selectedSession.Name)
+					}
+					if m.selectedBackground == "pour" && m.pourEffect != nil && m.selectedSession != nil {
+						logDebug("Theme changed to %s - reinitializing pour", themeName)
+						m.resetPourEffectForSession(m.selectedSession.Name)
 					}
 					}
 				m.mode = ModeLogin
@@ -1640,9 +1671,77 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.selectedBackground = "none"
 					m.beamsEffect = nil
 				}
+			case "Pour":
+				m.enableFire = false
+				if m.selectedBackground != "pour" {
+					m.selectedBackground = "pour"
+					if m.selectedSession != nil {
+						sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
+
+						var configFileName string
+						switch sessionName {
+						case "gnome":
+							configFileName = "gnome_desktop"
+						case "i3":
+							configFileName = "i3wm"
+						case "bspwm":
+							configFileName = "bspwm_manager"
+						case "plasma":
+							configFileName = "kde"
+						case "xmonad":
+							configFileName = "xmonad"
+						default:
+							configFileName = sessionName
+						}
+
+						configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+						if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+							variantIndex := m.asciiArtIndex
+							if variantIndex >= len(asciiConfig.ASCIIVariants) {
+								variantIndex = 0
+							}
+							ascii := asciiConfig.ASCIIVariants[variantIndex]
+
+							pourColors := getThemeColorsForPour(m.currentTheme)
+							if m.config.Debug {
+								logDebug("Initializing pour with theme: %s, colors: %v", m.currentTheme, pourColors)
+							}
+
+							lines := strings.Split(ascii, "\n")
+							asciiHeight := len(lines)
+							asciiWidth := 0
+							for _, line := range lines {
+								if len([]rune(line)) > asciiWidth {
+									asciiWidth = len([]rune(line))
+								}
+							}
+
+							m.pourEffect = animations.NewPourEffect(animations.PourConfig{
+								Width:                  asciiWidth,
+								Height:                 asciiHeight,
+								Text:                   ascii,
+								PourDirection:          "down",
+								PourSpeed:              1,     // Slower: 1 char per frame instead of 3
+								MovementSpeed:          0.05,  // Much slower movement
+								Gap:                    2,     // Longer gap between rows
+								StartingColor:          "#ffffff",
+								FinalGradientStops:     pourColors,
+								FinalGradientSteps:     12,
+								FinalGradientFrames:    5,
+								FinalGradientDirection: "horizontal",
+							})
+							if m.config.Debug {
+								logDebug("Pour effect initialized")
+							}
+						}
+					}
+				} else {
+					m.selectedBackground = "none"
+					m.pourEffect = nil
+				}
 
 				}
-				
+
 				// Save preference
 				if !m.config.TestMode {
 					sessionName := ""

@@ -117,3 +117,32 @@ func getThemeColorsForBeams(themeName string) ([]string, []string) {
 
 	return beamGradientStops, finalGradientStops
 }
+
+// getThemeColorsForPour returns color palette for pour effect based on theme
+func getThemeColorsForPour(themeName string) []string {
+	// Normalize theme name to lowercase for comparison
+	themeName = strings.ToLower(themeName)
+
+	switch themeName {
+	case "dracula":
+		return []string{"#ff79c6", "#bd93f9", "#ffffff"}
+	case "gruvbox":
+		return []string{"#fe8019", "#fabd2f", "#ffffff"}
+	case "nord":
+		return []string{"#88c0d0", "#81a1c1", "#ffffff"}
+	case "tokyo-night":
+		return []string{"#9ece6a", "#e0af68", "#ffffff"}
+	case "catppuccin":
+		return []string{"#cba6f7", "#f5c2e7", "#ffffff"}
+	case "material":
+		return []string{"#03dac6", "#bb86fc", "#ffffff"}
+	case "solarized":
+		return []string{"#268bd2", "#2aa198", "#ffffff"}
+	case "monochrome":
+		return []string{"#808080", "#c0c0c0", "#ffffff"}
+	case "transishardjob":
+		return []string{"#55cdfc", "#f7a8b8", "#ffffff"}
+	default:
+		return []string{"#8A008A", "#00D1FF", "#FFFFFF"}
+	}
+}

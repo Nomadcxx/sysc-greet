@@ -84,12 +84,14 @@ func (m model) navigateToASCIIEffectsSubmenu() (tea.Model, tea.Cmd) {
 	typewriterEnabled := m.selectedBackground == "ticker"
 	printEnabled := m.selectedBackground == "print"
 	beamsEnabled := m.selectedBackground == "beams"
-	
+	pourEnabled := m.selectedBackground == "pour"
+
 	m.menuOptions = []string{
 		"← Back",
 		formatCheckbox("Typewriter", typewriterEnabled),
 		formatCheckbox("Print", printEnabled),
 		formatCheckbox("Beams", beamsEnabled),
+		formatCheckbox("Pour", pourEnabled),
 	}
 	m.mode = ModeASCIIEffectsSubmenu
 	m.menuIndex = 0
