@@ -1397,14 +1397,15 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						ASCIIIndex:  m.asciiArtIndex,
 						})
 
-// Reinitialize beams effect with new theme colors if active
-if m.selectedBackground == "beams" && m.beamsEffect != nil && m.selectedSession != nil {
-logDebug("Theme changed to %s - reinitializing beams", themeName)
-m.resetBeamsEffectForSession(m.selectedSession.Name)
-}
+					
+					// Reinitialize beams effect with new theme colors if active
+					if m.selectedBackground == "beams" && m.beamsEffect != nil && m.selectedSession != nil {
+						logDebug("Theme changed to %s - reinitializing beams", themeName)
+						m.resetBeamsEffectForSession(m.selectedSession.Name)
 					}
-				}
+					}
 				m.mode = ModeLogin
+				}
 				return m, nil
 
 			case ModeBordersSubmenu:
@@ -1608,8 +1609,11 @@ m.resetBeamsEffectForSession(m.selectedSession.Name)
 								variantIndex = 0
 							}
 							ascii := asciiConfig.ASCIIVariants[variantIndex]
-							
+
 							beamColors, finalColors := getThemeColorsForBeams(m.currentTheme)
+							if m.config.Debug {
+								logDebug("Initializing beams with theme: %s, beamColors: %v, finalColors: %v", m.currentTheme, beamColors, finalColors)
+							}
 							
 							lines := strings.Split(ascii, "\n")
 							asciiHeight := len(lines)

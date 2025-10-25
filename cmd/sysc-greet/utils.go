@@ -78,7 +78,10 @@ func extractCharsWithAnsi(line string) []string {
 func getThemeColorsForBeams(themeName string) ([]string, []string) {
 	var beamGradientStops []string
 	var finalGradientStops []string
-	
+
+	// Normalize theme name to lowercase for comparison
+	themeName = strings.ToLower(themeName)
+
 	switch themeName {
 	case "dracula":
 		beamGradientStops = []string{"#ffffff", "#8be9fd", "#bd93f9"}
@@ -95,10 +98,22 @@ func getThemeColorsForBeams(themeName string) ([]string, []string) {
 	case "catppuccin":
 		beamGradientStops = []string{"#ffffff", "#89dceb", "#cba6f7"}
 		finalGradientStops = []string{"#45475a", "#cba6f7", "#cdd6f4"}
+	case "material":
+		beamGradientStops = []string{"#ffffff", "#89ddff", "#bb86fc"}
+		finalGradientStops = []string{"#546e7a", "#89ddff", "#eceff1"}
+	case "solarized":
+		beamGradientStops = []string{"#ffffff", "#2aa198", "#268bd2"}
+		finalGradientStops = []string{"#586e75", "#2aa198", "#fdf6e3"}
+	case "monochrome":
+		beamGradientStops = []string{"#ffffff", "#c0c0c0", "#808080"}
+		finalGradientStops = []string{"#3a3a3a", "#9a9a9a", "#ffffff"}
+	case "transishardjob":
+		beamGradientStops = []string{"#ffffff", "#55cdfc", "#f7a8b8"}
+		finalGradientStops = []string{"#55cdfc", "#f7a8b8", "#ffffff"}
 	default:
 		beamGradientStops = []string{"#ffffff", "#00D1FF", "#8A008A"}
 		finalGradientStops = []string{"#4A4A4A", "#00D1FF", "#FFFFFF"}
 	}
-	
+
 	return beamGradientStops, finalGradientStops
 }
