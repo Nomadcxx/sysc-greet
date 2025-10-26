@@ -212,15 +212,13 @@ func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
 
 	updates := []string{
 		"Updates:",
-		"  • Fireworks background animation with particle physics",
-		"  • Version flag: --version/-v shows build info",
-		"  • Username persistence with auto-advance to password",
-		"  • Themed wallpaper persistence fixes",
-		"  • Power menu reliability improvements",
-		"  • Screensaver clock styles and animations",
-		"  • Installer: better package manager detection",
-		"  • Installer: compositor validation before install",
-		"  • Critical async state bug fixes",
+		"  • Aquarium background effect with fish, diver, and sea life",
+		"  • Pour ASCII animation with theme-aware gradients",
+		"  • New themes: RAMA (red/gray) and DARK (true black/white)",
+		"  • Fixed animation speeds for smooth, relaxing motion",
+		"  • All effects now fully theme-sensitive with live updates",
+		"  • Better screensaver cycling and timing",
+		"  • Minor UI fixes for borders and navigation",
 		"",
 	}
 
