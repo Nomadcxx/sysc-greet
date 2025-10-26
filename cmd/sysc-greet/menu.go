@@ -19,6 +19,8 @@ func (m model) navigateToThemesSubmenu() (tea.Model, tea.Cmd) {
 		"Theme: Solarized",
 		"Theme: Monochrome",
 		"Theme: TransIsHardJob",
+		"Theme: RAMA",
+		"Theme: DARK",
 		"Theme: Default",
 	}
 

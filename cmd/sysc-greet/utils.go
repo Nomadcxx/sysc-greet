@@ -110,6 +110,12 @@ func getThemeColorsForBeams(themeName string) ([]string, []string) {
 	case "transishardjob":
 		beamGradientStops = []string{"#ffffff", "#55cdfc", "#f7a8b8"}
 		finalGradientStops = []string{"#55cdfc", "#f7a8b8", "#ffffff"}
+	case "rama":
+		beamGradientStops = []string{"#edf2f4", "#ef233c", "#d90429"}
+		finalGradientStops = []string{"#8d99ae", "#ef233c", "#edf2f4"}
+	case "dark":
+		beamGradientStops = []string{"#ffffff", "#cccccc", "#999999"}
+		finalGradientStops = []string{"#666666", "#cccccc", "#ffffff"}
 	default:
 		beamGradientStops = []string{"#ffffff", "#00D1FF", "#8A008A"}
 		finalGradientStops = []string{"#4A4A4A", "#00D1FF", "#FFFFFF"}
@@ -142,6 +148,10 @@ func getThemeColorsForPour(themeName string) []string {
 		return []string{"#808080", "#c0c0c0", "#ffffff"}
 	case "transishardjob":
 		return []string{"#55cdfc", "#f7a8b8", "#ffffff"}
+	case "rama":
+		return []string{"#ef233c", "#d90429", "#edf2f4"}
+	case "dark":
+		return []string{"#ffffff", "#cccccc", "#999999"}
 	default:
 		return []string{"#8A008A", "#00D1FF", "#FFFFFF"}
 	}
@@ -234,6 +244,24 @@ func getThemeColorsForAquarium(themeName string) (fishColors, waterColors, seawe
 		boatColor = "#f7a8b8"
 		mermaidColor = "#f7a8b8"
 		anchorColor = "#1a1a1a"
+	case "rama":
+		fishColors = []string{"#ef233c", "#d90429", "#8d99ae", "#edf2f4"}
+		waterColors = []string{"#2b2d42", "#8d99ae"}
+		seaweedColors = []string{"#2b2d42", "#8d99ae", "#ef233c"}
+		bubbleColor = "#edf2f4"
+		diverColor = "#edf2f4"
+		boatColor = "#d90429"
+		mermaidColor = "#ef233c"
+		anchorColor = "#8d99ae"
+	case "dark":
+		fishColors = []string{"#ffffff", "#cccccc", "#999999", "#666666"}
+		waterColors = []string{"#000000", "#333333"}
+		seaweedColors = []string{"#000000", "#666666", "#999999"}
+		bubbleColor = "#ffffff"
+		diverColor = "#ffffff"
+		boatColor = "#cccccc"
+		mermaidColor = "#ffffff"
+		anchorColor = "#666666"
 	default:
 		fishColors = []string{"#00D1FF", "#8A008A", "#FF00FF", "#00FFFF", "#FFFF00"}
 		waterColors = []string{"#0066CC", "#FFD700"}

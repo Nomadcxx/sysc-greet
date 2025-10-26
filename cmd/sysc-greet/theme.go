@@ -129,6 +129,30 @@ func applyTheme(themeName string, testMode bool) {
 		FgSecondary = lipgloss.Color("#F5A9B8") // Pink text
 		FgMuted = lipgloss.Color("#5BCEFA")     // Light blue muted
 
+	case "rama":
+		// RAMA theme - Inspired by RAMA keyboard aesthetics
+		BgBase = lipgloss.Color("#2b2d42")      // Space cadet
+		BgElevated = BgBase                     // Keep consistent
+		BgSubtle = BgBase                       // Keep consistent
+		Primary = lipgloss.Color("#ef233c")     // Red Pantone
+		Secondary = lipgloss.Color("#d90429")   // Fire engine red
+		Accent = lipgloss.Color("#8d99ae")      // Cool gray
+		FgPrimary = lipgloss.Color("#edf2f4")   // Anti-flash white
+		FgSecondary = lipgloss.Color("#8d99ae") // Cool gray
+		FgMuted = lipgloss.Color("#8d99ae")     // Cool gray
+
+	case "dark":
+		// DARK theme - True black and true white minimalism
+		BgBase = lipgloss.Color("#000000")      // True black
+		BgElevated = BgBase                     // Keep pure black
+		BgSubtle = BgBase                       // Keep pure black
+		Primary = lipgloss.Color("#ffffff")     // True white
+		Secondary = lipgloss.Color("#ffffff")   // True white
+		Accent = lipgloss.Color("#808080")      // Mid gray accent
+		FgPrimary = lipgloss.Color("#ffffff")   // True white
+		FgSecondary = lipgloss.Color("#cccccc") // Light gray
+		FgMuted = lipgloss.Color("#666666")     // Dark gray
+
 	default: // "default"
 		// Original Crush-inspired theme
 		BgBase = lipgloss.Color("#1a1a1a")
