@@ -113,6 +113,9 @@ func getThemeColorsForBeams(themeName string) ([]string, []string) {
 	case "rama":
 		beamGradientStops = []string{"#edf2f4", "#ef233c", "#d90429"}
 		finalGradientStops = []string{"#8d99ae", "#ef233c", "#edf2f4"}
+	case "eldritch":
+		beamGradientStops = []string{"#ebfafa", "#37f499", "#04d1f9"}
+		finalGradientStops = []string{"#7081d0", "#a48cf2", "#ebfafa"}
 	case "dark":
 		beamGradientStops = []string{"#ffffff", "#cccccc", "#999999"}
 		finalGradientStops = []string{"#666666", "#cccccc", "#ffffff"}
@@ -150,6 +153,8 @@ func getThemeColorsForPour(themeName string) []string {
 		return []string{"#55cdfc", "#f7a8b8", "#ffffff"}
 	case "rama":
 		return []string{"#ef233c", "#d90429", "#edf2f4"}
+	case "eldritch":
+		return []string{"#37f499", "#04d1f9", "#ebfafa"}
 	case "dark":
 		return []string{"#ffffff", "#cccccc", "#999999"}
 	default:
@@ -253,6 +258,15 @@ func getThemeColorsForAquarium(themeName string) (fishColors, waterColors, seawe
 		boatColor = "#d90429"
 		mermaidColor = "#ef233c"
 		anchorColor = "#8d99ae"
+	case "eldritch":
+		fishColors = []string{"#37f499", "#04d1f9", "#a48cf2", "#f265b5", "#f7c67f"}
+		waterColors = []string{"#7081d0", "#f7c67f"}
+		seaweedColors = []string{"#44475a", "#50fa7b", "#10A1BD"}
+		bubbleColor = "#10A1BD"
+		diverColor = "#ebfafa"
+		boatColor = "#f7c67f"
+		mermaidColor = "#f265b5"
+		anchorColor = "#3b4261"
 	case "dark":
 		fishColors = []string{"#ffffff", "#cccccc", "#999999", "#666666"}
 		waterColors = []string{"#000000", "#333333"}

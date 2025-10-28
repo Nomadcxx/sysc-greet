@@ -153,6 +153,7 @@ These auto-match your selected theme using the naming convention `sysc-greet-{th
 - `sysc-greet-material.png`
 - `sysc-greet-solarized.png`
 - `sysc-greet-monochrome.png`
+- `sysc-greet-eldritch.png`
 - `sysc-greet-transishardjob.png`
 
 **Adding/replacing themed wallpapers:**

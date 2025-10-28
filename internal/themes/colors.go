@@ -218,6 +218,27 @@ func GetTheme(themeName string) ThemeColors {
 			BorderFocus:   lipgloss.Color("#5BCEFA"),
 		}
 
+	case "eldritch":
+		// Eldritch - https://github.com/eldritch-theme/eldritch
+		return ThemeColors{
+			Name:          "eldritch",
+			BgBase:        lipgloss.Color("#212337"),
+			BgElevated:    lipgloss.Color("#212337"),
+			BgSubtle:      lipgloss.Color("#212337"),
+			BgActive:      lipgloss.Color("#323449"),
+			Primary:       lipgloss.Color("#37f499"),
+			Secondary:     lipgloss.Color("#04d1f9"),
+			Accent:        lipgloss.Color("#a48cf2"),
+			Warning:       lipgloss.Color("#f1fc79"),
+			Danger:        lipgloss.Color("#f16c75"),
+			FgPrimary:     lipgloss.Color("#ebfafa"),
+			FgSecondary:   lipgloss.Color("#ABB4DA"),
+			FgMuted:       lipgloss.Color("#7081d0"),
+			FgSubtle:      lipgloss.Color("#3b4261"),
+			BorderDefault: lipgloss.Color("#3b4261"),
+			BorderFocus:   lipgloss.Color("#37f499"),
+		}
+
 	default: // "default" - Original Crush-inspired theme
 		return ThemeColors{
 			Name:          "default",
@@ -252,6 +273,7 @@ func GetAvailableThemes() []string {
 		"Solarized",
 		"Monochrome",
 		"TransIsHardJob",
+		"Eldritch",
 		"Default",
 	}
 }
