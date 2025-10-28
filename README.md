@@ -6,7 +6,7 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 
 ## Features
 
-- **Mucho themes**: Dracula, Gruvbox, Material, Nord, Tokyo Night, Catppuccin, Solarized, Monochrome, RAMA, DARK, TrainsIsHardJob, Eldritch
+- **Mucho themes**: Dracula, Gruvbox, Material, Nord, Tokyo Night, Catppuccin, Solarized, Monochrome, RAMA, DARK, TrainsIsHardJob, [Eldritch](https://github.com/eldritch-theme/eldritch).
 - **Background Effects**: Fire (DOOM PSX), Matrix rain, ASCII rain, Fireworks, Aquarium
 - **ASCII Effects**: Typewriter and Print effects for session text
 - **Border Styles**: Classic, Modern, Minimal (best), ASCII-1, ASCII-2, Wave, Pulse
