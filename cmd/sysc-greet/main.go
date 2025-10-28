@@ -2157,7 +2157,7 @@ func main() {
 	flag.BoolVar(&config.TestMode, "test", false, "Enable test mode (no actual authentication)")
 	flag.BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	flag.BoolVar(&screensaverTestMode, "screensaver", false, "Start directly in screensaver mode for testing")
-	flag.StringVar(&config.ThemeName, "theme", "", "Theme name (dracula, gruvbox, material, nord, tokyo-night, catppuccin, solarized, monochrome, transishardjob)")
+	flag.StringVar(&config.ThemeName, "theme", "", "Theme name (dracula, gruvbox, material, nord, tokyo-night, catppuccin, solarized, monochrome, transishardjob, eldritch)")
 	flag.BoolVar(&config.ShowTime, "time", false, "") // Hidden flag - not shown in help
 
 
@@ -2176,7 +2176,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -test\n")
 		fmt.Fprintf(os.Stderr, "    	Enable test mode (no actual authentication)\n")
 		fmt.Fprintf(os.Stderr, "  -theme string\n")
-		fmt.Fprintf(os.Stderr, "    	Theme name (dracula, gruvbox, material, nord, tokyo-night, catppuccin, solarized, monochrome, transishardjob)\n")
+		fmt.Fprintf(os.Stderr, "    	Theme name (dracula, gruvbox, material, nord, tokyo-night, catppuccin, solarized, monochrome, transishardjob, eldritch)\n")
 		fmt.Fprintf(os.Stderr, "  -v	Show version information (shorthand)\n")
 		fmt.Fprintf(os.Stderr, "  -version\n")
 		fmt.Fprintf(os.Stderr, "    	Show version information\n")

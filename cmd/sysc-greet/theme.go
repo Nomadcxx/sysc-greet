@@ -141,6 +141,18 @@ func applyTheme(themeName string, testMode bool) {
 		FgSecondary = lipgloss.Color("#8d99ae") // Cool gray
 		FgMuted = lipgloss.Color("#8d99ae")     // Cool gray
 
+	case "eldritch":
+		// Eldritch theme
+		BgBase = lipgloss.Color("#212337")
+		BgElevated = BgBase
+		BgSubtle = BgBase
+		Primary = lipgloss.Color("#37f499")
+		Secondary = lipgloss.Color("#04d1f9")
+		Accent = lipgloss.Color("#a48cf2")
+		FgPrimary = lipgloss.Color("#ebfafa")
+		FgSecondary = lipgloss.Color("#ABB4DA")
+		FgMuted = lipgloss.Color("#7081d0")
+
 	case "dark":
 		// DARK theme - True black and true white minimalism
 		BgBase = lipgloss.Color("#000000")      // True black
