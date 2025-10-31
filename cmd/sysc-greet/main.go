@@ -268,10 +268,10 @@ const (
 	ModePower    ViewMode = "power"
 	ModeMenu     ViewMode = "menu"
 	// Added new menu modes for structured menu system
-	ModeThemesSubmenu      ViewMode = "themes_submenu"
-	ModeBordersSubmenu     ViewMode = "borders_submenu"
-	ModeBackgroundsSubmenu ViewMode = "backgrounds_submenu"
-	ModeWallpaperSubmenu   ViewMode = "wallpaper_submenu"
+	ModeThemesSubmenu       ViewMode = "themes_submenu"
+	ModeBordersSubmenu      ViewMode = "borders_submenu"
+	ModeBackgroundsSubmenu  ViewMode = "backgrounds_submenu"
+	ModeWallpaperSubmenu    ViewMode = "wallpaper_submenu"
 	ModeASCIIEffectsSubmenu ViewMode = "ascii_effects_submenu"
 	// CHANGED 2025-10-01 - Added release notes mode
 	ModeReleaseNotes ViewMode = "release_notes"
@@ -375,18 +375,17 @@ type model struct {
 	currentASCIIConfig ASCIIConfig // Cached config for current session
 
 	capsLockOn bool // CAPS LOCK state detected via kitty keyboard protocol
-	
+
 	// ASCII Effects
-	typewriterTicker *animations.TypewriterTicker  // Typewriter ticker for session roasts
-	printEffect      *animations.PrintEffect       // Print effect for ASCII art
-	beamsEffect      *animations.BeamsTextEffect   // Beams text effect for ASCII art
-	pourEffect       *animations.PourEffect        // Pour effect for ASCII art
-	aquariumEffect   *animations.AquariumEffect    // Aquarium background effect
+	typewriterTicker   *animations.TypewriterTicker // Typewriter ticker for session roasts
+	printEffect        *animations.PrintEffect      // Print effect for ASCII art
+	beamsEffect        *animations.BeamsTextEffect  // Beams text effect for ASCII art
+	pourEffect         *animations.PourEffect       // Pour effect for ASCII art
+	aquariumEffect     *animations.AquariumEffect   // Aquarium background effect
 	lastAquariumWidth  int
 	lastAquariumHeight int
-	aquariumFrameSkip  int                          // Frame counter for throttling aquarium to 20fps
+	aquariumFrameSkip  int // Frame counter for throttling aquarium to 20fps
 }
-
 
 type sessionSelectedMsg sessions.Session
 type powerSelectedMsg string
@@ -700,12 +699,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selectedBackground == "matrix" && m.matrixEffect != nil {
 			m.matrixEffect.Update(m.animationFrame)
 		}
-		
+
 		// Update print effect when print is selected
 		if m.selectedBackground == "print" && m.printEffect != nil {
 			m.printEffect.Tick(m.screensaverTime)
 		}
-		
+
 		// Update beams effect when beams is selected
 		if m.selectedBackground == "beams" && m.beamsEffect != nil {
 			m.beamsEffect.Update()
@@ -747,7 +746,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		m.sessionDropdownOpen = false
-		
+
 		// Update typewriter ticker for new session
 		if m.typewriterTicker != nil {
 			if m.config.Debug {
@@ -755,7 +754,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.typewriterTicker.UpdateWM(session.Name)
 		}
-		
+
 		// Update ASCII effects for new session
 		m.resetPrintEffectForSession(session.Name)
 		m.resetBeamsEffectForSession(session.Name)
@@ -885,13 +884,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Kitty keyboard protocol sends CAPS LOCK and NUM LOCK as ModCapsLock and ModNumLock
 		key := msg.Key()
 		m.capsLockOn = (key.Mod & tea.ModCapsLock) != 0
-		
+
 		if m.config.Debug {
 			// Log ALL key presses to debug what modifiers are being sent
-			fmt.Fprintf(os.Stderr, "KEY: %q | Mod=%08b (%d) | CapsLock=%v\n", 
+			fmt.Fprintf(os.Stderr, "KEY: %q | Mod=%08b (%d) | CapsLock=%v\n",
 				key.Text, key.Mod, key.Mod, m.capsLockOn)
 		}
-		
+
 		// CHANGED 2025-10-12 - Handle screensaver exit on any key press
 		if m.mode == ModeScreensaver {
 			return handleScreensaverInput(m, msg)
@@ -1214,7 +1213,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					if m.asciiArtIndex < 0 {
 						m.asciiArtIndex = m.asciiArtCount - 1
 					}
-					
+
 					// Save ASCII index preference
 					if !m.config.TestMode && m.selectedSession != nil {
 						cache.SavePreferences(cache.UserPreferences{
@@ -1226,7 +1225,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							ASCIIIndex:  m.asciiArtIndex,
 						})
 					}
-					
+
 					// Reset print effect with new ASCII if enabled
 					if m.selectedBackground == "print" && m.printEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
 						variantIndex := m.asciiArtIndex
@@ -1236,35 +1235,35 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						ascii := asciiConfig.ASCIIVariants[variantIndex]
 						m.printEffect.Reset(ascii)
 					}
-				
-				// Reset beams effect with new ASCII if enabled
-				if m.selectedBackground == "beams" && m.beamsEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
-					variantIndex := m.asciiArtIndex
-					if variantIndex >= len(asciiConfig.ASCIIVariants) {
-						variantIndex = 0
-					}
-					ascii := asciiConfig.ASCIIVariants[variantIndex]
 
-					lines := strings.Split(ascii, "\n")
-					asciiHeight := len(lines)
-					asciiWidth := 0
-					for _, line := range lines {
-						if len([]rune(line)) > asciiWidth {
-							asciiWidth = len([]rune(line))
+					// Reset beams effect with new ASCII if enabled
+					if m.selectedBackground == "beams" && m.beamsEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
+						variantIndex := m.asciiArtIndex
+						if variantIndex >= len(asciiConfig.ASCIIVariants) {
+							variantIndex = 0
+						}
+						ascii := asciiConfig.ASCIIVariants[variantIndex]
+
+						lines := strings.Split(ascii, "\n")
+						asciiHeight := len(lines)
+						asciiWidth := 0
+						for _, line := range lines {
+							if len([]rune(line)) > asciiWidth {
+								asciiWidth = len([]rune(line))
+							}
+						}
+
+						m.beamsEffect.Resize(asciiWidth, asciiHeight)
+						m.beamsEffect.UpdateText(ascii)
+					}
+
+					// Reset pour effect with new ASCII if enabled
+					if m.selectedBackground == "pour" && m.pourEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
+						session := m.selectedSession
+						if session != nil {
+							m.resetPourEffectForSession(session.Name)
 						}
 					}
-
-					m.beamsEffect.Resize(asciiWidth, asciiHeight)
-					m.beamsEffect.UpdateText(ascii)
-				}
-
-				// Reset pour effect with new ASCII if enabled
-				if m.selectedBackground == "pour" && m.pourEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
-					session := m.selectedSession
-					if session != nil {
-						m.resetPourEffectForSession(session.Name)
-					}
-				}
 
 				}
 			}
@@ -1305,7 +1304,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					if m.asciiArtIndex >= m.asciiArtCount {
 						m.asciiArtIndex = 0
 					}
-					
+
 					// Save ASCII index preference
 					if !m.config.TestMode && m.selectedSession != nil {
 						cache.SavePreferences(cache.UserPreferences{
@@ -1317,7 +1316,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							ASCIIIndex:  m.asciiArtIndex,
 						})
 					}
-					
+
 					// Reset print effect with new ASCII if enabled
 					if m.selectedBackground == "print" && m.printEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
 						variantIndex := m.asciiArtIndex
@@ -1327,35 +1326,35 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						ascii := asciiConfig.ASCIIVariants[variantIndex]
 						m.printEffect.Reset(ascii)
 					}
-				
-				// Reset beams effect with new ASCII if enabled
-				if m.selectedBackground == "beams" && m.beamsEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
-					variantIndex := m.asciiArtIndex
-					if variantIndex >= len(asciiConfig.ASCIIVariants) {
-						variantIndex = 0
-					}
-					ascii := asciiConfig.ASCIIVariants[variantIndex]
 
-					lines := strings.Split(ascii, "\n")
-					asciiHeight := len(lines)
-					asciiWidth := 0
-					for _, line := range lines {
-						if len([]rune(line)) > asciiWidth {
-							asciiWidth = len([]rune(line))
+					// Reset beams effect with new ASCII if enabled
+					if m.selectedBackground == "beams" && m.beamsEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
+						variantIndex := m.asciiArtIndex
+						if variantIndex >= len(asciiConfig.ASCIIVariants) {
+							variantIndex = 0
+						}
+						ascii := asciiConfig.ASCIIVariants[variantIndex]
+
+						lines := strings.Split(ascii, "\n")
+						asciiHeight := len(lines)
+						asciiWidth := 0
+						for _, line := range lines {
+							if len([]rune(line)) > asciiWidth {
+								asciiWidth = len([]rune(line))
+							}
+						}
+
+						m.beamsEffect.Resize(asciiWidth, asciiHeight)
+						m.beamsEffect.UpdateText(ascii)
+					}
+
+					// Reset pour effect with new ASCII if enabled
+					if m.selectedBackground == "pour" && m.pourEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
+						session := m.selectedSession
+						if session != nil {
+							m.resetPourEffectForSession(session.Name)
 						}
 					}
-
-					m.beamsEffect.Resize(asciiWidth, asciiHeight)
-					m.beamsEffect.UpdateText(ascii)
-				}
-
-				// Reset pour effect with new ASCII if enabled
-				if m.selectedBackground == "pour" && m.pourEffect != nil && len(asciiConfig.ASCIIVariants) > 0 {
-					session := m.selectedSession
-					if session != nil {
-						m.resetPourEffectForSession(session.Name)
-					}
-				}
 
 				}
 			}
@@ -1436,22 +1435,21 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							Background:  m.selectedBackground,
 							BorderStyle: m.selectedBorderStyle,
 							Session:     sessionName,
-						ASCIIIndex:  m.asciiArtIndex,
+							ASCIIIndex:  m.asciiArtIndex,
 						})
 
-					
-					// Reinitialize ASCII effects with new theme colors if active
-					if m.selectedBackground == "beams" && m.beamsEffect != nil && m.selectedSession != nil {
-						logDebug("Theme changed to %s - reinitializing beams", themeName)
-						m.resetBeamsEffectForSession(m.selectedSession.Name)
+						// Reinitialize ASCII effects with new theme colors if active
+						if m.selectedBackground == "beams" && m.beamsEffect != nil && m.selectedSession != nil {
+							logDebug("Theme changed to %s - reinitializing beams", themeName)
+							m.resetBeamsEffectForSession(m.selectedSession.Name)
+						}
+						if m.selectedBackground == "pour" && m.pourEffect != nil && m.selectedSession != nil {
+							logDebug("Theme changed to %s - reinitializing pour", themeName)
+							m.resetPourEffectForSession(m.selectedSession.Name)
+						}
+						// Aquarium updates palette automatically via UpdatePalette() in backgrounds.go
 					}
-					if m.selectedBackground == "pour" && m.pourEffect != nil && m.selectedSession != nil {
-						logDebug("Theme changed to %s - reinitializing pour", themeName)
-						m.resetPourEffectForSession(m.selectedSession.Name)
-					}
-					// Aquarium updates palette automatically via UpdatePalette() in backgrounds.go
-					}
-				m.mode = ModeLogin
+					m.mode = ModeLogin
 				}
 				return m, nil
 
@@ -1596,7 +1594,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				// Handle ASCII Effects submenu selections
 				optionName := strings.TrimPrefix(selectedOption, "[✓] ")
 				optionName = strings.TrimPrefix(optionName, "[ ] ")
-				
+
 				switch optionName {
 				case "Typewriter":
 					// Typewriter is exclusive - disable other backgrounds/effects
@@ -1619,7 +1617,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						if m.selectedSession != nil {
 							// Load ASCII config for current session
 							sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
-							
+
 							// Map session names to config file names
 							var configFileName string
 							switch sessionName {
@@ -1636,7 +1634,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							default:
 								configFileName = sessionName
 							}
-							
+
 							configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
 							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 								// Get current ASCII variant
@@ -1660,135 +1658,135 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						m.selectedBackground = "none"
 						m.printEffect = nil
 					}
-			case "Beams":
-				m.enableFire = false
-				if m.selectedBackground != "beams" {
-					m.selectedBackground = "beams"
-					if m.selectedSession != nil {
-						sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
-						
-						var configFileName string
-						switch sessionName {
-						case "gnome":
-							configFileName = "gnome_desktop"
-						case "i3":
-							configFileName = "i3wm"
-						case "bspwm":
-							configFileName = "bspwm_manager"
-						case "plasma":
-							configFileName = "kde"
-						case "xmonad":
-							configFileName = "xmonad"
-						default:
-							configFileName = sessionName
-						}
-						
-						configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
-						if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
-							variantIndex := m.asciiArtIndex
-							if variantIndex >= len(asciiConfig.ASCIIVariants) {
-								variantIndex = 0
-							}
-							ascii := asciiConfig.ASCIIVariants[variantIndex]
+				case "Beams":
+					m.enableFire = false
+					if m.selectedBackground != "beams" {
+						m.selectedBackground = "beams"
+						if m.selectedSession != nil {
+							sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
 
-							beamColors, finalColors := getThemeColorsForBeams(m.currentTheme)
-							if m.config.Debug {
-								logDebug("Initializing beams with theme: %s, beamColors: %v, finalColors: %v", m.currentTheme, beamColors, finalColors)
+							var configFileName string
+							switch sessionName {
+							case "gnome":
+								configFileName = "gnome_desktop"
+							case "i3":
+								configFileName = "i3wm"
+							case "bspwm":
+								configFileName = "bspwm_manager"
+							case "plasma":
+								configFileName = "kde"
+							case "xmonad":
+								configFileName = "xmonad"
+							default:
+								configFileName = sessionName
 							}
-							
-							lines := strings.Split(ascii, "\n")
-							asciiHeight := len(lines)
-							asciiWidth := 0
-							for _, line := range lines {
-								if len([]rune(line)) > asciiWidth {
-									asciiWidth = len([]rune(line))
+
+							configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+								variantIndex := m.asciiArtIndex
+								if variantIndex >= len(asciiConfig.ASCIIVariants) {
+									variantIndex = 0
+								}
+								ascii := asciiConfig.ASCIIVariants[variantIndex]
+
+								beamColors, finalColors := getThemeColorsForBeams(m.currentTheme)
+								if m.config.Debug {
+									logDebug("Initializing beams with theme: %s, beamColors: %v, finalColors: %v", m.currentTheme, beamColors, finalColors)
+								}
+
+								lines := strings.Split(ascii, "\n")
+								asciiHeight := len(lines)
+								asciiWidth := 0
+								for _, line := range lines {
+									if len([]rune(line)) > asciiWidth {
+										asciiWidth = len([]rune(line))
+									}
+								}
+
+								m.beamsEffect = animations.NewBeamsTextEffect(animations.BeamsTextConfig{
+									Width:              asciiWidth,
+									Height:             asciiHeight,
+									Text:               ascii,
+									BeamGradientStops:  beamColors,
+									FinalGradientStops: finalColors,
+								})
+								if m.config.Debug {
+									logDebug("Beams effect initialized")
 								}
 							}
-							
-							m.beamsEffect = animations.NewBeamsTextEffect(animations.BeamsTextConfig{
-								Width:               asciiWidth,
-								Height:              asciiHeight,
-								Text:                ascii,
-								BeamGradientStops:   beamColors,
-								FinalGradientStops:  finalColors,
-							})
-							if m.config.Debug {
-								logDebug("Beams effect initialized")
-							}
 						}
+					} else {
+						m.selectedBackground = "none"
+						m.beamsEffect = nil
 					}
-				} else {
-					m.selectedBackground = "none"
-					m.beamsEffect = nil
-				}
-			case "Pour":
-				m.enableFire = false
-				if m.selectedBackground != "pour" {
-					m.selectedBackground = "pour"
-					if m.selectedSession != nil {
-						sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
+				case "Pour":
+					m.enableFire = false
+					if m.selectedBackground != "pour" {
+						m.selectedBackground = "pour"
+						if m.selectedSession != nil {
+							sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
 
-						var configFileName string
-						switch sessionName {
-						case "gnome":
-							configFileName = "gnome_desktop"
-						case "i3":
-							configFileName = "i3wm"
-						case "bspwm":
-							configFileName = "bspwm_manager"
-						case "plasma":
-							configFileName = "kde"
-						case "xmonad":
-							configFileName = "xmonad"
-						default:
-							configFileName = sessionName
-						}
-
-						configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
-						if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
-							variantIndex := m.asciiArtIndex
-							if variantIndex >= len(asciiConfig.ASCIIVariants) {
-								variantIndex = 0
-							}
-							ascii := asciiConfig.ASCIIVariants[variantIndex]
-
-							pourColors := getThemeColorsForPour(m.currentTheme)
-							if m.config.Debug {
-								logDebug("Initializing pour with theme: %s, colors: %v", m.currentTheme, pourColors)
+							var configFileName string
+							switch sessionName {
+							case "gnome":
+								configFileName = "gnome_desktop"
+							case "i3":
+								configFileName = "i3wm"
+							case "bspwm":
+								configFileName = "bspwm_manager"
+							case "plasma":
+								configFileName = "kde"
+							case "xmonad":
+								configFileName = "xmonad"
+							default:
+								configFileName = sessionName
 							}
 
-							lines := strings.Split(ascii, "\n")
-							asciiHeight := len(lines)
-							asciiWidth := 0
-							for _, line := range lines {
-								if len([]rune(line)) > asciiWidth {
-									asciiWidth = len([]rune(line))
+							configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+								variantIndex := m.asciiArtIndex
+								if variantIndex >= len(asciiConfig.ASCIIVariants) {
+									variantIndex = 0
+								}
+								ascii := asciiConfig.ASCIIVariants[variantIndex]
+
+								pourColors := getThemeColorsForPour(m.currentTheme)
+								if m.config.Debug {
+									logDebug("Initializing pour with theme: %s, colors: %v", m.currentTheme, pourColors)
+								}
+
+								lines := strings.Split(ascii, "\n")
+								asciiHeight := len(lines)
+								asciiWidth := 0
+								for _, line := range lines {
+									if len([]rune(line)) > asciiWidth {
+										asciiWidth = len([]rune(line))
+									}
+								}
+
+								m.pourEffect = animations.NewPourEffect(animations.PourConfig{
+									Width:                  asciiWidth,
+									Height:                 asciiHeight,
+									Text:                   ascii,
+									PourDirection:          "down",
+									PourSpeed:              1,    // Slower: 1 char per frame instead of 3
+									MovementSpeed:          0.05, // Much slower movement
+									Gap:                    2,    // Longer gap between rows
+									StartingColor:          "#ffffff",
+									FinalGradientStops:     pourColors,
+									FinalGradientSteps:     12,
+									FinalGradientFrames:    5,
+									FinalGradientDirection: "horizontal",
+								})
+								if m.config.Debug {
+									logDebug("Pour effect initialized")
 								}
 							}
-
-							m.pourEffect = animations.NewPourEffect(animations.PourConfig{
-								Width:                  asciiWidth,
-								Height:                 asciiHeight,
-								Text:                   ascii,
-								PourDirection:          "down",
-								PourSpeed:              1,     // Slower: 1 char per frame instead of 3
-								MovementSpeed:          0.05,  // Much slower movement
-								Gap:                    2,     // Longer gap between rows
-								StartingColor:          "#ffffff",
-								FinalGradientStops:     pourColors,
-								FinalGradientSteps:     12,
-								FinalGradientFrames:    5,
-								FinalGradientDirection: "horizontal",
-							})
-							if m.config.Debug {
-								logDebug("Pour effect initialized")
-							}
 						}
+					} else {
+						m.selectedBackground = "none"
+						m.pourEffect = nil
 					}
-				} else {
-					m.selectedBackground = "none"
-					m.pourEffect = nil
-				}
 
 				}
 
@@ -2092,11 +2090,15 @@ func (m model) authenticate(username, password string) tea.Cmd {
 		// Receive auth message
 		resp, err := m.ipcClient.ReceiveResponse()
 		if err != nil {
+			// Cancel session on error
+			m.ipcClient.CancelSession()
 			return err
 		}
 
 		// CHANGED 2025-10-05 - Handle Error response from CreateSession
 		if errResp, ok := resp.(ipc.Error); ok {
+			// Cancel session on error
+			m.ipcClient.CancelSession()
 			return fmt.Errorf("authentication failed: %s - %s", errResp.ErrorType, errResp.Description)
 		}
 
@@ -2105,23 +2107,33 @@ func (m model) authenticate(username, password string) tea.Cmd {
 				logDebug(" Received auth message")
 			}
 			// Send password as response
-			if err := m.ipcClient.PostAuthMessageResponse(&password); err != nil {
+			// FIXED: Pass password as value instead of pointer to avoid capture issues
+			passwordCopy := password
+			if err := m.ipcClient.PostAuthMessageResponse(&passwordCopy); err != nil {
+				// Cancel session on error
+				m.ipcClient.CancelSession()
 				return err
 			}
 			// Receive success or error
 			resp, err := m.ipcClient.ReceiveResponse()
 			if err != nil {
+				// Cancel session on error
+				m.ipcClient.CancelSession()
 				return err
 			}
 
 			// CHANGED 2025-10-05 - Handle Error response (wrong password)
 			if errResp, ok := resp.(ipc.Error); ok {
+				// Cancel session on authentication failure
+				m.ipcClient.CancelSession()
 				return fmt.Errorf("authentication failed: %s - %s", errResp.ErrorType, errResp.Description)
 			}
 
 			if _, ok := resp.(ipc.Success); ok {
 				// Start session
 				if m.selectedSession == nil {
+					// Cancel session if no session selected
+					m.ipcClient.CancelSession()
 					return fmt.Errorf("no session selected")
 				}
 				cmd := []string{m.selectedSession.Exec}
@@ -2131,9 +2143,13 @@ func (m model) authenticate(username, password string) tea.Cmd {
 				}
 				return "success"
 			} else {
+				// Cancel session on unexpected response
+				m.ipcClient.CancelSession()
 				return fmt.Errorf("expected success or error, got %T", resp)
 			}
 		} else {
+			// Cancel session on unexpected response
+			m.ipcClient.CancelSession()
 			return fmt.Errorf("expected auth message or error, got %T", resp)
 		}
 	}
@@ -2159,7 +2175,6 @@ func main() {
 	flag.BoolVar(&screensaverTestMode, "screensaver", false, "Start directly in screensaver mode for testing")
 	flag.StringVar(&config.ThemeName, "theme", "", "Theme name (dracula, gruvbox, material, nord, tokyo-night, catppuccin, solarized, monochrome, transishardjob, eldritch)")
 	flag.BoolVar(&config.ShowTime, "time", false, "") // Hidden flag - not shown in help
-
 
 	// Add help text
 	// CHANGED 2025-10-12 - Updated help text to reflect sysc-greet branding
@@ -2244,7 +2259,7 @@ func main() {
 			opts = append(opts, tea.WithMouseCellMotion())
 		}
 	}
-	
+
 	p := tea.NewProgram(initialModel(config, screensaverTestMode), opts...)
 
 	if _, err := p.Run(); err != nil {
