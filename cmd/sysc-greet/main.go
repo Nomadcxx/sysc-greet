@@ -2139,6 +2139,8 @@ func (m model) authenticate(username, password string) tea.Cmd {
 				cmd := []string{m.selectedSession.Exec}
 				env := []string{} // Can be populated if needed
 				if err := m.ipcClient.StartSession(cmd, env); err != nil {
+					// Cancel session on StartSession failure
+					m.ipcClient.CancelSession()
 					return err
 				}
 				return "success"
