@@ -253,10 +253,11 @@ type ASCIIConfig struct {
 // The sysc-greet.conf system was unused and confusing - hardcoded sessionPalettes provide all needed palettes
 
 type Config struct {
-	TestMode  bool
-	Debug     bool
-	ShowTime  bool
-	ThemeName string
+	TestMode         bool
+	Debug            bool
+	ShowTime         bool
+	ThemeName        string
+	RememberUsername bool
 }
 
 type ViewMode string
@@ -598,7 +599,7 @@ func initialModel(config Config, screensaverMode bool) model {
 				m.asciiArtIndex = prefs.ASCIIIndex
 			}
 			// FIXED 2025-10-17 - Load username and auto-advance to password if matches current session
-			if prefs.Username != "" && m.selectedSession != nil && prefs.Session == m.selectedSession.Name {
+			if m.config.RememberUsername && prefs.Username != "" && m.selectedSession != nil && prefs.Session == m.selectedSession.Name {
 				m.usernameInput.SetValue(prefs.Username)
 				// FIXED 2025-10-17 - Automatically switch to password mode when username is cached
 				m.mode = ModePassword
@@ -768,7 +769,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Load cached username for NEW session if available
 			if !m.config.TestMode {
 				if prefs, err := cache.LoadPreferences(); err == nil && prefs != nil {
-					if prefs.Username != "" && prefs.Session == session.Name {
+					if m.config.RememberUsername && prefs.Username != "" && prefs.Session == session.Name {
 						m.usernameInput.SetValue(prefs.Username)
 						logDebug("Loaded cached username for new session: %s", session.Name)
 					}
@@ -791,12 +792,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// CHANGED 2025-10-03 - Skip saving in test mode
 			// FIXED 2025-10-17 - Save current username value (already loaded for this session above)
 			if !m.config.TestMode {
+				username := ""
+				if m.config.RememberUsername {
+					username = m.usernameInput.Value()
+				}
 				cache.SavePreferences(cache.UserPreferences{
 					Theme:       m.currentTheme,
 					Background:  m.selectedBackground,
 					BorderStyle: m.selectedBorderStyle,
 					Session:     session.Name,
-					Username:    m.usernameInput.Value(),
+					Username:    username,
 					ASCIIIndex:  m.asciiArtIndex,
 				})
 			}
@@ -843,7 +848,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// FIXED 2025-10-17 - Save username to cache on successful login
 			if !m.config.TestMode && m.selectedSession != nil {
 				sessionName := m.selectedSession.Name
-				username := m.usernameInput.Value()
+				username := ""
+			if m.config.RememberUsername {
+				username = m.usernameInput.Value()
+			}
 				cache.SavePreferences(cache.UserPreferences{
 					Theme:       m.currentTheme,
 					Background:  m.selectedBackground,
@@ -1216,12 +1224,16 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 
 					// Save ASCII index preference
 					if !m.config.TestMode && m.selectedSession != nil {
+					username := ""
+					if m.config.RememberUsername {
+						username = m.usernameInput.Value()
+					}
 						cache.SavePreferences(cache.UserPreferences{
 							Theme:       m.currentTheme,
 							Background:  m.selectedBackground,
 							BorderStyle: m.selectedBorderStyle,
 							Session:     m.selectedSession.Name,
-							Username:    m.usernameInput.Value(),
+							Username:    username,
 							ASCIIIndex:  m.asciiArtIndex,
 						})
 					}
@@ -1307,12 +1319,16 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 
 					// Save ASCII index preference
 					if !m.config.TestMode && m.selectedSession != nil {
+					username := ""
+					if m.config.RememberUsername {
+						username = m.usernameInput.Value()
+					}
 						cache.SavePreferences(cache.UserPreferences{
 							Theme:       m.currentTheme,
 							Background:  m.selectedBackground,
 							BorderStyle: m.selectedBorderStyle,
 							Session:     m.selectedSession.Name,
-							Username:    m.usernameInput.Value(),
+							Username:    username,
 							ASCIIIndex:  m.asciiArtIndex,
 						})
 					}
@@ -2165,7 +2181,9 @@ func main() {
 	// CHANGED 2025-10-14 - Removed sysc-greet.conf loading - hardcoded sessionPalettes provide all needed palettes
 
 	// Initialize config with defaults
-	config := Config{}
+	config := Config{
+		RememberUsername: true, // Default: remember username
+	}
 
 	var screensaverTestMode bool // CHANGED 2025-10-11 - Add screensaver test mode flag
 	var showVersion bool
@@ -2176,6 +2194,7 @@ func main() {
 	flag.BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	flag.BoolVar(&screensaverTestMode, "screensaver", false, "Start directly in screensaver mode for testing")
 	flag.StringVar(&config.ThemeName, "theme", "", "Theme name (dracula, gruvbox, material, nord, tokyo-night, catppuccin, solarized, monochrome, transishardjob, eldritch)")
+	flag.BoolVar(&config.RememberUsername, "remember-username", true, "Remember last logged in username")
 	flag.BoolVar(&config.ShowTime, "time", false, "") // Hidden flag - not shown in help
 
 	// Add help text
