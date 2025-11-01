@@ -882,15 +882,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, textinput.Blink
 		}
 	case error:
-		// FIXED 2025-10-17 - Return to login mode (not password mode) so user can fix username
+		// FIXED 2025-10-17 - Return to password mode so user can retry
 		m.errorMessage = msg.Error()
 		m.failedAttempts++ // Track failed authentication attempts
-		m.mode = ModeLogin
-		m.usernameInput.SetValue("") // Clear username field
-		m.passwordInput.SetValue("") // Clear password field
-		m.usernameInput.Focus()
-		m.passwordInput.Blur()
-		m.focusState = FocusUsername
+		m.mode = ModePassword
+		// Keep username, only clear password
+		m.passwordInput.SetValue("")
+		m.passwordInput.Focus()
+		m.usernameInput.Blur()
+		m.focusState = FocusPassword
 		return m, textinput.Blink
 
 	case tea.KeyMsg:

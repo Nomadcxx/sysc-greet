@@ -215,10 +215,32 @@ func (c *Client) StartSession(cmd []string, env []string) error {
 	return fmt.Errorf("unexpected response to start_session: %T", resp)
 }
 
-// CancelSession cancels the current session
+// CancelSession cancels the current session and waits for greetd's acknowledgment
 func (c *Client) CancelSession() error {
 	req := CancelSession{
 		Type: CancelSessionRequest,
 	}
-	return c.SendRequest(req)
+
+	// Send the cancel request
+	if err := c.SendRequest(req); err != nil {
+		return err
+	}
+
+	// Wait for Success response from greetd
+	resp, err := c.ReceiveResponse()
+	if err != nil {
+		return fmt.Errorf("failed to receive CancelSession response: %v", err)
+	}
+
+	// Check if we got Success
+	if _, ok := resp.(Success); !ok {
+		// If we got an Error, that's still acceptable (session might already be cancelled)
+		if _, ok := resp.(Error); ok {
+			// Session is cancelled either way
+			return nil
+		}
+		return fmt.Errorf("unexpected response to CancelSession: %T", resp)
+	}
+
+	return nil
 }
