@@ -104,3 +104,4 @@ bin/
 # Dependency directories
 node_modules/
 vendor/
+.beads/
