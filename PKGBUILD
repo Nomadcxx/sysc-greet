@@ -114,6 +114,17 @@ binds {
 }
 EOF
 
+    # Install polkit rule to allow greeter user to shutdown/reboot
+    install -Dm644 /dev/stdin "${pkgdir}/etc/polkit-1/rules.d/85-greeter.rules" <<'EOF'
+polkit.addRule(function(action, subject) {
+    if ((action.id == "org.freedesktop.login1.power-off" ||
+         action.id == "org.freedesktop.login1.reboot") &&
+        subject.user == "greeter") {
+        return polkit.Result.YES;
+    }
+});
+EOF
+
     # Create cache directory
     install -dm755 "${pkgdir}/var/cache/sysc-greet"
     install -dm755 "${pkgdir}/var/lib/greeter/Pictures/wallpapers"
