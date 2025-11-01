@@ -1,6 +1,6 @@
 # Maintainer: Nomadcxx <noovie@gmail.com>
 pkgname=sysc-greet
-pkgver=1.0.6
+pkgver=1.0.7
 pkgrel=1
 pkgdesc="Graphical console greeter for greetd with ASCII art and themes"
 arch=('x86_64' 'aarch64')
