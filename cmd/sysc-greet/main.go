@@ -908,25 +908,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				fmt.Println("Test mode: Would reboot system")
 				return m, tea.Quit
 			}
-			// FIXED 2025-11-01 - Don't quit after issuing reboot command
-			// Let system reboot kill the greeter naturally to avoid greetd restart loop
+			// FIXED 2025-11-01 - Use setsid to detach reboot from greeter process tree
+			// This prevents greetd from restarting the greeter when it exits
 			fmt.Println("Rebooting...")
-			exec.Command("systemctl", "reboot").Run()
-			// Show loading screen while waiting for system to reboot
-			m.mode = ModeLoading
-			return m, nil
+			exec.Command("setsid", "-f", "systemctl", "reboot").Start()
+			return m, tea.Quit
 		case "Shutdown":
 			if m.config.TestMode {
 				fmt.Println("Test mode: Would shutdown system")
 				return m, tea.Quit
 			}
-			// FIXED 2025-11-01 - Don't quit after issuing shutdown command
-			// Let system shutdown kill the greeter naturally to avoid greetd restart loop
+			// FIXED 2025-11-01 - Use setsid to detach shutdown from greeter process tree
+			// This prevents greetd from restarting the greeter when it exits
 			fmt.Println("Shutting down...")
-			exec.Command("systemctl", "poweroff").Run()
-			// Show loading screen while waiting for system to shutdown
-			m.mode = ModeLoading
-			return m, nil
+			exec.Command("setsid", "-f", "systemctl", "poweroff").Start()
+			return m, tea.Quit
 		case "Cancel":
 			m.mode = ModeLogin
 			m.focusState = FocusUsername
