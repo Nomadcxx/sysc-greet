@@ -295,7 +295,7 @@ Restart greetd after changes: `sudo systemctl restart greetd`
 - **ASCII configs:** `/usr/share/sysc-greet/ascii_configs/`
 - **Fonts:** `/usr/share/sysc-greet/fonts/`
 - **Wallpapers:** `/usr/share/sysc-greet/wallpapers/`
-- **Cache:** `/var/cache/sysc-greet/`
+- **Cache:** `/var/cache/sysc-greet/` (stores theme, border, background, session, ASCII variant, and username if `--remember-username` is enabled)
 - **Greeter home:** `/var/lib/greeter/`
 
 ### Binary Location

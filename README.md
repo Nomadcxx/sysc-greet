@@ -12,6 +12,7 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 - **Border Styles**: Classic, Modern, Minimal (best), ASCII-1, ASCII-2, Wave, Pulse
 - **Screensaver**: Configurable idle timeout with ASCII art cycling
 - **Video Wallpapers**: Multi-monitor support via gslapper
+- **Security Features**: Failed attempt counter with account lockout warnings, optional username caching
 
 ## Installation
 
@@ -206,6 +207,7 @@ kitty --start-as=fullscreen sysc-greet --test
 sysc-greet --theme dracula          # Start with specific theme
 sysc-greet --border ascii-2         # Start with specific border
 sysc-greet --screensaver            # Enable screensaver in test mode
+sysc-greet --remember-username      # Cache username across sessions
 ```
 
 ## Acknowledgements
