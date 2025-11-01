@@ -908,21 +908,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				fmt.Println("Test mode: Would reboot system")
 				return m, tea.Quit
 			}
-			// FIXED 2025-10-17 - Use shutdown command for proper system reboot from greeter session
-			// shutdown -r now coordinates with init system and works from any session
+			// FIXED 2025-11-01 - Don't quit after issuing reboot command
+			// Let system reboot kill the greeter naturally to avoid greetd restart loop
 			fmt.Println("Rebooting...")
-			exec.Command("shutdown", "-r", "now").Start()
-			return m, tea.Quit
+			exec.Command("systemctl", "reboot").Run()
+			// Show loading screen while waiting for system to reboot
+			m.mode = ModeLoading
+			return m, nil
 		case "Shutdown":
 			if m.config.TestMode {
 				fmt.Println("Test mode: Would shutdown system")
 				return m, tea.Quit
 			}
-			// FIXED 2025-10-17 - Use shutdown command for proper system poweroff from greeter session
-			// shutdown -h now coordinates with init system and works from any session
+			// FIXED 2025-11-01 - Don't quit after issuing shutdown command
+			// Let system shutdown kill the greeter naturally to avoid greetd restart loop
 			fmt.Println("Shutting down...")
-			exec.Command("shutdown", "-h", "now").Start()
-			return m, tea.Quit
+			exec.Command("systemctl", "poweroff").Run()
+			// Show loading screen while waiting for system to shutdown
+			m.mode = ModeLoading
+			return m, nil
 		case "Cancel":
 			m.mode = ModeLogin
 			m.focusState = FocusUsername

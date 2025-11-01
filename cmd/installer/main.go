@@ -1246,6 +1246,22 @@ user = "greeter"
 		return fmt.Errorf("greetd config write failed")
 	}
 
+	// Install polkit rule to allow greeter user to shutdown/reboot
+	polkitRule := `polkit.addRule(function(action, subject) {
+    if ((action.id == "org.freedesktop.login1.power-off" ||
+         action.id == "org.freedesktop.login1.reboot") &&
+        subject.user == "greeter") {
+        return polkit.Result.YES;
+    }
+});
+`
+	if err := os.MkdirAll("/etc/polkit-1/rules.d", 0755); err != nil {
+		return fmt.Errorf("polkit rules directory creation failed")
+	}
+	if err := os.WriteFile("/etc/polkit-1/rules.d/85-greeter.rules", []byte(polkitRule), 0644); err != nil {
+		return fmt.Errorf("polkit rule write failed")
+	}
+
 	return nil
 }
 
