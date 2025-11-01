@@ -583,6 +583,95 @@ func initialModel(config Config, screensaverMode bool) model {
 			}
 			if prefs.Background != "" {
 				m.selectedBackground = prefs.Background
+			// Initialize ASCII effect objects based on cached selection
+			if m.selectedSession != nil {
+				sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
+				var configFileName string
+				switch sessionName {
+				case "gnome":
+					configFileName = "gnome_desktop"
+				case "i3":
+					configFileName = "i3wm"
+				case "bspwm":
+					configFileName = "bspwm_manager"
+				case "plasma":
+					configFileName = "kde"
+				case "xmonad":
+					configFileName = "xmonad"
+				default:
+					configFileName = sessionName
+				}
+				configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+
+				switch m.selectedBackground {
+				case "ticker":
+					m.typewriterTicker = animations.NewTypewriterTicker(m.selectedSession.Name)
+				case "print":
+					if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+						variantIndex := m.asciiArtIndex
+						if variantIndex >= len(asciiConfig.ASCIIVariants) {
+							variantIndex = 0
+						}
+						ascii := asciiConfig.ASCIIVariants[variantIndex]
+						m.printEffect = animations.NewPrintEffect(ascii, time.Millisecond*3)
+					}
+				case "beams":
+					if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+						variantIndex := m.asciiArtIndex
+						if variantIndex >= len(asciiConfig.ASCIIVariants) {
+							variantIndex = 0
+						}
+						ascii := asciiConfig.ASCIIVariants[variantIndex]
+						beamColors, finalColors := getThemeColorsForBeams(m.currentTheme)
+						lines := strings.Split(ascii, "\n")
+						asciiHeight := len(lines)
+						asciiWidth := 0
+						for _, line := range lines {
+							if len([]rune(line)) > asciiWidth {
+								asciiWidth = len([]rune(line))
+							}
+						}
+						m.beamsEffect = animations.NewBeamsTextEffect(animations.BeamsTextConfig{
+							Width:              asciiWidth,
+							Height:             asciiHeight,
+							Text:               ascii,
+							BeamGradientStops:  beamColors,
+							FinalGradientStops: finalColors,
+						})
+					}
+				case "pour":
+					if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+						variantIndex := m.asciiArtIndex
+						if variantIndex >= len(asciiConfig.ASCIIVariants) {
+							variantIndex = 0
+						}
+						ascii := asciiConfig.ASCIIVariants[variantIndex]
+						pourColors := getThemeColorsForPour(m.currentTheme)
+						lines := strings.Split(ascii, "\n")
+						asciiHeight := len(lines)
+						asciiWidth := 0
+						for _, line := range lines {
+							if len([]rune(line)) > asciiWidth {
+								asciiWidth = len([]rune(line))
+							}
+						}
+						m.pourEffect = animations.NewPourEffect(animations.PourConfig{
+							Width:                  asciiWidth,
+							Height:                 asciiHeight,
+							Text:                   ascii,
+							PourDirection:          "down",
+							PourSpeed:              1,
+							MovementSpeed:          0.05,
+							Gap:                    2,
+							StartingColor:          "#ffffff",
+							FinalGradientStops:     pourColors,
+							FinalGradientSteps:     12,
+							FinalGradientFrames:    5,
+							FinalGradientDirection: "horizontal",
+						})
+					}
+				}
+			}
 			}
 			if prefs.BorderStyle != "" {
 				m.selectedBorderStyle = prefs.BorderStyle
@@ -1821,6 +1910,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						Background:  m.selectedBackground,
 						BorderStyle: m.selectedBorderStyle,
 						Session:     sessionName,
+						Username:    "",
 						ASCIIIndex:  m.asciiArtIndex,
 					})
 				}
