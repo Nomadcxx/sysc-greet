@@ -583,6 +583,23 @@ func initialModel(config Config, screensaverMode bool) model {
 			}
 			if prefs.Background != "" {
 				m.selectedBackground = prefs.Background
+			}
+			if prefs.BorderStyle != "" {
+				m.selectedBorderStyle = prefs.BorderStyle
+			}
+			if prefs.Session != "" {
+				// Find matching session in m.sessions
+				for i, s := range m.sessions {
+					if s.Name == prefs.Session {
+						m.selectedSession = &m.sessions[i]
+						m.sessionIndex = i
+						break
+					}
+				}
+			}
+			// Load cached ASCII variant index (0 is valid - first variant)
+			m.asciiArtIndex = prefs.ASCIIIndex
+
 			// Initialize ASCII effect objects based on cached selection
 			if m.selectedSession != nil {
 				sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
@@ -672,22 +689,7 @@ func initialModel(config Config, screensaverMode bool) model {
 					}
 				}
 			}
-			}
-			if prefs.BorderStyle != "" {
-				m.selectedBorderStyle = prefs.BorderStyle
-			}
-			if prefs.Session != "" {
-				// Find matching session in m.sessions
-				for i, s := range m.sessions {
-					if s.Name == prefs.Session {
-						m.selectedSession = &m.sessions[i]
-						m.sessionIndex = i
-						break
-					}
-				}
-			}
-			// Load cached ASCII variant index (0 is valid - first variant)
-			m.asciiArtIndex = prefs.ASCIIIndex
+
 			// FIXED 2025-10-17 - Load username and auto-advance to password if matches current session
 			if m.config.RememberUsername && prefs.Username != "" && m.selectedSession != nil && prefs.Session == m.selectedSession.Name {
 				m.usernameInput.SetValue(prefs.Username)
