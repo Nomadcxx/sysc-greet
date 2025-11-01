@@ -332,6 +332,9 @@ type model struct {
 	// Focus management
 	focusState FocusState
 
+	// Authentication tracking
+	failedAttempts int
+
 	// Animation state
 	animationFrame int
 	pulseColor     int
@@ -845,6 +848,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Now we properly wait for greetd's success response in StartSession() before returning
 			// This ensures greetd has finished session initialization regardless of hardware speed
 
+			m.failedAttempts = 0 // Reset failed attempts on successful login
+
 			// FIXED 2025-10-17 - Save username to cache on successful login
 			if !m.config.TestMode && m.selectedSession != nil {
 				sessionName := m.selectedSession.Name
@@ -879,6 +884,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case error:
 		// FIXED 2025-10-17 - Return to login mode (not password mode) so user can fix username
 		m.errorMessage = msg.Error()
+		m.failedAttempts++ // Track failed authentication attempts
 		m.mode = ModeLogin
 		m.usernameInput.SetValue("") // Clear username field
 		m.passwordInput.SetValue("") // Clear password field
