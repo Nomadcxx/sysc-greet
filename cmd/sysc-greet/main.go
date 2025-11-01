@@ -597,10 +597,8 @@ func initialModel(config Config, screensaverMode bool) model {
 					}
 				}
 			}
-			// Load cached ASCII variant index
-			if prefs.ASCIIIndex > 0 {
-				m.asciiArtIndex = prefs.ASCIIIndex
-			}
+			// Load cached ASCII variant index (0 is valid - first variant)
+			m.asciiArtIndex = prefs.ASCIIIndex
 			// FIXED 2025-10-17 - Load username and auto-advance to password if matches current session
 			if m.config.RememberUsername && prefs.Username != "" && m.selectedSession != nil && prefs.Session == m.selectedSession.Name {
 				m.usernameInput.SetValue(prefs.Username)
