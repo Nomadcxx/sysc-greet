@@ -8,7 +8,7 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 
 - **Mucho themes**: Dracula, Gruvbox, Material, Nord, Tokyo Night, Catppuccin, Solarized, Monochrome, RAMA, DARK, TrainsIsHardJob, [Eldritch](https://github.com/eldritch-theme/eldritch).
 - **Background Effects**: Fire (DOOM PSX), Matrix rain, ASCII rain, Fireworks, Aquarium
-- **ASCII Effects**: Typewriter and Print effects for session text
+- **ASCII Effects**: Typewriter, Print, Beams, and Pour effects for session text (more ASCII animation in [sysc-Go](https://github.com/Nomadcxx/sysc-Go))
 - **Border Styles**: Classic, Modern, Minimal (best), ASCII-1, ASCII-2, Wave, Pulse
 - **Screensaver**: Configurable idle timeout with ASCII art cycling
 - **Video Wallpapers**: Multi-monitor support via gslapper
@@ -209,6 +209,13 @@ sysc-greet --border ascii-2         # Start with specific border
 sysc-greet --screensaver            # Enable screensaver in test mode
 sysc-greet --remember-username      # Cache username across sessions
 ```
+
+## Related Projects
+
+If you enjoy ASCII animations and terminal aesthetics, check out these companion projects:
+
+- **[sysc-Go](https://github.com/Nomadcxx/sysc-Go)** - System information dashboard with animated ASCII art and customizable widgets
+- **[sysc-walls](https://github.com/Nomadcxx/sysc-walls)** - Curated collection of wallpapers designed for sysc-greet themes
 
 ## Acknowledgements
 
