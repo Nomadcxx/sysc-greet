@@ -28,6 +28,54 @@ yay -S sysc-greet-hyprland
 yay -S sysc-greet-sway
 ```
 
+### NixOS (Flake)
+
+Add sysc-greet to your NixOS configuration using the flake:
+
+**flake.nix:**
+```nix
+{
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    sysc-greet = {
+      url = "github:Nomadcxx/sysc-greet";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+  };
+
+  outputs = { self, nixpkgs, sysc-greet, ... }: {
+    nixosConfigurations.your-hostname = nixpkgs.lib.nixosSystem {
+      system = "x86_64-linux";
+      modules = [
+        ./configuration.nix
+        sysc-greet.nixosModules.default
+      ];
+    };
+  };
+}
+```
+
+**configuration.nix:**
+```nix
+{
+  services.sysc-greet = {
+    enable = true;
+    compositor = "niri";  # or "hyprland" or "sway"
+  };
+
+  # Optional: Set initial session for auto-login
+  services.sysc-greet.settings.initial_session = {
+    command = "Hyprland";
+    user = "your-username";
+  };
+}
+```
+
+Then rebuild your system:
+```bash
+sudo nixos-rebuild switch --flake .#your-hostname
+```
+
 ### Installer (Recommended)
 
 The installer lets you choose your compositor and handles all configuration:
