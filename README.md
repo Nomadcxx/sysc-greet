@@ -212,10 +212,10 @@ sysc-greet --remember-username      # Cache username across sessions
 
 ## Related Projects
 
-If you enjoy ASCII animations and terminal aesthetics, check out these companion projects:
+If you like ASCII animations, CLI and TUI terminal aesthetics check out my other projects:
 
-- **[sysc-Go](https://github.com/Nomadcxx/sysc-Go)** - System information dashboard with animated ASCII art and customizable widgets
-- **[sysc-walls](https://github.com/Nomadcxx/sysc-walls)** - Curated collection of wallpapers designed for sysc-greet themes
+- **[sysc-Go](https://github.com/Nomadcxx/sysc-Go)** - Terminal animation library for Go with effects like fire, matrix, beams, and text animations
+- **[sysc-walls](https://github.com/Nomadcxx/sysc-walls)** - Terminal-based screensaver with idle detection and animated effects for Wayland/X11
 
 ## Acknowledgements
 
