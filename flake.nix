@@ -52,10 +52,19 @@
             mkdir -p $out/etc/greetd
             cp config/kitty-greeter.conf $out/etc/greetd/kitty.conf
 
-            # Install compositor configs
+            # Install compositor configs with corrected paths
+            # Replace hardcoded /usr/local/bin/sysc-greet with Nix store path
             cp config/niri-greeter-config.kdl $out/etc/greetd/
             cp config/hyprland-greeter-config.conf $out/etc/greetd/
             cp config/sway-greeter-config $out/etc/greetd/
+
+            # Substitute the hardcoded path with the Nix store path
+            substituteInPlace $out/etc/greetd/niri-greeter-config.kdl \
+              --replace '/usr/local/bin/sysc-greet' "$out/bin/sysc-greet"
+            substituteInPlace $out/etc/greetd/hyprland-greeter-config.conf \
+              --replace '/usr/local/bin/sysc-greet' "$out/bin/sysc-greet"
+            substituteInPlace $out/etc/greetd/sway-greeter-config \
+              --replace '/usr/local/bin/sysc-greet' "$out/bin/sysc-greet"
 
             # Install polkit rule
             mkdir -p $out/etc/polkit-1/rules.d
