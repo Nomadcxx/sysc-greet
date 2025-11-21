@@ -277,6 +277,27 @@ input {
 
 Replace `de` with your layout (`us`, `fr`, `es`, `uk`, etc). Full list in `/usr/share/X11/xkb/rules/base.lst`.
 
+### Non-US Layouts with Kitty
+
+If your layout doesn't work correctly in Kitty (e.g., Shift key reverts to QWERTY), set XKB environment variables in the compositor config's Kitty exec line:
+
+**niri** (`/etc/greetd/niri-greeter-config.kdl`):
+```kdl
+exec-once kitty --config /etc/greetd/kitty-greeter.conf --override hide_window_decorations=yes -e env XKB_DEFAULT_LAYOUT=fr XKB_DEFAULT_VARIANT=oss /usr/local/bin/sysc-greet
+```
+
+**sway** (`/etc/greetd/sway-greeter-config`):
+```bash
+exec env XKB_DEFAULT_LAYOUT=fr XKB_DEFAULT_VARIANT=oss kitty --config /etc/greetd/kitty-greeter.conf -e /usr/local/bin/sysc-greet
+```
+
+**hyprland** (`/etc/greetd/hyprland-greeter-config.conf`):
+```ini
+exec-once = kitty --config /etc/greetd/kitty-greeter.conf -e env XKB_DEFAULT_LAYOUT=fr XKB_DEFAULT_VARIANT=oss /usr/local/bin/sysc-greet
+```
+
+Replace `fr` with your layout and `oss` with your variant (or omit `XKB_DEFAULT_VARIANT` if not needed).
+
 Restart greetd after changes: `sudo systemctl restart greetd`
 
 ---

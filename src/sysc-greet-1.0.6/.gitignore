@@ -1,0 +1,106 @@
+# Binaries (in root of sysc-greet directory only)
+/sysc-greet
+/install-sysc-greet
+*.exe
+/main
+
+# Test files and binaries
+test-*
+*test*
+*debug*
+*.production-backup
+
+# Logs
+logs/
+*.log
+
+# Text files (except documentation)
+*.txt
+!README.txt
+!LICENSE.txt
+!CHANGELOG.txt
+!TODO.txt
+
+# Internal development tracking
+TODO.md
+
+# Build artifacts
+*.o
+*.so
+*.a
+
+# Temporary files
+*.tmp
+*.bak
+*.save
+.cleanup-list
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# AI Assistant generated documentation
+CLAUDE.md
+AGENTS.md
+opencode.md
+opencode.json
+CRUSH.md
+
+# Testing documentation (internal use)
+TESTING.md
+
+# Internal messages and drafts
+MESSAGE.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+.nfo
+cmd/sysc-greet/sysc-greet
+
+# Development tools and editor files
+.vim/
+.#*
+TAGS
+
+# Environment and local configuration
+.env
+*.env
+config.local
+
+# Go-specific files
+go.work
+gomobile/
+
+# Test and coverage files
+coverage.txt
+profile.out
+*.test
+
+# Build and distribution
+dist/
+bin/
+*.deb
+*.rpm
+
+# Archive and compressed files
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.zip
+*.rar
+*.7z
+
+# Cache and temporary files
+*.cache
+*.temp
+.tmp/
+.cache/
+
+# Dependency directories
+node_modules/
+vendor/

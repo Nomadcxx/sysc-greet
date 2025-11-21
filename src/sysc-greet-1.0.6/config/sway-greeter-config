@@ -1,0 +1,34 @@
+# SYSC-Greet Sway config for greetd greeter session
+# Monitors auto-detected by Sway at runtime
+
+# Disable window borders
+default_border none
+default_floating_border none
+
+# No gaps needed for greeter
+gaps inner 0
+gaps outer 0
+
+# Input configuration
+input * {
+    xkb_layout "us"
+    repeat_delay 400
+    repeat_rate 40
+}
+
+input type:touchpad {
+    tap enabled
+}
+
+# Uncomment to hide cursor after 1 second of inactivity
+# seat * hide_cursor 1000
+
+# Disable all keybindings (security)
+# Empty config = no keys work
+
+# Window rules for kitty
+for_window [app_id="kitty"] fullscreen enable
+
+# Startup applications
+exec swww-daemon
+exec "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; swaymsg exit"

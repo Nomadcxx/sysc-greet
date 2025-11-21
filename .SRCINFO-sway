@@ -1,0 +1,25 @@
+pkgbase = sysc-greet-sway
+	pkgdesc = Graphical console greeter for greetd with ASCII art and themes (Sway compositor)
+	pkgver = 1.0.7
+	pkgrel = 1
+	url = https://github.com/Nomadcxx/sysc-greet
+	install = sysc-greet-sway.install
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	makedepends = go>=1.21
+	depends = greetd
+	depends = kitty
+	depends = sway
+	depends = swww
+	optdepends = gslapper: Video wallpaper support
+	provides = sysc-greet
+	conflicts = sysc-greet-niri
+	conflicts = sysc-greet-hyprland
+	conflicts = sysc-greet
+	backup = etc/greetd/config.toml
+	backup = etc/greetd/sway-greeter-config
+	source = sysc-greet-1.0.7.tar.gz::https://github.com/Nomadcxx/sysc-greet/archive/v1.0.7.tar.gz
+	sha256sums = 2e7354d6096b36bcd4a2d19668a97c859624c654c74b07eb83d41a2fdc5df36f
+
+pkgname = sysc-greet-sway
