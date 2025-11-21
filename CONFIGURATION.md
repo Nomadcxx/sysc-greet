@@ -279,7 +279,7 @@ Replace `de` with your layout (`us`, `fr`, `es`, `uk`, etc). Full list in `/usr/
 
 ### Non-US Layouts with Kitty
 
-If your layout doesn't work correctly in Kitty (e.g., Shift key reverts to QWERTY), set XKB environment variables in the compositor config's Kitty exec line:
+If your layout doesn't work correctly in Kitty (e.g., Shift key reverts to QWERTY), set XKB environment variables in the compositor config's Kitty exec line (thanks to [@morganorix](https://github.com/morganorix) for discovering this solution):
 
 **niri** (`/etc/greetd/niri-greeter-config.kdl`):
 ```kdl
