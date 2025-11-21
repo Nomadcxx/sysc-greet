@@ -58,13 +58,24 @@
             cp config/hyprland-greeter-config.conf $out/etc/greetd/
             cp config/sway-greeter-config $out/etc/greetd/
 
-            # Substitute the hardcoded path with the Nix store path
+            # Substitute all hardcoded paths with Nix store paths
             substituteInPlace $out/etc/greetd/niri-greeter-config.kdl \
-              --replace '/usr/local/bin/sysc-greet' "$out/bin/sysc-greet"
+              --replace '/usr/local/bin/sysc-greet' "$out/bin/sysc-greet" \
+              --replace 'swww-daemon' "${pkgs.swww}/bin/swww-daemon" \
+              --replace 'kitty ' "${pkgs.kitty}/bin/kitty " \
+              --replace 'niri msg' "${pkgs.niri}/bin/niri msg"
+            
             substituteInPlace $out/etc/greetd/hyprland-greeter-config.conf \
-              --replace '/usr/local/bin/sysc-greet' "$out/bin/sysc-greet"
+              --replace '/usr/local/bin/sysc-greet' "$out/bin/sysc-greet" \
+              --replace 'swww-daemon' "${pkgs.swww}/bin/swww-daemon" \
+              --replace 'kitty ' "${pkgs.kitty}/bin/kitty " \
+              --replace 'hyprctl ' "${pkgs.hyprland}/bin/hyprctl "
+            
             substituteInPlace $out/etc/greetd/sway-greeter-config \
-              --replace '/usr/local/bin/sysc-greet' "$out/bin/sysc-greet"
+              --replace '/usr/local/bin/sysc-greet' "$out/bin/sysc-greet" \
+              --replace 'swww-daemon' "${pkgs.swww}/bin/swww-daemon" \
+              --replace 'kitty ' "${pkgs.kitty}/bin/kitty " \
+              --replace 'swaymsg ' "${pkgs.sway}/bin/swaymsg "
 
             # Install polkit rule
             mkdir -p $out/etc/polkit-1/rules.d
