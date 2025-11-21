@@ -91,6 +91,7 @@ bin/
 *.tar.gz
 *.tar.bz2
 *.tar.xz
+*.tar.zst
 *.zip
 *.rar
 *.7z
@@ -105,3 +106,7 @@ bin/
 node_modules/
 vendor/
 .beads/
+
+# Package build artifacts and source dirs
+pkg/
+src/
