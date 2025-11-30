@@ -154,6 +154,9 @@ EOF
 
             users.groups.greeter = { };
 
+            # Expose Sessions for sysc-greet to pick up
+            environment.pathsToLink = [ "/share/wayland-sessions" ];
+            
             # Configure greetd
             services.greetd = {
               enable = true;
