@@ -171,7 +171,8 @@ EOF
                       "${pkgs.sway}/bin/sway -c /etc/greetd/sway-greeter-config";
                   user = "greeter";
                 };
-                initial_session = cfg.settings.initial_session or { };
+              } // lib.optionalAttrs (cfg.settings ? initial_session) {
+                initial_session = cfg.settings.initial_session;
               };
             };
 
