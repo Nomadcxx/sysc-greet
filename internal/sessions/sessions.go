@@ -37,6 +37,8 @@ func LoadSessions() ([]Session, error) {
 	paths := []string{
 		"/usr/share/xsessions",
 		"/usr/share/wayland-sessions",
+		"/run/current-system/sw/share/xsessions",
+		"/run/current-system/sw/share/wayland-sessions",
 	}
 
 	for _, basePath := range paths {

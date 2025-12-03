@@ -154,6 +154,9 @@ EOF
 
             users.groups.greeter = { };
 
+            # Expose Sessions for sysc-greet to pick up
+            environment.pathsToLink = [ "/share/wayland-sessions" ];
+            
             # Configure greetd
             services.greetd = {
               enable = true;
@@ -171,7 +174,8 @@ EOF
                       "${pkgs.sway}/bin/sway -c /etc/greetd/sway-greeter-config";
                   user = "greeter";
                 };
-                initial_session = cfg.settings.initial_session or { };
+              } // lib.optionalAttrs (cfg.settings ? initial_session) {
+                initial_session = cfg.settings.initial_session;
               };
             };
 
