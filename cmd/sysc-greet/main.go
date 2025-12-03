@@ -623,7 +623,11 @@ func initialModel(config Config, screensaverMode bool) model {
 
 				switch m.selectedBackground {
 				case "ticker":
-					m.typewriterTicker = animations.NewTypewriterTicker(m.selectedSession.Name)
+					customRoasts := ""
+					if asciiConfig, err := loadASCIIConfig(configPath); err == nil {
+						customRoasts = asciiConfig.Roasts
+					}
+					m.typewriterTicker = animations.NewTypewriterTicker(m.selectedSession.Name, customRoasts)
 				case "print":
 					if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 						variantIndex := m.asciiArtIndex
@@ -846,7 +850,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.config.Debug {
 				logDebug("Updating ticker for session: %s", session.Name)
 			}
-			m.typewriterTicker.UpdateWM(session.Name)
+			m.typewriterTicker.UpdateWM(session.Name, getCustomRoastsForSession(session.Name))
 		}
 
 		// Update ASCII effects for new session
@@ -1200,7 +1204,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				m.selectedSession = &session
 				// Update typewriter ticker for new session
 				if m.typewriterTicker != nil {
-					m.typewriterTicker.UpdateWM(session.Name)
+					m.typewriterTicker.UpdateWM(session.Name, getCustomRoastsForSession(session.Name))
 				}
 				// Update ASCII effects for new variant
 				m.resetPrintEffectForSession(session.Name)
@@ -1228,7 +1232,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				m.selectedSession = &session
 				// Update typewriter ticker for new session
 				if m.typewriterTicker != nil {
-					m.typewriterTicker.UpdateWM(session.Name)
+					m.typewriterTicker.UpdateWM(session.Name, getCustomRoastsForSession(session.Name))
 				}
 				// Update ASCII effects for new session
 				m.resetPrintEffectForSession(session.Name)
@@ -1247,7 +1251,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				m.selectedSession = &session
 				// Update typewriter ticker for new session
 				if m.typewriterTicker != nil {
-					m.typewriterTicker.UpdateWM(session.Name)
+					m.typewriterTicker.UpdateWM(session.Name, getCustomRoastsForSession(session.Name))
 				}
 				// Update ASCII effects for new variant
 				m.resetPrintEffectForSession(session.Name)
@@ -1274,7 +1278,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				m.selectedSession = &session
 				// Update typewriter ticker for new session
 				if m.typewriterTicker != nil {
-					m.typewriterTicker.UpdateWM(session.Name)
+					m.typewriterTicker.UpdateWM(session.Name, getCustomRoastsForSession(session.Name))
 				}
 				// Update ASCII effects for new session
 				m.resetPrintEffectForSession(session.Name)
@@ -1715,7 +1719,29 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						m.selectedBackground = "ticker"
 						// Initialize ticker if not already done
 						if m.typewriterTicker == nil && m.selectedSession != nil {
-							m.typewriterTicker = animations.NewTypewriterTicker(m.selectedSession.Name)
+							// Load custom roasts from ASCII config
+							sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
+							var configFileName string
+							switch sessionName {
+							case "gnome":
+								configFileName = "gnome_desktop"
+							case "i3":
+								configFileName = "i3wm"
+							case "bspwm":
+								configFileName = "bspwm_manager"
+							case "plasma":
+								configFileName = "kde"
+							case "xmonad":
+								configFileName = "xmonad"
+							default:
+								configFileName = sessionName
+							}
+							configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+							customRoasts := ""
+							if asciiConfig, err := loadASCIIConfig(configPath); err == nil {
+								customRoasts = asciiConfig.Roasts
+							}
+							m.typewriterTicker = animations.NewTypewriterTicker(m.selectedSession.Name, customRoasts)
 						}
 					} else {
 						m.selectedBackground = "none"

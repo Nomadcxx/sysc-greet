@@ -898,3 +898,30 @@ FinalGradientStops:  finalColors,
 })
 }
 }
+
+// getCustomRoastsForSession loads custom roasts from the session's ASCII config file
+// Returns empty string if no custom roasts are configured (falls back to defaults)
+func getCustomRoastsForSession(sessionName string) string {
+	sessionLower := strings.ToLower(strings.Fields(sessionName)[0])
+	var configFileName string
+	switch sessionLower {
+	case "gnome":
+		configFileName = "gnome_desktop"
+	case "i3":
+		configFileName = "i3wm"
+	case "bspwm":
+		configFileName = "bspwm_manager"
+	case "plasma":
+		configFileName = "kde"
+	case "xmonad":
+		configFileName = "xmonad"
+	default:
+		configFileName = sessionLower
+	}
+
+	configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+	if asciiConfig, err := loadASCIIConfig(configPath); err == nil {
+		return asciiConfig.Roasts
+	}
+	return ""
+}

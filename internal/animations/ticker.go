@@ -72,12 +72,18 @@ type RoastingTicker struct {
 }
 
 // NewRoastingTicker creates a scrolling roast ticker
-func NewRoastingTicker(wmName string) *RoastingTicker {
+// If customRoasts is empty, falls back to hardcoded defaults
+func NewRoastingTicker(wmName string, customRoasts string) *RoastingTicker {
+	roastText := customRoasts
+	if roastText == "" {
+		roastText = getRoastForWM(wmName)
+	}
+
 	return &RoastingTicker{
 		offset:     0,
 		lastUpdate: time.Now(),
 		frameDur:   time.Millisecond * 33, // CHANGED 2025-10-04 - Reduced speed by 30% (25ms -> 33ms)
-		roasts:     splitRoasts(getRoastForWM(wmName)),
+		roasts:     splitRoasts(roastText),
 		currentWM:  wmName,
 		roastIndex: 0,
 		paused:     false,
@@ -86,9 +92,14 @@ func NewRoastingTicker(wmName string) *RoastingTicker {
 }
 
 // UpdateWM changes the roast text when WM selection changes
-func (r *RoastingTicker) UpdateWM(wmName string) {
+func (r *RoastingTicker) UpdateWM(wmName string, customRoasts string) {
 	if wmName != r.currentWM {
-		r.roasts = splitRoasts(getRoastForWM(wmName))
+		roastText := customRoasts
+		if roastText == "" {
+			roastText = getRoastForWM(wmName)
+		}
+
+		r.roasts = splitRoasts(roastText)
 		r.currentWM = wmName
 		r.offset = 0
 		r.roastIndex = 0
@@ -353,30 +364,41 @@ pauseUntil   time.Time       // When to unpause
 }
 
 // NewTypewriterTicker creates a new typewriter ticker
-func NewTypewriterTicker(wmName string) *TypewriterTicker {
-return &TypewriterTicker{
-roasts:       splitRoasts(getRoastForWM(wmName)),
-currentWM:    wmName,
-roastIndex:   0,
-charIndex:    0,
-lastUpdate:   time.Now(),
-charDelay:    time.Millisecond * 50, // 50ms per character (adjustable typing speed)
-messageDelay: time.Second * 2,        // 2 second pause after complete message
-paused:      false,
-pauseUntil:   time.Now(),
-}
+// If customRoasts is empty, falls back to hardcoded defaults
+func NewTypewriterTicker(wmName string, customRoasts string) *TypewriterTicker {
+	roastText := customRoasts
+	if roastText == "" {
+		roastText = getRoastForWM(wmName)
+	}
+
+	return &TypewriterTicker{
+		roasts:       splitRoasts(roastText),
+		currentWM:    wmName,
+		roastIndex:   0,
+		charIndex:    0,
+		lastUpdate:   time.Now(),
+		charDelay:    time.Millisecond * 50, // 50ms per character (adjustable typing speed)
+		messageDelay: time.Second * 2,        // 2 second pause after complete message
+		paused:       false,
+		pauseUntil:   time.Now(),
+	}
 }
 
 // UpdateWM changes the roast text when WM selection changes
-func (t *TypewriterTicker) UpdateWM(wmName string) {
-if wmName != t.currentWM {
-t.roasts = splitRoasts(getRoastForWM(wmName))
-t.currentWM = wmName
-t.roastIndex = 0
-t.charIndex = 0
-t.paused = false
-t.lastUpdate = time.Now()
-}
+func (t *TypewriterTicker) UpdateWM(wmName string, customRoasts string) {
+	if wmName != t.currentWM {
+		roastText := customRoasts
+		if roastText == "" {
+			roastText = getRoastForWM(wmName)
+		}
+
+		t.roasts = splitRoasts(roastText)
+		t.currentWM = wmName
+		t.roastIndex = 0
+		t.charIndex = 0
+		t.paused = false
+		t.lastUpdate = time.Now()
+	}
 }
 
 // GetTypewriterText returns the current typewriter text with block cursor
