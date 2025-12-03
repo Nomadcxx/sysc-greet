@@ -687,6 +687,10 @@ func initialModel(config Config, screensaverMode bool) model {
 							FinalGradientDirection: "horizontal",
 						})
 					}
+				default:
+					if wallpaperFileName, isWallpaper := strings.CutPrefix(m.selectedBackground, "wallpaper:"); isWallpaper {
+						launchGslapperWallpaper(wallpaperFileName)
+					}
 				}
 			}
 
