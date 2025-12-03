@@ -96,6 +96,8 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 					}
 				case "animation_direction":
 					config.AnimationDirection = value
+				case "roasts":
+					config.Roasts = value
 				}
 			}
 		} else if inASCII {

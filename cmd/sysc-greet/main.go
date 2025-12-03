@@ -238,6 +238,7 @@ type ASCIIConfig struct {
 	AnimationStyle     string  // "gradient", "wave", "pulse", "rainbow", "matrix", "typewriter", "glow", "static"
 	AnimationSpeed     float64 // 0.1 (slow) to 2.0 (fast), default 1.0
 	AnimationDirection string  // "left", "right", "up", "down", "center-out", "random"
+	Roasts             string  // Custom roast messages separated by │
 }
 
 // Parse multiple ASCII variants (ascii_1, ascii_2, etc.)
