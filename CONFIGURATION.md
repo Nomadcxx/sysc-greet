@@ -78,6 +78,27 @@ figlet -f dos_rebel "HYPRLAND"
 sysc-greet --test
 ```
 
+### Roast Messages
+
+**Key:** `roasts=`
+**Type:** String
+**Format:** Messages separated by `│` character
+**Optional:** Yes (falls back to hardcoded defaults)
+
+**Example:**
+```conf
+roasts=First message │ Second message │ Third message
+```
+
+**How to customize roasts**
+1. Open the matching session config in `/usr/share/sysc-greet/ascii_configs/` (e.g., `hyprland.conf`, `kde.conf`, `openbox.conf`). The `name=` should reflect the session/WM.
+2. Add or edit a single `roasts=` line with your messages separated by `│` (pipe). Keep it on one line.
+3. If `roasts=` is omitted or left empty, the greeter falls back to built-in defaults per WM.
+4. Use straight ASCII text; emojis may not render in all terminals.
+5. Leave `screensaver.conf` without `roasts=` (screensaver uses clock/ASCII only).
+
+The typewriter and scrolling ticker effects will cycle through these messages.
+
 ---
 
 ## Screensaver Configuration
