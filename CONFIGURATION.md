@@ -78,6 +78,20 @@ figlet -f dos_rebel "HYPRLAND"
 sysc-greet --test
 ```
 
+### Roast Messages
+
+**Key:** `roasts=`
+**Type:** String
+**Format:** Messages separated by `│` character
+**Optional:** Yes (falls back to hardcoded defaults)
+
+**Example:**
+```conf
+roasts=First message │ Second message │ Third message
+```
+
+The typewriter and scrolling ticker effects will cycle through these messages.
+
 ---
 
 ## Screensaver Configuration

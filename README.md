@@ -223,6 +223,25 @@ ascii_2=
 
 ```
 
+### Roast Messages
+
+Customize the typewriter/scrolling roast messages for each window manager:
+
+**Location:** `/usr/share/sysc-greet/ascii_configs/{wm}.conf`
+
+**Format:** Add a `roasts=` line with messages separated by `│`:
+
+```
+roasts=Your first roast │ Second hilarious message │ Third burn
+```
+
+**Example** (`hyprland.conf`):
+```
+roasts=Hyprland: The only WM with more config than code │ Still compiling? │ At least the animations are smooth
+```
+
+If no custom roasts are defined, sysc-greet uses built-in defaults.
+
 **For more customization options (screensaver, compositor configs, etc.), see [CONFIGURATION.md](https://github.com/Nomadcxx/sysc-greet/blob/master/CONFIGURATION.md)**
 
 ## Usage
