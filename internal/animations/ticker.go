@@ -111,6 +111,11 @@ func (r *RoastingTicker) UpdateWM(wmName string, customRoasts string) {
 // splitRoasts splits a roast string on │ separator and cleans up
 // Randomize roast order
 func splitRoasts(roastText string) []string {
+	// Handle empty input
+	if strings.TrimSpace(roastText) == "" {
+		return []string{}
+	}
+
 	// Split on │ separator
 	parts := strings.Split(roastText, "│")
 
@@ -135,6 +140,11 @@ func splitRoasts(roastText string) []string {
 		if trimmed != "" {
 			cleaned = append(cleaned, trimmed)
 		}
+	}
+
+	// If all parts were empty, return empty slice (fallback to defaults)
+	if len(cleaned) == 0 {
+		return []string{}
 	}
 
 	// Shuffle the roasts for random order
