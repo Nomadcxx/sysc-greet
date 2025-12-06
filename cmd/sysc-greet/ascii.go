@@ -96,6 +96,8 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 					}
 				case "animation_direction":
 					config.AnimationDirection = value
+				case "roasts":
+					config.Roasts = strings.TrimSpace(value)
 				}
 			}
 		} else if inASCII {
@@ -204,7 +206,7 @@ func (m model) getSessionASCII() string {
 	}
 
 	currentASCII := asciiConfig.ASCIIVariants[variantIndex]
-	
+
 	// Use print effect if enabled
 	if m.selectedBackground == "print" && m.printEffect != nil {
 		// Get visible lines from print effect
@@ -214,7 +216,7 @@ func (m model) getSessionASCII() string {
 			logDebug("Print effect rendering %d lines (complete: %v)", len(visibleLines), m.printEffect.IsComplete())
 		}
 	}
-	
+
 	// Use beams effect if enabled
 	if m.selectedBackground == "beams" && m.beamsEffect != nil {
 		// Beams effect renders with its own colors
@@ -744,40 +746,39 @@ func (m model) getSessionArt(sessionName string) string {
 	return m.getSessionASCII()
 }
 
-
 // resetPrintEffectForSession resets the print effect with the specified session's ASCII
 func (m *model) resetPrintEffectForSession(sessionName string) {
-if m.selectedBackground != "print" || m.printEffect == nil {
-return
-}
+	if m.selectedBackground != "print" || m.printEffect == nil {
+		return
+	}
 
-// Map session names to config file names
-sessionLower := strings.ToLower(strings.Fields(sessionName)[0])
-var configFileName string
-switch sessionLower {
-case "gnome":
-configFileName = "gnome_desktop"
-case "i3":
-configFileName = "i3wm"
-case "bspwm":
-configFileName = "bspwm_manager"
-case "plasma":
-configFileName = "kde"
-case "xmonad":
-configFileName = "xmonad"
-default:
-configFileName = sessionLower
-}
+	// Map session names to config file names
+	sessionLower := strings.ToLower(strings.Fields(sessionName)[0])
+	var configFileName string
+	switch sessionLower {
+	case "gnome":
+		configFileName = "gnome_desktop"
+	case "i3":
+		configFileName = "i3wm"
+	case "bspwm":
+		configFileName = "bspwm_manager"
+	case "plasma":
+		configFileName = "kde"
+	case "xmonad":
+		configFileName = "xmonad"
+	default:
+		configFileName = sessionLower
+	}
 
-configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
-if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
-variantIndex := m.asciiArtIndex
-if variantIndex >= len(asciiConfig.ASCIIVariants) {
-variantIndex = 0
-}
-ascii := asciiConfig.ASCIIVariants[variantIndex]
-m.printEffect.Reset(ascii)
-}
+	configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+	if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+		variantIndex := m.asciiArtIndex
+		if variantIndex >= len(asciiConfig.ASCIIVariants) {
+			variantIndex = 0
+		}
+		ascii := asciiConfig.ASCIIVariants[variantIndex]
+		m.printEffect.Reset(ascii)
+	}
 }
 
 // resetPourEffectForSession resets the pour effect with the specified session's ASCII
@@ -844,55 +845,82 @@ func (m *model) resetPourEffectForSession(sessionName string) {
 
 // resetBeamsEffectForSession resets the beams effect with the specified session's ASCII
 func (m *model) resetBeamsEffectForSession(sessionName string) {
-if m.selectedBackground != "beams" || m.beamsEffect == nil {
-return
+	if m.selectedBackground != "beams" || m.beamsEffect == nil {
+		return
+	}
+
+	sessionLower := strings.ToLower(strings.Fields(sessionName)[0])
+	var configFileName string
+	switch sessionLower {
+	case "gnome":
+		configFileName = "gnome_desktop"
+	case "i3":
+		configFileName = "i3wm"
+	case "bspwm":
+		configFileName = "bspwm_manager"
+	case "plasma":
+		configFileName = "kde"
+	case "xmonad":
+		configFileName = "xmonad"
+	default:
+		configFileName = sessionLower
+	}
+
+	configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+	if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+		variantIndex := m.asciiArtIndex
+		if variantIndex >= len(asciiConfig.ASCIIVariants) {
+			variantIndex = 0
+		}
+		ascii := asciiConfig.ASCIIVariants[variantIndex]
+
+		// Recalculate dimensions for the new ASCII
+		lines := strings.Split(ascii, "\n")
+		asciiHeight := len(lines)
+		asciiWidth := 0
+		for _, line := range lines {
+			if len([]rune(line)) > asciiWidth {
+				asciiWidth = len([]rune(line))
+			}
+		}
+
+		// Get current theme colors
+		beamColors, finalColors := getThemeColorsForBeams(m.currentTheme)
+
+		// Reinitialize beams effect completely with new dimensions and colors
+		m.beamsEffect = animations.NewBeamsTextEffect(animations.BeamsTextConfig{
+			Width:              asciiWidth,
+			Height:             asciiHeight,
+			Text:               ascii,
+			BeamGradientStops:  beamColors,
+			FinalGradientStops: finalColors,
+		})
+	}
 }
 
-sessionLower := strings.ToLower(strings.Fields(sessionName)[0])
-var configFileName string
-switch sessionLower {
-case "gnome":
-configFileName = "gnome_desktop"
-case "i3":
-configFileName = "i3wm"
-case "bspwm":
-configFileName = "bspwm_manager"
-case "plasma":
-configFileName = "kde"
-case "xmonad":
-configFileName = "xmonad"
-default:
-configFileName = sessionLower
-}
+// getCustomRoastsForSession loads custom roasts from the session's ASCII config file
+// Returns empty string if no custom roasts are configured (falls back to defaults)
+func getCustomRoastsForSession(sessionName string) string {
+	sessionLower := strings.ToLower(strings.Fields(sessionName)[0])
+	var configFileName string
+	switch sessionLower {
+	case "gnome":
+		configFileName = "gnome_desktop"
+	case "i3":
+		configFileName = "i3wm"
+	case "bspwm":
+		configFileName = "bspwm_manager"
+	case "plasma":
+		configFileName = "kde"
+	case "xmonad":
+		configFileName = "xmonad"
+	default:
+		configFileName = sessionLower
+	}
 
-configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
-if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
-variantIndex := m.asciiArtIndex
-if variantIndex >= len(asciiConfig.ASCIIVariants) {
-variantIndex = 0
-}
-ascii := asciiConfig.ASCIIVariants[variantIndex]
-
-// Recalculate dimensions for the new ASCII
-lines := strings.Split(ascii, "\n")
-asciiHeight := len(lines)
-asciiWidth := 0
-for _, line := range lines {
-if len([]rune(line)) > asciiWidth {
-asciiWidth = len([]rune(line))
-}
-}
-
-// Get current theme colors
-beamColors, finalColors := getThemeColorsForBeams(m.currentTheme)
-
-// Reinitialize beams effect completely with new dimensions and colors
-m.beamsEffect = animations.NewBeamsTextEffect(animations.BeamsTextConfig{
-Width:               asciiWidth,
-Height:              asciiHeight,
-Text:                ascii,
-BeamGradientStops:   beamColors,
-FinalGradientStops:  finalColors,
-})
-}
+	configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+	if asciiConfig, err := loadASCIIConfig(configPath); err == nil {
+		return asciiConfig.Roasts
+	}
+	return ""
 }
