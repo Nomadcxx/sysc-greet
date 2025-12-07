@@ -238,6 +238,7 @@ type ASCIIConfig struct {
 	AnimationStyle     string  // "gradient", "wave", "pulse", "rainbow", "matrix", "typewriter", "glow", "static"
 	AnimationSpeed     float64 // 0.1 (slow) to 2.0 (fast), default 1.0
 	AnimationDirection string  // "left", "right", "up", "down", "center-out", "random"
+	Roasts             string  // Custom roast messages separated by │
 }
 
 // Parse multiple ASCII variants (ascii_1, ascii_2, etc.)
@@ -687,6 +688,31 @@ func initialModel(config Config, screensaverMode bool) model {
 							FinalGradientDirection: "horizontal",
 						})
 					}
+				case "aquarium":
+					// Initialize aquarium effect with terminal dimensions
+					width := m.width
+					height := m.height
+					if width == 0 {
+						width = 80
+					}
+					if height == 0 {
+						height = 30
+					}
+					fishColors, waterColors, seaweedColors, bubbleColor, diverColor, boatColor, mermaidColor, anchorColor := getThemeColorsForAquarium(m.currentTheme)
+					m.aquariumEffect = animations.NewAquariumEffect(animations.AquariumConfig{
+						Width:         width,
+						Height:        height,
+						FishColors:    fishColors,
+						WaterColors:   waterColors,
+						SeaweedColors: seaweedColors,
+						BubbleColor:   bubbleColor,
+						DiverColor:    diverColor,
+						BoatColor:     boatColor,
+						MermaidColor:  mermaidColor,
+						AnchorColor:   anchorColor,
+					})
+					m.lastAquariumWidth = width
+					m.lastAquariumHeight = height
 				default:
 					if wallpaperFileName, isWallpaper := strings.CutPrefix(m.selectedBackground, "wallpaper:"); isWallpaper {
 						launchGslapperWallpaper(wallpaperFileName)
