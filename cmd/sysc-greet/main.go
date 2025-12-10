@@ -584,6 +584,7 @@ func initialModel(config Config, screensaverMode bool) model {
 			}
 			if prefs.Background != "" {
 				m.selectedBackground = prefs.Background
+				logDebug("Loaded cached background: %s", prefs.Background)
 			}
 			if prefs.BorderStyle != "" {
 				m.selectedBorderStyle = prefs.BorderStyle
@@ -751,29 +752,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		logDebug("Terminal resized: %dx%d", msg.Width, msg.Height)
 
-		// Initialize cached backgrounds on first size message (compositor ready + dimensions known)
+		// Launch gslapper on first size message (compositor ready)
 		if firstSizeMsg {
-			// Aquarium: initialize if selected but not yet created
-			if m.selectedBackground == "aquarium" && m.aquariumEffect == nil {
-				fishColors, waterColors, seaweedColors, bubbleColor, diverColor, boatColor, mermaidColor, anchorColor := getThemeColorsForAquarium(m.currentTheme)
-				m.aquariumEffect = animations.NewAquariumEffect(animations.AquariumConfig{
-					Width:         m.width,
-					Height:        m.height,
-					FishColors:    fishColors,
-					WaterColors:   waterColors,
-					SeaweedColors: seaweedColors,
-					BubbleColor:   bubbleColor,
-					DiverColor:    diverColor,
-					BoatColor:     boatColor,
-					MermaidColor:  mermaidColor,
-					AnchorColor:   anchorColor,
-				})
-				m.lastAquariumWidth = m.width
-				m.lastAquariumHeight = m.height
-				logDebug("Initialized aquarium from cache: %dx%d", m.width, m.height)
-			}
-
-			// Gslapper: launch if wallpaper selected
 			if wallpaperFileName, isWallpaper := strings.CutPrefix(m.selectedBackground, "wallpaper:"); isWallpaper {
 				launchGslapperWallpaper(wallpaperFileName)
 				logDebug("Launched gslapper from cache: %s", wallpaperFileName)
@@ -786,6 +766,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.animationFrame++
 		m.pulseColor = (m.pulseColor + 1) % 100
 		m.borderFrame = (m.borderFrame + 1) % 20
+
+		// Lazy init: create aquarium on first tick when we have real dimensions
+		if m.selectedBackground == "aquarium" && m.aquariumEffect == nil && m.width > 0 && m.height > 0 {
+			fishColors, waterColors, seaweedColors, bubbleColor, diverColor, boatColor, mermaidColor, anchorColor := getThemeColorsForAquarium(m.currentTheme)
+			m.aquariumEffect = animations.NewAquariumEffect(animations.AquariumConfig{
+				Width:         m.width,
+				Height:        m.height,
+				FishColors:    fishColors,
+				WaterColors:   waterColors,
+				SeaweedColors: seaweedColors,
+				BubbleColor:   bubbleColor,
+				DiverColor:    diverColor,
+				BoatColor:     boatColor,
+				MermaidColor:  mermaidColor,
+				AnchorColor:   anchorColor,
+			})
+			m.lastAquariumWidth = m.width
+			m.lastAquariumHeight = m.height
+			logDebug("Lazy init aquarium in tick: %dx%d", m.width, m.height)
+		}
 
 		// CHANGED 2025-10-10 - Update screensaver time and check for activation
 		m.screensaverTime = time.Time(msg)
