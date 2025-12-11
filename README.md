@@ -16,15 +16,36 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 
 ## Installation
 
+### Quick Install Script
+
+One-line install for most systems:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo bash
+```
+
+### Manual Build
+
+The installer lets you choose your compositor and handles all configuration:
+
+```bash
+git clone https://github.com/Nomadcxx/sysc-greet
+cd sysc-greet
+go run ./cmd/installer/
+```
+
 ### Arch Linux (AUR)
+
 First, decide which compositor you want. sysc-greet will install the recommended default (niri), sysc-greet-hyperland installs the Hyprland variant, and sysc-greet-sway installs the Sway variant.
-```bash RECOMMENDED
+
+```bash
+# Recommended (niri)
 yay -S sysc-greet
-```
-```bash
+
+# Hyprland variant
 yay -S sysc-greet-hyprland
-```
-```bash
+
+# Sway variant
 yay -S sysc-greet-sway
 ```
 
@@ -76,30 +97,14 @@ Then rebuild your system:
 sudo nixos-rebuild switch --flake .#your-hostname
 ```
 
-### Installer (Recommended)
-
-The installer lets you choose your compositor and handles all configuration:
-
-```bash
-git clone https://github.com/Nomadcxx/sysc-greet
-cd sysc-greet/sysc-greet
-go run ./cmd/installer/
-```
-
-### Quick Install Script
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo bash
-```
-
-### Manual Build
+### Advanced: Manual Build from Source
 
 **Requirements:**
 - Go 1.21+
 - greetd
 - Wayland compositor (niri, hyprland, or sway)
 - kitty (terminal)
-- swww (wallpaper daemon)
+- swww (wallpaper daemon) - **⚠️ Will be replaced with awww in next major release**
 - gslapper (optional, for video wallpapers)
 
 **Build and install:**
