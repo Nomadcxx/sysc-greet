@@ -389,7 +389,8 @@ type model struct {
 	aquariumEffect     *animations.AquariumEffect   // Aquarium background effect
 	lastAquariumWidth  int
 	lastAquariumHeight int
-	aquariumFrameSkip  int // Frame counter for throttling aquarium to 20fps
+	aquariumFrameSkip  int  // Frame counter for throttling aquarium to 20fps
+	gslapperLaunched   bool // Track if gslapper was launched from cache
 }
 
 type sessionSelectedMsg sessions.Session
@@ -751,19 +752,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		firstSizeMsg := (m.width == 0 && m.height == 0)
 		m.width = msg.Width
 		m.height = msg.Height
 		logDebug("Terminal resized: %dx%d", msg.Width, msg.Height)
-
-		// Launch gslapper on first size message (compositor ready)
-		if firstSizeMsg {
-			if wallpaperFileName, isWallpaper := strings.CutPrefix(m.selectedBackground, "wallpaper:"); isWallpaper {
-				launchGslapperWallpaper(wallpaperFileName)
-				logDebug("Launched gslapper from cache: %s", wallpaperFileName)
-			}
-		}
-
 		return m, nil
 
 	case tickMsg:
@@ -789,6 +780,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.lastAquariumWidth = m.width
 			m.lastAquariumHeight = m.height
 			logDebug("Lazy init aquarium in tick: %dx%d", m.width, m.height)
+		}
+
+		// Lazy init: launch gslapper on first tick when compositor is ready
+		if !m.gslapperLaunched && m.width > 0 {
+			if wallpaperFileName, isWallpaper := strings.CutPrefix(m.selectedBackground, "wallpaper:"); isWallpaper {
+				launchGslapperWallpaper(wallpaperFileName)
+				m.gslapperLaunched = true
+				logDebug("Lazy init gslapper in tick: %s", wallpaperFileName)
+			}
 		}
 
 		// CHANGED 2025-10-10 - Update screensaver time and check for activation
