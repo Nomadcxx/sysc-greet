@@ -21,7 +21,7 @@ func (m model) navigateToWallpaperSubmenu() (tea.Model, tea.Cmd) {
 		filepath.Join(os.Getenv("HOME"), "Pictures", "wallpapers"),
 	}
 
-	m.menuOptions = []string{"← Back"}
+	m.menuOptions = []string{"← Back", "Stop Wallpaper"}
 
 	// Try each directory until we find one that exists
 	for _, wallpaperDir := range wallpaperDirs {
@@ -42,6 +42,13 @@ func (m model) navigateToWallpaperSubmenu() (tea.Model, tea.Cmd) {
 	m.mode = ModeWallpaperSubmenu
 	m.menuIndex = 0
 	return m, nil
+}
+
+// stopGslapper kills any running gslapper process
+func stopGslapper() {
+	go func() {
+		exec.Command("pkill", "-f", "gslapper").Run()
+	}()
 }
 
 // launchGslapperWallpaper kills existing gslapper and launches new one with selected wallpaper
@@ -97,7 +104,27 @@ func launchGslapperWallpaper(wallpaperFilename string) {
 
 // handleWallpaperSelection processes wallpaper menu selection
 func (m model) handleWallpaperSelection(selectedOption string) (tea.Model, tea.Cmd) {
-	if selectedOption != "← Back" {
+	if selectedOption == "Stop Wallpaper" {
+		// Kill gslapper and clear wallpaper preference
+		stopGslapper()
+		m.selectedWallpaper = ""
+		m.gslapperLaunched = false
+
+		// Save cleared preference to cache
+		if !m.config.TestMode {
+			sessionName := ""
+			if m.selectedSession != nil {
+				sessionName = m.selectedSession.Name
+			}
+			cache.SavePreferences(cache.UserPreferences{
+				Theme:       m.currentTheme,
+				Background:  m.selectedBackground,
+				Wallpaper:   m.selectedWallpaper, // Now empty
+				BorderStyle: m.selectedBorderStyle,
+				Session:     sessionName,
+			})
+		}
+	} else if selectedOption != "← Back" {
 		// Launch gslapper with selected wallpaper
 		launchGslapperWallpaper(selectedOption)
 
