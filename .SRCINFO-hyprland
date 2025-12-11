@@ -1,21 +1,25 @@
-pkgbase = sysc-greet
-	pkgdesc = Graphical console greeter for greetd with ASCII art and themes
+pkgbase = sysc-greet-hyprland
+	pkgdesc = Graphical console greeter for greetd with ASCII art and themes (Hyprland compositor)
 	pkgver = 1.0.8
 	pkgrel = 1
 	url = https://github.com/Nomadcxx/sysc-greet
-	install = sysc-greet.install
+	install = sysc-greet-hyprland.install
 	arch = x86_64
 	arch = aarch64
 	license = MIT
 	makedepends = go>=1.21
 	depends = greetd
 	depends = kitty
-	depends = niri
+	depends = hyprland
 	depends = swww
 	optdepends = gslapper: Video wallpaper support
+	provides = sysc-greet
+	conflicts = sysc-greet-niri
+	conflicts = sysc-greet-sway
+	conflicts = sysc-greet
 	backup = etc/greetd/config.toml
-	backup = etc/greetd/niri-greeter-config.kdl
+	backup = etc/greetd/hyprland-greeter-config.conf
 	source = sysc-greet-1.0.8.tar.gz::https://github.com/Nomadcxx/sysc-greet/archive/v1.0.8.tar.gz
 	sha256sums = 17eda17bfaa206e807f7030b375281831563c5c4695855e048e2d40bd476826c
 
-pkgname = sysc-greet
+pkgname = sysc-greet-hyprland

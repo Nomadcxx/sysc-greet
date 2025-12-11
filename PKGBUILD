@@ -12,7 +12,7 @@ optdepends=(
 )
 makedepends=('go>=1.21')
 source=("${pkgname}-${pkgver}.tar.gz::https://github.com/Nomadcxx/${pkgname}/archive/v${pkgver}.tar.gz")
-sha256sums=('2e7354d6096b36bcd4a2d19668a97c859624c654c74b07eb83d41a2fdc5df36f')
+sha256sums=('17eda17bfaa206e807f7030b375281831563c5c4695855e048e2d40bd476826c')
 backup=('etc/greetd/config.toml' 'etc/greetd/niri-greeter-config.kdl')
 install=${pkgname}.install
 
