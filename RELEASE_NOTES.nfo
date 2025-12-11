@@ -8,11 +8,14 @@
  ░░░░░░░░░  ░░░░░        ░░░░░   ░░░░░   ░░░░░░░░░  ░░░░░░░░░░
  //////////////////////SEE YOU IN SPACE COWBOY///////////////
 
-VERSION 1.0.2 - Latest Updates:
-  - Username persistence with auto-advance to password field
-  - Themed wallpaper persistence (no more Dracula race condition)
-  - Power menu fixes (shutdown/reboot now work correctly)
-  - Session-specific username caching
+VERSION 1.0.8 - Latest Updates:
+  - Fixed wallpaper and background effect caching (can now use both simultaneously)
+  - Fixed aquarium and gslapper initialization timing issues
+  - Customizable roast messages per window manager
+  - NixOS flake support with proper path substitution
+  - XKB environment variables for non-US keyboard layouts
+  - Improved installer ASCII art
+  - Documentation improvements
 
 THEMES (9):
   Dracula, Catppuccin, Nord, Tokyo Night, Gruvbox
