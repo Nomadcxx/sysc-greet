@@ -389,8 +389,9 @@ type model struct {
 	aquariumEffect     *animations.AquariumEffect   // Aquarium background effect
 	lastAquariumWidth  int
 	lastAquariumHeight int
-	aquariumFrameSkip  int  // Frame counter for throttling aquarium to 20fps
-	gslapperLaunched   bool // Track if gslapper was launched from cache
+	aquariumFrameSkip  int    // Frame counter for throttling aquarium to 20fps
+	selectedWallpaper  string // gslapper video wallpaper (separate from background effect)
+	gslapperLaunched   bool   // Track if gslapper was launched from cache
 }
 
 type sessionSelectedMsg sessions.Session
@@ -586,6 +587,10 @@ func initialModel(config Config, screensaverMode bool) model {
 			if prefs.Background != "" {
 				m.selectedBackground = prefs.Background
 				logDebug("Loaded cached background: %s", prefs.Background)
+			}
+			if prefs.Wallpaper != "" {
+				m.selectedWallpaper = prefs.Wallpaper
+				logDebug("Loaded cached wallpaper: %s", prefs.Wallpaper)
 			}
 			if prefs.BorderStyle != "" {
 				m.selectedBorderStyle = prefs.BorderStyle
@@ -783,12 +788,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Lazy init: launch gslapper on first tick when compositor is ready
-		if !m.gslapperLaunched && m.width > 0 {
-			if wallpaperFileName, isWallpaper := strings.CutPrefix(m.selectedBackground, "wallpaper:"); isWallpaper {
-				launchGslapperWallpaper(wallpaperFileName)
-				m.gslapperLaunched = true
-				logDebug("Lazy init gslapper in tick: %s", wallpaperFileName)
-			}
+		if !m.gslapperLaunched && m.width > 0 && m.selectedWallpaper != "" {
+			launchGslapperWallpaper(m.selectedWallpaper)
+			m.gslapperLaunched = true
+			logDebug("Lazy init gslapper in tick: %s", m.selectedWallpaper)
 		}
 
 		// CHANGED 2025-10-10 - Update screensaver time and check for activation
@@ -933,6 +936,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cache.SavePreferences(cache.UserPreferences{
 					Theme:       m.currentTheme,
 					Background:  m.selectedBackground,
+					Wallpaper:   m.selectedWallpaper,
 					BorderStyle: m.selectedBorderStyle,
 					Session:     session.Name,
 					Username:    username,
@@ -991,6 +995,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cache.SavePreferences(cache.UserPreferences{
 					Theme:       m.currentTheme,
 					Background:  m.selectedBackground,
+					Wallpaper:   m.selectedWallpaper,
 					BorderStyle: m.selectedBorderStyle,
 					Session:     sessionName,
 					Username:    username,
@@ -1368,6 +1373,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						cache.SavePreferences(cache.UserPreferences{
 							Theme:       m.currentTheme,
 							Background:  m.selectedBackground,
+							Wallpaper:   m.selectedWallpaper,
 							BorderStyle: m.selectedBorderStyle,
 							Session:     m.selectedSession.Name,
 							Username:    username,
@@ -1463,6 +1469,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						cache.SavePreferences(cache.UserPreferences{
 							Theme:       m.currentTheme,
 							Background:  m.selectedBackground,
+							Wallpaper:   m.selectedWallpaper,
 							BorderStyle: m.selectedBorderStyle,
 							Session:     m.selectedSession.Name,
 							Username:    username,
@@ -1586,6 +1593,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						cache.SavePreferences(cache.UserPreferences{
 							Theme:       m.currentTheme,
 							Background:  m.selectedBackground,
+							Wallpaper:   m.selectedWallpaper,
 							BorderStyle: m.selectedBorderStyle,
 							Session:     sessionName,
 							ASCIIIndex:  m.asciiArtIndex,
@@ -1642,6 +1650,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					cache.SavePreferences(cache.UserPreferences{
 						Theme:       m.currentTheme,
 						Background:  m.selectedBackground,
+						Wallpaper:   m.selectedWallpaper,
 						BorderStyle: m.selectedBorderStyle,
 						Session:     sessionName,
 						ASCIIIndex:  m.asciiArtIndex,
@@ -1735,6 +1744,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					cache.SavePreferences(cache.UserPreferences{
 						Theme:       m.currentTheme,
 						Background:  m.selectedBackground,
+						Wallpaper:   m.selectedWallpaper,
 						BorderStyle: m.selectedBorderStyle,
 						Session:     sessionName,
 						ASCIIIndex:  m.asciiArtIndex,
@@ -1974,6 +1984,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					cache.SavePreferences(cache.UserPreferences{
 						Theme:       m.currentTheme,
 						Background:  m.selectedBackground,
+						Wallpaper:   m.selectedWallpaper,
 						BorderStyle: m.selectedBorderStyle,
 						Session:     sessionName,
 						Username:    "",

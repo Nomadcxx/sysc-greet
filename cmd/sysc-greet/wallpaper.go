@@ -101,7 +101,9 @@ func (m model) handleWallpaperSelection(selectedOption string) (tea.Model, tea.C
 		// Launch gslapper with selected wallpaper
 		launchGslapperWallpaper(selectedOption)
 
-		m.selectedBackground = "wallpaper:" + selectedOption
+		// Store wallpaper separately from background effect
+		m.selectedWallpaper = selectedOption
+		m.gslapperLaunched = true
 
 		// Save preference
 		if !m.config.TestMode {
@@ -112,6 +114,7 @@ func (m model) handleWallpaperSelection(selectedOption string) (tea.Model, tea.C
 			cache.SavePreferences(cache.UserPreferences{
 				Theme:       m.currentTheme,
 				Background:  m.selectedBackground,
+				Wallpaper:   m.selectedWallpaper,
 				BorderStyle: m.selectedBorderStyle,
 				Session:     sessionName,
 			})
