@@ -104,7 +104,7 @@ sudo nixos-rebuild switch --flake .#your-hostname
 - greetd
 - Wayland compositor (niri, hyprland, or sway)
 - kitty (terminal)
-- swww (wallpaper daemon) - **⚠️ Will be replaced with awww in next major release**
+- swww (wallpaper daemon) - **Will be replaced with awww in next major release**
 - gslapper (optional, for video wallpapers)
 
 **Build and install:**
