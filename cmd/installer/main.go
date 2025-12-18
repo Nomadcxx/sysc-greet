@@ -1176,10 +1176,7 @@ windowrulev2 = fullscreen, class:^(kitty)$
 windowrulev2 = opacity 1.0 override, class:^(kitty)$
 
 # Layer rules for wallpaper daemon
-layerrule {
-    match:namespace = wallpaper
-    blur = true
-}
+layerrule = blur, wallpaper
 
 # Startup applications
 exec-once = swww-daemon
