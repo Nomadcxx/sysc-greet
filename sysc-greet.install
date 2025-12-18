@@ -39,9 +39,17 @@ EOF
     systemctl enable greetd.service
 
     echo ""
-    echo "==> sysc-greet installed successfully!"
+    echo "  ██████████████░████░       ████░   ██████████████░  ██████████████░"
+    echo "████████████████░████░       ████░ ████████████████░████████████████░"
+    echo "████░            ██████░   ██████░ ████░            ████░            "
+    echo "██████████████░    ████████████░   ██████████████░  ████░            "
+    echo "  ██████████████░    ████████░       ██████████████░████░            "
+    echo "            ████░      ████░                   ████░████░            "
+    echo "████████████████░      ████░       ████████████████░████████████████░"
+    echo "██████████████░        ████░       ██████████████░    ██████████████░"
+    echo "	//////////////SEE YOU IN SPACE COWBOY//////////"
     echo ""
-    echo "Reboot to see sysc-greet"
+    echo "sysc-greet installed. Reboot to start."
     echo ""
 }
 
@@ -55,14 +63,21 @@ post_upgrade() {
     chown -R greeter:greeter /var/lib/greeter 2>/dev/null || true
 
     echo ""
-    echo "==> sysc-greet upgraded successfully!"
+    echo "  ██████████████░████░       ████░   ██████████████░  ██████████████░"
+    echo "████████████████░████░       ████░ ████████████████░████████████████░"
+    echo "████░            ██████░   ██████░ ████░            ████░            "
+    echo "██████████████░    ████████████░   ██████████████░  ████░            "
+    echo "  ██████████████░    ████████░       ██████████████░████░            "
+    echo "            ████░      ████░                   ████░████░            "
+    echo "████████████████░      ████░       ████████████████░████████████████░"
+    echo "██████████████░        ████░       ██████████████░    ██████████████░"
+    echo "	//////////////SEE YOU IN SPACE COWBOY//////////"
     echo ""
-    echo "NOTE: greetd service was NOT restarted automatically."
-    echo "To apply changes:"
-    echo "  - Reboot your system, OR"
-    echo "  - Manually restart: sudo systemctl restart greetd.service"
+    echo "==> Upgrade complete!"
     echo ""
-    echo "WARNING: Restarting greetd will kill your current session!"
+    echo "Reboot or restart greetd to apply changes."
+    echo ""
+    echo "WARNING: sudo systemctl restart greetd will kill your current session"
     echo ""
 }
 
