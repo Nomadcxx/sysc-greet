@@ -1116,6 +1116,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		// Remapped F1 to Menu
 		// Main menu
 		if m.mode == ModeLogin || m.mode == ModePassword {
+			m.sessionDropdownOpen = false
 			m.mode = ModeMenu
 			m.menuIndex = 0
 
@@ -1143,6 +1144,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		// Remapped F3 to Notes
 		// Release notes popup
 		if m.mode == ModeLogin || m.mode == ModePassword {
+			m.sessionDropdownOpen = false
 			if m.config.Debug {
 				fmt.Println("Debug: Opening release notes")
 			}
@@ -1156,6 +1158,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		// F4 remains Power
 		// Power menu
 		if m.mode == ModeLogin || m.mode == ModePassword {
+			m.sessionDropdownOpen = false
 			if m.config.Debug {
 				fmt.Println("Debug: Opening power menu")
 			}
