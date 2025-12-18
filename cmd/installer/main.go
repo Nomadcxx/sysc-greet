@@ -1367,6 +1367,8 @@ func removeConfigs(m *model) error {
 		"/usr/share/sysc-greet",
 		"/etc/greetd/kitty.conf",
 		"/etc/greetd/niri-greeter-config.kdl",
+		"/etc/greetd/hyprland-greeter-config.conf",
+		"/etc/greetd/sway-greeter-config",
 	}
 
 	for _, path := range paths {
