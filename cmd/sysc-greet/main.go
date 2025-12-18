@@ -1114,59 +1114,56 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 
 	case "f1":
 		// Remapped F1 to Menu
-		// Main menu
-		if m.mode == ModeLogin || m.mode == ModePassword {
-			m.sessionDropdownOpen = false
-			m.mode = ModeMenu
-			m.menuIndex = 0
+		// Main menu - works from any mode
+		m.sessionDropdownOpen = false
+		m.mode = ModeMenu
+		m.menuIndex = 0
 
-			// Build new structured menu
-			m.menuOptions = []string{
-				"Close Menu",
-				"Themes",
-				"Borders",
-				"Backgrounds",
-				"ASCII Effects",
-				"Wallpaper",
-			}
-			return m, nil
+		// Build new structured menu
+		m.menuOptions = []string{
+			"Close Menu",
+			"Themes",
+			"Borders",
+			"Backgrounds",
+			"ASCII Effects",
+			"Wallpaper",
 		}
+		return m, nil
 
 	case "f2":
 		// Remapped F2 to Sessions
-		// Toggle session dropdown
-		if m.mode == ModeLogin || m.mode == ModePassword {
-			m.sessionDropdownOpen = !m.sessionDropdownOpen
-			return m, nil
-		}
+		// Toggle session dropdown - works from any mode, returns to login
+		m.mode = ModeLogin
+		m.focusState = FocusUsername
+		m.usernameInput.Focus()
+		m.passwordInput.Blur()
+		m.sessionDropdownOpen = !m.sessionDropdownOpen
+		return m, textinput.Blink
 
 	case "f3":
 		// Remapped F3 to Notes
-		// Release notes popup
-		if m.mode == ModeLogin || m.mode == ModePassword {
-			m.sessionDropdownOpen = false
-			if m.config.Debug {
-				fmt.Println("Debug: Opening release notes")
-			}
-			m.mode = ModeReleaseNotes
-			m.usernameInput.Blur()
-			m.passwordInput.Blur()
-			return m, nil
+		// Release notes popup - works from any mode
+		m.sessionDropdownOpen = false
+		if m.config.Debug {
+			fmt.Println("Debug: Opening release notes")
 		}
+		m.mode = ModeReleaseNotes
+		m.usernameInput.Blur()
+		m.passwordInput.Blur()
+		return m, nil
 
 	case "f4":
 		// F4 remains Power
-		// Power menu
-		if m.mode == ModeLogin || m.mode == ModePassword {
-			m.sessionDropdownOpen = false
-			if m.config.Debug {
-				fmt.Println("Debug: Opening power menu")
-			}
-			m.mode = ModePower
-			m.usernameInput.Blur()
-			m.passwordInput.Blur()
-			return m, nil
+		// Power menu - works from any mode, resets to first option
+		m.sessionDropdownOpen = false
+		m.powerIndex = 0
+		if m.config.Debug {
+			fmt.Println("Debug: Opening power menu")
 		}
+		m.mode = ModePower
+		m.usernameInput.Blur()
+		m.passwordInput.Blur()
+		return m, nil
 
 	case "tab":
 		// Cycle focus through form elements
