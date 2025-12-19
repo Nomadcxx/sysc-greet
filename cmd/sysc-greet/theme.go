@@ -136,7 +136,7 @@ func applyTheme(themeName string, testMode bool) {
 		BgSubtle = BgBase                       // Keep consistent
 		Primary = lipgloss.Color("#ef233c")     // Red Pantone
 		Secondary = lipgloss.Color("#d90429")   // Fire engine red
-		Accent = lipgloss.Color("#8d99ae")      // Cool gray
+		Accent = lipgloss.Color("#ef233c")      // Red Pantone (for menu highlight contrast)
 		FgPrimary = lipgloss.Color("#edf2f4")   // Anti-flash white
 		FgSecondary = lipgloss.Color("#8d99ae") // Cool gray
 		FgMuted = lipgloss.Color("#8d99ae")     // Cool gray
