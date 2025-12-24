@@ -1,6 +1,6 @@
 # sysc-greet
 
-A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd), written in Go with the Bubble Tea framework. Provides a themeable, animated login screen for Wayland compositors with ASCII art sessions, background effects, and screensavers.
+A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd), written in Go with the Bubble Tea framework.
 
 ![Preview](https://github.com/Nomadcxx/sysc-greet/raw/master/assets/showcase.gif)
 
@@ -26,6 +26,18 @@ The installer automatically detects your package manager and works on:
 - **Alpine Linux** (apk)
 
 It handles compositor selection, dependency installation, and configuration automatically.
+
+### Build from Source
+
+Build and install using the interactive installer:
+
+```bash
+git clone https://github.com/Nomadcxx/sysc-greet
+cd sysc-greet
+go run ./cmd/installer/
+```
+
+The installer guides you through compositor selection and configuration.
 
 ### Arch Linux (AUR)
 
@@ -89,18 +101,6 @@ Then rebuild:
 ```bash
 sudo nixos-rebuild switch --flake .#your-hostname
 ```
-
-### Build from Source
-
-Build and install using the interactive installer:
-
-```bash
-git clone https://github.com/Nomadcxx/sysc-greet
-cd sysc-greet
-go run ./cmd/installer/
-```
-
-The installer guides you through compositor selection and configuration.
 
 ## Documentation
 
