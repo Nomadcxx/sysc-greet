@@ -37,8 +37,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install mkdocs
-          pip install mkdocs-bootstrap386 || pip install git+https://github.com/mkdocs/mkdocs-bootstrap386.git || echo "Note: bootstrap386 theme may need manual installation"
+          pip install mkdocs-material
 
       - name: Build documentation
         run: mkdocs build
