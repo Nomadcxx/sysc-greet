@@ -115,3 +115,9 @@ src/
 
 # MkDocs build output
 site/
+
+# Arch Linux package files
+PKGBUILD*
+*.install
+.SRCINFO*
+mkdocs.yml
