@@ -121,3 +121,6 @@ PKGBUILD*
 *.install
 .SRCINFO*
 mkdocs.yml
+
+# Development scripts (not for end users)
+.dev-scripts/
