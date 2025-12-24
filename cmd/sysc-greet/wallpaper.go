@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/Nomadcxx/sysc-greet/internal/cache"
+	"github.com/Nomadcxx/sysc-greet/internal/wallpaper"
 	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
@@ -28,8 +29,16 @@ func (m model) navigateToWallpaperSubmenu() (tea.Model, tea.Cmd) {
 		files, err := os.ReadDir(wallpaperDir)
 		if err == nil {
 			for _, file := range files {
-				if !file.IsDir() && strings.HasSuffix(strings.ToLower(file.Name()), ".mp4") {
-					m.menuOptions = append(m.menuOptions, file.Name())
+				if !file.IsDir() {
+					// Check for video and static image extensions
+					ext := strings.ToLower(filepath.Ext(file.Name()))
+					validExts := []string{".mp4", ".mkv", ".webm", ".avi", ".mov", ".png", ".jpg", ".jpeg", ".webp", ".gif"}
+					for _, validExt := range validExts {
+						if ext == validExt {
+							m.menuOptions = append(m.menuOptions, file.Name())
+							break
+						}
+					}
 				}
 			}
 			// If we found files, save the directory and break
@@ -51,9 +60,9 @@ func stopGslapper() {
 	}()
 }
 
-// launchGslapperWallpaper kills existing gslapper and launches new one with selected wallpaper
+// launchGslapperWallpaper changes wallpaper via gSlapper IPC, falling back to process restart if needed
 func launchGslapperWallpaper(wallpaperFilename string) {
-	// CHANGED 2025-10-06 - Try multiple wallpaper directories - Problem: greeter user has different $HOME
+	// CHANGED 2025-12-24 - Use IPC for wallpaper changes (no flicker), fallback to restart
 	wallpaperPaths := []string{
 		filepath.Join("/var/lib/greeter/Pictures/wallpapers", wallpaperFilename),
 		filepath.Join(os.Getenv("HOME"), "Pictures", "wallpapers", wallpaperFilename),
@@ -73,32 +82,29 @@ func launchGslapperWallpaper(wallpaperFilename string) {
 		wallpaperPath = wallpaperPaths[0]
 	}
 
-	// CHANGED 2025-10-04 - Fixed gslapper flags
 	go func() {
-		// Kill any existing gslapper process
-		killCmd := exec.Command("pkill", "-f", "gslapper")
-		killErr := killCmd.Run()
-
-		// Start new gslapper with selected wallpaper
-		// Correct syntax: gslapper -s -o "loop panscan=1.0" '*' /path/to/video.mp4
-		// -s: daemon mode, -o: gstreamer options, '*': all monitors
-		cmd := exec.Command("gslapper", "-s", "-o", "loop panscan=1.0", "*", wallpaperPath)
-		startErr := cmd.Start()
-
-		// Write status to a debug file so user can check if it's being called
-		debugFile := "/tmp/sysc-greet-wallpaper.log" // FIXED 2025-10-15 - Corrected log filename from bubble-greet to sysc-greet
-		logMsg := ""
-		if killErr != nil {
-			logMsg += "pkill gslapper: " + killErr.Error() + "\n"
-		} else {
-			logMsg += "pkill gslapper: success\n"
+		// Try IPC first (preferred - no flicker)
+		if wallpaper.IsGSlapperRunning() {
+			if err := wallpaper.ChangeWallpaper(wallpaperPath); err == nil {
+				return // Success via IPC
+			}
 		}
-		if startErr != nil {
-			logMsg += "gslapper start: " + startErr.Error() + "\n"
-		} else {
-			logMsg += "gslapper started: gslapper -s -o \"loop panscan=1.0\" '*' " + wallpaperPath + "\n"
+
+		// Fallback: kill and restart gslapper
+		exec.Command("pkill", "-f", "gslapper").Run()
+
+		// Determine if video or static image
+		ext := strings.ToLower(filepath.Ext(wallpaperFilename))
+		var cmd *exec.Cmd
+		switch ext {
+		case ".mp4", ".mkv", ".webm", ".avi", ".mov":
+			// Video: use loop and panscan
+			cmd = exec.Command("gslapper", "-s", "-o", "loop panscan=1.0", "*", wallpaperPath)
+		default:
+			// Static image: use fill mode
+			cmd = exec.Command("gslapper", "-o", "fill", "*", wallpaperPath)
 		}
-		os.WriteFile(debugFile, []byte(logMsg), 0644)
+		cmd.Start()
 	}()
 }
 
