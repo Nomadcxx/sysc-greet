@@ -95,9 +95,9 @@ func newModel() model {
 		{name: "Check dependencies", description: "Checking system dependencies", execute: checkDependencies, status: statusPending},
 		{name: "Install greetd", description: "Installing greetd daemon", execute: installGreetd, optional: false, status: statusPending},
 		{name: "Install kitty", description: "Installing kitty terminal", execute: installKitty, optional: false, status: statusPending},
-		{name: "Install swww", description: "Installing wallpaper daemon", execute: installSwww, optional: false, status: statusPending},
 		{name: "Install compositor", description: "Installing Wayland compositor", execute: installCompositor, optional: false, status: statusPending},
-		{name: "Install gslapper", description: "Installing video wallpaper support", execute: installGslapper, optional: true, status: statusPending},
+		{name: "Install gslapper", description: "Installing wallpaper daemon", execute: installGslapper, optional: false, status: statusPending},
+		{name: "Install swww", description: "Installing legacy wallpaper support", execute: installSwww, optional: true, status: statusPending},
 		{name: "Build binary", description: "Building sysc-greet", execute: buildBinary, status: statusPending},
 		{name: "Install binary", description: "Installing to system", execute: installBinary, status: statusPending},
 		{name: "Install configs", description: "Installing configurations", execute: installConfigs, status: statusPending},
@@ -913,12 +913,156 @@ func installGslapper(m *model) error {
 	return buildGslapperFromSource(m)
 }
 
+// getGStreamerDeps returns the distro-specific GStreamer package names
+func getGStreamerDeps(packageManager string) []string {
+	switch packageManager {
+	case "pacman":
+		// Arch Linux - packages in official repos
+		return []string{
+			"gstreamer",
+			"gst-plugins-base",
+			"gst-plugins-good",
+			"gst-plugins-bad",
+			"gst-plugin-gtk4",
+			"gtk4-layer-shell",
+			"wayland-protocols",
+		}
+	case "apt":
+		// Debian/Ubuntu - note the different naming convention (gstreamer1.0-*)
+		return []string{
+			"libgstreamer1.0-dev",
+			"libgstreamer-plugins-base1.0-dev",
+			"gstreamer1.0-plugins-base",
+			"gstreamer1.0-plugins-good",
+			"gstreamer1.0-plugins-bad",
+			"gstreamer1.0-gtk3",
+			"libgtk-4-dev",
+			"libgtk4-layer-shell-dev",
+			"libwayland-dev",
+			"wayland-protocols",
+		}
+	case "dnf":
+		// Fedora - note the different naming convention (gstreamer1-*)
+		return []string{
+			"gstreamer1-devel",
+			"gstreamer1-plugins-base-devel",
+			"gstreamer1-plugins-base",
+			"gstreamer1-plugins-good",
+			"gstreamer1-plugins-bad-free",
+			"gtk4-devel",
+			"gtk4-layer-shell-devel",
+			"wayland-devel",
+			"wayland-protocols-devel",
+		}
+	case "yum":
+		// RHEL/CentOS - similar to Fedora
+		return []string{
+			"gstreamer1-devel",
+			"gstreamer1-plugins-base-devel",
+			"gtk3-devel",
+		}
+	case "zypper":
+		// openSUSE
+		return []string{
+			"gstreamer-devel",
+			"gstreamer-plugins-base-devel",
+			"gtk4-devel",
+			"wayland-devel",
+		}
+	case "apk":
+		// Alpine Linux
+		return []string{
+			"gstreamer-dev",
+			"gst-plugins-base-dev",
+			"gtk4.0-dev",
+			"wayland-dev",
+		}
+	default:
+		return []string{}
+	}
+}
+
+// installGStreamerDeps installs GStreamer dependencies for building gSlapper
+func installGStreamerDeps(m *model) error {
+	deps := getGStreamerDeps(m.packageManager)
+	if len(deps) == 0 {
+		return fmt.Errorf("no GStreamer packages defined for %s", m.packageManager)
+	}
+
+	var cmd *exec.Cmd
+	switch m.packageManager {
+	case "pacman":
+		args := append([]string{"-S", "--noconfirm", "--needed"}, deps...)
+		cmd = exec.Command("pacman", args...)
+	case "apt":
+		// Update first
+		exec.Command("apt-get", "update").Run()
+		args := append([]string{"install", "-y"}, deps...)
+		cmd = exec.Command("apt-get", args...)
+	case "dnf":
+		args := append([]string{"install", "-y"}, deps...)
+		cmd = exec.Command("dnf", args...)
+	case "yum":
+		args := append([]string{"install", "-y"}, deps...)
+		cmd = exec.Command("yum", args...)
+	case "zypper":
+		args := append([]string{"install", "-y"}, deps...)
+		cmd = exec.Command("zypper", args...)
+	case "apk":
+		exec.Command("apk", "update").Run()
+		args := append([]string{"add"}, deps...)
+		cmd = exec.Command("apk", args...)
+	default:
+		return fmt.Errorf("unsupported package manager for GStreamer deps")
+	}
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to install GStreamer dependencies")
+	}
+	return nil
+}
+
 func buildGslapperFromSource(m *model) error {
-	// Check for build deps
-	deps := []string{"meson", "ninja", "git"}
-	for _, dep := range deps {
-		if _, err := exec.LookPath(dep); err != nil {
-			return fmt.Errorf("missing build dependency: %s", dep)
+	// Install GStreamer dependencies first
+	if err := installGStreamerDeps(m); err != nil {
+		fmt.Fprintf(os.Stderr, "[DEBUG] GStreamer deps install warning: %v\n", err)
+		// Continue anyway - deps might already be installed
+	}
+
+	// Check for build tools
+	buildTools := []string{"meson", "ninja", "git", "pkg-config"}
+	missing := []string{}
+	for _, tool := range buildTools {
+		if _, err := exec.LookPath(tool); err != nil {
+			missing = append(missing, tool)
+		}
+	}
+
+	// Try to install missing build tools
+	if len(missing) > 0 {
+		var cmd *exec.Cmd
+		switch m.packageManager {
+		case "pacman":
+			args := append([]string{"-S", "--noconfirm", "--needed"}, missing...)
+			cmd = exec.Command("pacman", args...)
+		case "apt":
+			args := append([]string{"install", "-y"}, missing...)
+			cmd = exec.Command("apt-get", args...)
+		case "dnf":
+			args := append([]string{"install", "-y"}, missing...)
+			cmd = exec.Command("dnf", args...)
+		default:
+			return fmt.Errorf("missing build tools: %s", strings.Join(missing, ", "))
+		}
+		if cmd != nil {
+			cmd.Run() // Best effort
+		}
+	}
+
+	// Verify build tools are now available
+	for _, tool := range []string{"meson", "ninja", "git"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			return fmt.Errorf("missing build tool: %s", tool)
 		}
 	}
 
@@ -933,7 +1077,7 @@ func buildGslapperFromSource(m *model) error {
 	setupCmd := exec.Command("meson", "setup", "build", "--prefix=/usr/local")
 	setupCmd.Dir = "/tmp/gslapper-build"
 	if err := setupCmd.Run(); err != nil {
-		return fmt.Errorf("build setup failed")
+		return fmt.Errorf("build setup failed - check GStreamer dependencies")
 	}
 
 	buildCmd := exec.Command("ninja", "-C", "build")
@@ -1116,7 +1260,7 @@ window-rule {
     opacity 0.90
 }
 
-spawn-at-startup "swww-daemon"
+spawn-at-startup "gslapper" "-I" "/tmp/sysc-greet-wallpaper.sock" "-o" "fill" "*" "/usr/share/sysc-greet/wallpapers/sysc-greet-default.png"
 
 spawn-sh-at-startup "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
 
@@ -1179,7 +1323,7 @@ windowrulev2 = opacity 1.0 override, class:^(kitty)$
 layerrule = blur, wallpaper
 
 # Startup applications
-exec-once = swww-daemon
+exec-once = gslapper -I /tmp/sysc-greet-wallpaper.sock -o "fill" '*' /usr/share/sysc-greet/wallpapers/sysc-greet-default.png
 exec-once = XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
 `
 		configPath = "/etc/greetd/hyprland-greeter-config.conf"
@@ -1214,7 +1358,7 @@ input type:touchpad {
 for_window [app_id="kitty"] fullscreen enable
 
 # Startup applications
-exec swww-daemon
+exec gslapper -I /tmp/sysc-greet-wallpaper.sock -o "fill" '*' /usr/share/sysc-greet/wallpapers/sysc-greet-default.png
 exec "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; swaymsg exit"
 `
 		configPath = "/etc/greetd/sway-greeter-config"

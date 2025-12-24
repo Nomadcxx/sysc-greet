@@ -51,9 +51,9 @@ sudo cp ~/my-bg.png /usr/share/sysc-greet/wallpapers/sysc-greet-mytheme.png
 sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/sysc-greet-mytheme.png
 ```
 
-## Video Wallpapers
+## Custom Wallpapers
 
-Video wallpapers provide animated backgrounds with multi-monitor support using gSlapper.
+The wallpaper menu provides access to both static images and video backgrounds stored in the user wallpaper directory.
 
 ### Location
 
@@ -61,6 +61,13 @@ Video wallpapers provide animated backgrounds with multi-monitor support using g
 
 ### Supported Formats
 
+**Static Images:**
+- PNG
+- JPG / JPEG
+- WebP
+- GIF
+
+**Video:**
 - MP4
 - WebM
 - MKV
@@ -69,24 +76,28 @@ Video wallpapers provide animated backgrounds with multi-monitor support using g
 
 ### Accessing Wallpapers
 
-Press **F1** Settings then **Wallpaper** to browse available video wallpapers.
+Press **F1** Settings then **Wallpaper** to browse available wallpapers. The menu lists both static images and video files.
 
-### Adding Video Wallpapers
+### Adding Wallpapers
 
 ```bash
+# Copy static image to greeter's wallpaper directory
+sudo cp ~/Pictures/my-bg.png /var/lib/greeter/Pictures/wallpapers/
+sudo chown greeter:greeter /var/lib/greeter/Pictures/wallpapers/my-bg.png
+
 # Copy video to greeter's wallpaper directory
 sudo cp ~/Videos/my-animation.mp4 /var/lib/greeter/Pictures/wallpapers/
 sudo chown greeter:greeter /var/lib/greeter/Pictures/wallpapers/my-animation.mp4
 ```
 
-### Stop Wallpaper
+### Stop Video Wallpaper
 
-From the wallpaper menu, select **Stop Wallpaper** to stop the gSlapper process and clear the wallpaper preference.
+From the wallpaper menu, select **Stop Video Wallpaper** to pause video playback and revert to a static wallpaper. This uses gSlapper's IPC to pause the video without restarting the daemon.
 
 ## Wallpaper Priority
 
-1. Video wallpapers (gSlapper) - Highest priority. When selected, they override themed wallpapers and background effects
-2. Themed wallpapers - Auto-selected when theme changes, unless video wallpaper is active
+1. Custom wallpapers (gSlapper) - Highest priority. When a wallpaper is selected from the menu (video or static), it overrides themed wallpapers and background effects
+2. Themed wallpapers - Auto-selected when theme changes, unless a custom wallpaper is active
 3. Background effects - Fire, Matrix, etc. Only active when no wallpaper is set
 
 ## Troubleshooting
