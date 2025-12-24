@@ -1,4 +1,4 @@
-# sysc-greet
+![sysc-greet logo](assets/logo.png)
 
 sysc-greet is a graphical console greeter for greetd, written in Go with the Bubble Tea framework.
 

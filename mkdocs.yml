@@ -18,6 +18,8 @@ theme:
     - navigation.top
     - search.suggest
     - search.highlight
+  extra_css:
+    - assets/extra.css
   palette:
     - scheme: slate
       primary: indigo
