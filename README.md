@@ -25,11 +25,11 @@ The installer automatically detects your package manager and works on:
 - **openSUSE** (zypper)
 - **Alpine Linux** (apk)
 
-It handles compositor selection, dependency installation, and configuration automatically.
+It'll handle compositor selection, install dependencies, and set everything up for you.
 
 ### Build from Source
 
-Build and install using the interactive installer:
+If you want to build it yourself, just clone the repo and run the installer:
 
 ```bash
 git clone https://github.com/Nomadcxx/sysc-greet
@@ -37,11 +37,11 @@ cd sysc-greet
 go run ./cmd/installer/
 ```
 
-The installer guides you through compositor selection and configuration.
+The installer walks you through compositor selection and configuration.
 
 ### Arch Linux (AUR)
 
-Three AUR packages available for different compositors:
+Three AUR packages available depending on which compositor you're using:
 
 ```bash
 # Recommended (niri)
@@ -56,7 +56,7 @@ yay -S sysc-greet-sway
 
 ### NixOS (Flake)
 
-For NixOS users, sysc-greet is available as a flake. Add to your configuration:
+If you're on NixOS, add sysc-greet to your flake:
 
 **flake.nix:**
 ```nix
@@ -104,7 +104,7 @@ sudo nixos-rebuild switch --flake .#your-hostname
 
 ## Documentation
 
-For detailed documentation, configuration guides, troubleshooting, and usage instructions, see the [full documentation site](https://nomadcxx.github.io/sysc-greet/).
+For detailed docs, configuration guides, troubleshooting, and usage instructions, check out the [full documentation site](https://nomadcxx.github.io/sysc-greet/).
 
 ## License
 
