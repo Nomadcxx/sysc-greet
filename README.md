@@ -1,6 +1,6 @@
 # sysc-greet
 
-A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd), written in Go with the Bubble Tea framework. sysc-greet provides a themeable, animated login screen for Wayland compositors with features like ASCII art sessions, background effects, and screensavers.
+A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd), written in Go with the Bubble Tea framework. Provides a themeable, animated login screen for Wayland compositors with ASCII art sessions, background effects, and screensavers.
 
 ![Preview](https://github.com/Nomadcxx/sysc-greet/raw/master/assets/showcase.gif)
 
@@ -10,19 +10,26 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 
 ## Installation
 
-Choose your preferred installation method below:
+### Quick Install
 
-### Quick Install (Recommended)
-
-One-line install for most systems:
+One-line installer that works on most Linux distributions:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo bash
 ```
 
+The installer automatically detects your package manager and works on:
+- **Arch Linux** (pacman)
+- **Debian/Ubuntu** (apt)
+- **Fedora** (dnf/yum)
+- **openSUSE** (zypper)
+- **Alpine Linux** (apk)
+
+It handles compositor selection, dependency installation, and configuration automatically.
+
 ### Arch Linux (AUR)
 
-Three AUR packages are available for different compositors:
+Three AUR packages available for different compositors:
 
 ```bash
 # Recommended (niri)
@@ -78,7 +85,7 @@ For NixOS users, sysc-greet is available as a flake. Add to your configuration:
 }
 ```
 
-Then rebuild your system:
+Then rebuild:
 ```bash
 sudo nixos-rebuild switch --flake .#your-hostname
 ```
@@ -93,7 +100,7 @@ cd sysc-greet
 go run ./cmd/installer/
 ```
 
-The installer will guide you through compositor selection and configuration.
+The installer guides you through compositor selection and configuration.
 
 ## Documentation
 
