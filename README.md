@@ -1,12 +1,18 @@
 # sysc-greet
 
-A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd), written in Go with the Bubble Tea framework.
+A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd), written in Go with the Bubble Tea framework. sysc-greet provides a themeable, animated login screen for Wayland compositors with features like ASCII art sessions, background effects, and screensavers.
 
 ![Preview](https://github.com/Nomadcxx/sysc-greet/raw/master/assets/showcase.gif)
 
+## Quick Links
+
+- [Full Documentation](https://nomadcxx.github.io/sysc-greet/) - Complete guides, configuration, and usage instructions
+
 ## Installation
 
-### Quick Install Script
+Choose your preferred installation method below:
+
+### Quick Install (Recommended)
 
 One-line install for most systems:
 
@@ -14,19 +20,9 @@ One-line install for most systems:
 curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo bash
 ```
 
-### Manual Build
-
-The installer lets you choose your compositor and handles all configuration:
-
-```bash
-git clone https://github.com/Nomadcxx/sysc-greet
-cd sysc-greet
-go run ./cmd/installer/
-```
-
 ### Arch Linux (AUR)
 
-First, decide which compositor you want. sysc-greet will install the recommended default (niri), sysc-greet-hyperland installs the Hyprland variant, and sysc-greet-sway installs the Sway variant.
+Three AUR packages are available for different compositors:
 
 ```bash
 # Recommended (niri)
@@ -39,11 +35,9 @@ yay -S sysc-greet-hyprland
 yay -S sysc-greet-sway
 ```
 
-For detailed installation instructions, configuration, and usage, see the [full documentation](https://nomadcxx.github.io/sysc-greet/).
-
 ### NixOS (Flake)
 
-Add sysc-greet to your NixOS configuration using the flake:
+For NixOS users, sysc-greet is available as a flake. Add to your configuration:
 
 **flake.nix:**
 ```nix
@@ -89,9 +83,21 @@ Then rebuild your system:
 sudo nixos-rebuild switch --flake .#your-hostname
 ```
 
+### Build from Source
+
+Build and install using the interactive installer:
+
+```bash
+git clone https://github.com/Nomadcxx/sysc-greet
+cd sysc-greet
+go run ./cmd/installer/
+```
+
+The installer will guide you through compositor selection and configuration.
+
 ## Documentation
 
-For detailed documentation, configuration guides, and usage instructions, see the [full documentation](https://nomadcxx.github.io/sysc-greet/).
+For detailed documentation, configuration guides, troubleshooting, and usage instructions, see the [full documentation site](https://nomadcxx.github.io/sysc-greet/).
 
 ## License
 
