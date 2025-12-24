@@ -112,3 +112,6 @@ vendor/
 # Package build artifacts and source dirs
 pkg/
 src/
+
+# MkDocs build output
+site/
