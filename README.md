@@ -100,12 +100,12 @@ sudo nixos-rebuild switch --flake .#your-hostname
 ### Advanced: Manual Build from Source
 
 **Requirements:**
-- Go 1.21+
+- Go 1.25+
 - greetd
 - Wayland compositor (niri, hyprland, or sway)
 - kitty (terminal)
-- swww (wallpaper daemon) - **Will be replaced with awww in next major release**
-- gslapper (optional, for video wallpapers)
+- gSlapper (wallpaper daemon)
+- swww (legacy wallpaper daemon, optional fallback)
 
 **Build and install:**
 
@@ -172,110 +172,9 @@ sudo chmod 755 /var/lib/greeter
 sudo systemctl enable greetd.service
 ```
 
-## Customization
+## Documentation
 
-### Wallpapers
-
-There are two types of wallpapers you can use:
-
-#### 1. Themed Wallpapers (Static Images)
-
-These auto-match your selected theme and are stored in `/usr/share/sysc-greet/wallpapers/`.
-
-**Format:** `sysc-greet-{theme}.png`
-
-**Example:** `sysc-greet-nord.png` automatically shows when Nord theme is active.
-
-**Adding themed wallpapers:**
-```bash
-sudo cp ~/my-nord-bg.png /usr/share/sysc-greet/wallpapers/sysc-greet-nord.png
-sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/sysc-greet-nord.png
-```
-
-#### 2. Custom Wallpapers (Videos)
-
-Video wallpapers are managed by [gSlapper](https://github.com/Nomadcxx/gSlapper) and stored in `/var/lib/greeter/Pictures/wallpapers/`.
-
-**Supported formats:** MP4, WebM
-
-**Adding video wallpapers:**
-```bash
-sudo cp ~/Videos/cool-animation.mp4 /var/lib/greeter/Pictures/wallpapers/
-sudo chown greeter:greeter /var/lib/greeter/Pictures/wallpapers/cool-animation.mp4
-```
-
-**Accessing wallpapers:**
-Press `F1` (Settings) → Backgrounds → Select your wallpaper or video
-
-### ASCII Art Format
-
-Custom ASCII art configs in `/usr/share/sysc-greet/ascii_configs/`:
-
-```
-# cinnamon.conf
-name=My Session
-
-ascii_1=
- 🬭🬭🬭🬭 🬞🬭🬭🬭🬏🬞🬭🬼 🬞🬭🬏🬞🬭🬼 🬞🬭🬏 🬭🬭🬭🬭 🬞🬭🬽  🭈🬭🬏 🬭🬭🬭🬭 🬞🬭🬼 🬞🬭🬏
-▐▒▌ 🭣🬀 ▐▒▌ ▐▒🭌🬿▐▒▌▐▒🭌🬿▐▒▌▐▒▌▐▒▌▐▒█🭍🭂█▒▌▐▒▌▐▒▌▐▒🭌🬿▐▒▌
-▐─▌    ▐─▌ ▐─▌🭥🭒─▌▐─▌🭥🭒─▌▐─🬛🬫─▌▐─▌🭣🭘▐─▌▐─▌▐─▌▐─▌🭥🭒─▌
-▐░▌ 🭈🬏 ▐░▌ ▐░▌ ▐░▌▐░▌ ▐░▌▐░▌▐░▌▐░▌  ▐░▌▐░▌▐░▌▐░▌ ▐░▌
- 🬂🬂🬂🬂 🬁🬂🬂🬂🬀🬁🬂🬀 🬁🬂🬀🬁🬂🬀 🬁🬂🬀🬁🬂🬀🬁🬂🬀🬁🬂🬀  🬁🬂🬀 🬂🬂🬂🬂 🬁🬂🬀 🬁🬂🬀
-ascii_2=
-𜺠𜵡𜶜𜺣 𜶜𜵡 ▄𜺣▗▖▄𜺣▗▖ 𜷋𜺣 ▄𜺣𜷋▖𜷋𜴧𜶜𜺣▄𜺣▗▖
-█  𜺨 ▐▌ █𜴦𜷥▌█𜴦𜷥▌𜷥𜶬𜷖𜵈█𜴦▜▌█ ▐▌█𜴦𜷥▌
-𜴦𜶻𜷋🯦 𜷕𜷀 █ ▐▌█ ▐▌█ ▐▌█ ▐▌𜶫▂𜷕𜴍█ ▐▌
-
-```
-
-**For more customization options (screensaver, roast messages, compositor configs, etc.), see [CONFIGURATION.md](https://github.com/Nomadcxx/sysc-greet/blob/master/CONFIGURATION.md)**
-
-## Usage
-
-### Key Bindings
-
-- **F1** - Settings menu (themes, borders, backgrounds)
-- **F2** - Session selection
-- **F3** - Release notes
-- **F4** - Power menu (shutdown/reboot)
-- **Page Up/Down** - Cycle ASCII variants
-- **Tab** - Navigate fields
-- **Enter** - Submit/Continue
-- **Esc** - Cancel/Return to previous screen
-
-### Test Mode
-
-Test the greeter without locking your session:
-
-```bash
-sysc-greet --test
-
-# Test in fullscreen (recommended for accurate preview)
-kitty --start-as=fullscreen sysc-greet --test
-```
-
-### Additional Options
-
-```bash
-sysc-greet --theme dracula          # Start with specific theme
-sysc-greet --border ascii-2         # Start with specific border
-sysc-greet --screensaver            # Enable screensaver in test mode
-sysc-greet --remember-username      # Cache username across sessions
-```
-
-## Related Projects
-
-If you like ASCII animations, CLI and TUI terminal aesthetics check out my other projects:
-
-- **[sysc-Go](https://github.com/Nomadcxx/sysc-Go)** - Terminal animation library for Go with effects like fire, matrix, beams, and text animations
-- **[sysc-walls](https://github.com/Nomadcxx/sysc-walls)** - Terminal-based screensaver with idle detection and animated effects for Wayland/X11
-
-## Acknowledgements
-
-- [tuigreet](https://github.com/apognu/tuigreet) by apognu - Original inspiration and base
-- [Bubble Tea](https://github.com/charmbracelet/bubbletea) by Charm - TUI framework
-- [Lipgloss](https://github.com/charmbracelet/lipgloss) by Charm - Terminal styling
-- [greetd](https://git.sr.ht/~kennylevinsen/greetd) by kennylevinsen - Login manager
+For detailed documentation, configuration guides, and usage instructions, see the [full documentation](https://nomadcxx.github.io/sysc-greet/).
 
 ## License
 
