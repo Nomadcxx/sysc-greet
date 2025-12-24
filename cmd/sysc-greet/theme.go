@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Nomadcxx/sysc-greet/internal/wallpaper"
 	"github.com/charmbracelet/lipgloss/v2"
 )
 
@@ -185,17 +186,10 @@ func applyTheme(themeName string, testMode bool) {
 	setThemeWallpaper(themeName, testMode)
 }
 
-// setThemeWallpaper sets a theme-specific wallpaper using swww daemon
-// CHANGED 2025-10-10 - Set wallpaper for current theme using swww
+// setThemeWallpaper sets a theme-specific wallpaper using gSlapper (preferred) or swww (fallback)
 func setThemeWallpaper(themeName string, testMode bool) {
-	// CHANGED 2025-10-11 - Never run swww in test mode to avoid disrupting user's wallpapers during debugging
+	// Never run wallpaper commands in test mode to avoid disrupting user's wallpapers
 	if testMode {
-		return
-	}
-
-	// Check if swww is available
-	if _, err := exec.LookPath("swww"); err != nil {
-		// swww not installed, skip silently
 		return
 	}
 
@@ -208,19 +202,34 @@ func setThemeWallpaper(themeName string, testMode bool) {
 		return
 	}
 
-	// Set wallpaper on all outputs using swww
+	// Try gSlapper first (preferred)
+	if wallpaper.IsGSlapperRunning() {
+		go func() {
+			if err := wallpaper.ChangeWallpaper(wallpaperPath); err != nil {
+				logDebug("gSlapper wallpaper change failed: %v", err)
+			}
+		}()
+		return
+	}
+
+	// Fallback to swww if available
+	if _, err := exec.LookPath("swww"); err != nil {
+		// Neither gSlapper nor swww available, skip silently
+		return
+	}
+
 	// Use goroutine to avoid blocking the UI
 	go func() {
-		// First ensure swww-daemon is running (redirect all output to avoid UI pollution)
+		// First ensure swww-daemon is running
 		daemonCmd := exec.Command("swww-daemon")
 		daemonCmd.Stdout = nil
 		daemonCmd.Stderr = nil
-		_ = daemonCmd.Start() // Ignore error - daemon may already be running
+		_ = daemonCmd.Start()
 
 		// Give daemon a moment to start if it wasn't running
 		time.Sleep(100 * time.Millisecond)
 
-		// Set wallpaper on all monitors (redirect all output)
+		// Set wallpaper on all monitors
 		cmd := exec.Command("swww", "img", wallpaperPath, "--transition-type", "fade", "--transition-duration", "0.5")
 		cmd.Stdout = nil
 		cmd.Stderr = nil
