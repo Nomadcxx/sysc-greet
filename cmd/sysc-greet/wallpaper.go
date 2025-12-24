@@ -22,7 +22,7 @@ func (m model) navigateToWallpaperSubmenu() (tea.Model, tea.Cmd) {
 		filepath.Join(os.Getenv("HOME"), "Pictures", "wallpapers"),
 	}
 
-	m.menuOptions = []string{"← Back", "Stop Wallpaper"}
+	m.menuOptions = []string{"← Back", "Stop Video Wallpaper"}
 
 	// Try each directory until we find one that exists
 	for _, wallpaperDir := range wallpaperDirs {
@@ -110,9 +110,13 @@ func launchGslapperWallpaper(wallpaperFilename string) {
 
 // handleWallpaperSelection processes wallpaper menu selection
 func (m model) handleWallpaperSelection(selectedOption string) (tea.Model, tea.Cmd) {
-	if selectedOption == "Stop Wallpaper" {
-		// Kill gslapper and clear wallpaper preference
-		stopGslapper()
+	if selectedOption == "Stop Video Wallpaper" {
+		// Pause video via IPC (preferred) or kill gslapper (fallback)
+		if wallpaper.IsGSlapperRunning() {
+			wallpaper.PauseVideo()
+		} else {
+			stopGslapper()
+		}
 		m.selectedWallpaper = ""
 		m.gslapperLaunched = false
 
