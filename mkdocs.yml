@@ -11,6 +11,7 @@ site_dir: site
 
 theme:
   name: material
+  logo: assets/logo.png
   features:
     - navigation.tabs
     - navigation.sections
