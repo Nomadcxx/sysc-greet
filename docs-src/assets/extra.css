@@ -30,12 +30,19 @@
   display: block !important;
 }
 
-.md-nav--primary .md-nav__item .md-nav {
+/* Force navigation sections to be expanded */
+.md-nav--primary .md-nav__item--nested > .md-nav {
+  display: block !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.md-nav--primary .md-nav__toggle:checked ~ .md-nav {
   display: block !important;
 }
 
-/* Ensure nested navigation is visible */
-.md-nav--primary .md-nav__item--nested > .md-nav {
+/* Show all navigation items */
+.md-nav--primary .md-nav__item--nested {
   display: block !important;
 }
 
