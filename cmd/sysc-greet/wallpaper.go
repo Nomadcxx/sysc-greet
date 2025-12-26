@@ -41,8 +41,8 @@ func (m model) navigateToWallpaperSubmenu() (tea.Model, tea.Cmd) {
 					}
 				}
 			}
-			// If we found files, save the directory and break
-			if len(m.menuOptions) > 1 {
+			// If we found wallpaper files (beyond the 2 default menu items), break
+			if len(m.menuOptions) > 2 {
 				break
 			}
 		}
@@ -90,7 +90,7 @@ func launchGslapperWallpaper(wallpaperFilename string) {
 			}
 		}
 
-		// Fallback: kill and restart gslapper
+		// Fallback: kill and restart gslapper with IPC socket
 		exec.Command("pkill", "-f", "gslapper").Run()
 
 		// Determine if video or static image
@@ -98,11 +98,11 @@ func launchGslapperWallpaper(wallpaperFilename string) {
 		var cmd *exec.Cmd
 		switch ext {
 		case ".mp4", ".mkv", ".webm", ".avi", ".mov":
-			// Video: use loop and panscan
-			cmd = exec.Command("gslapper", "-s", "-o", "loop panscan=1.0", "*", wallpaperPath)
+			// Video: use loop and panscan with IPC socket
+			cmd = exec.Command("gslapper", "-I", wallpaper.GSlapperSocket, "-s", "-o", "loop panscan=1.0", "*", wallpaperPath)
 		default:
-			// Static image: use fill mode
-			cmd = exec.Command("gslapper", "-o", "fill", "*", wallpaperPath)
+			// Static image: use fill mode with IPC socket
+			cmd = exec.Command("gslapper", "-I", wallpaper.GSlapperSocket, "-o", "fill", "*", wallpaperPath)
 		}
 		cmd.Start()
 	}()
@@ -111,9 +111,12 @@ func launchGslapperWallpaper(wallpaperFilename string) {
 // handleWallpaperSelection processes wallpaper menu selection
 func (m model) handleWallpaperSelection(selectedOption string) (tea.Model, tea.Cmd) {
 	if selectedOption == "Stop Video Wallpaper" {
-		// Pause video via IPC (preferred) or kill gslapper (fallback)
+		// Pause video via IPC (preferred), fall back to killing gslapper if pause fails
 		if wallpaper.IsGSlapperRunning() {
-			wallpaper.PauseVideo()
+			if err := wallpaper.PauseVideo(); err != nil {
+				// IPC pause failed, fall back to stopping gslapper
+				stopGslapper()
+			}
 		} else {
 			stopGslapper()
 		}
@@ -163,6 +166,7 @@ func (m model) handleWallpaperSelection(selectedOption string) (tea.Model, tea.C
 }
 
 // CHANGED 2025-10-04 - Add function to launch asset videos for Fireplace/Particle effects
+// CHANGED 2025-12-25 - Use IPC first, fallback to restart with socket flag
 // launchAssetVideo launches a video from Assets directory with gslapper
 func launchAssetVideo(filename string) {
 	// Check if file exists in Assets directory
@@ -177,11 +181,18 @@ func launchAssetVideo(filename string) {
 	}
 
 	go func() {
-		// Kill any existing gslapper process
+		// Try IPC first (preferred - no flicker)
+		if wallpaper.IsGSlapperRunning() {
+			if err := wallpaper.ChangeWallpaper(assetPath); err == nil {
+				return // Success via IPC
+			}
+		}
+
+		// Fallback: kill and restart gslapper with IPC socket
 		exec.Command("pkill", "-f", "gslapper").Run()
 
-		// Start new gslapper with asset video
-		cmd := exec.Command("gslapper", "-s", "-o", "loop panscan=1.0", "*", assetPath)
+		// Start new gslapper with asset video and IPC socket
+		cmd := exec.Command("gslapper", "-I", wallpaper.GSlapperSocket, "-s", "-o", "loop panscan=1.0", "*", assetPath)
 		cmd.Start()
 	}()
 }

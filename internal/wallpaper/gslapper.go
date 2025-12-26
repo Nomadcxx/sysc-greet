@@ -35,8 +35,8 @@ func SendCommand(cmd string) (string, error) {
 		return "", fmt.Errorf("failed to send command: %w", err)
 	}
 
-	// Read response
-	buf := make([]byte, 1024)
+	// Read response (increased buffer for status queries with file paths)
+	buf := make([]byte, 4096)
 	n, err := conn.Read(buf)
 	if err != nil {
 		return "", fmt.Errorf("failed to read response: %w", err)
@@ -45,15 +45,30 @@ func SendCommand(cmd string) (string, error) {
 	return strings.TrimSpace(string(buf[:n])), nil
 }
 
+// isOKResponse checks if a gSlapper response indicates success
+// gSlapper may respond with "OK" or "OK <details>"
+func isOKResponse(resp string) bool {
+	return resp == "OK" || strings.HasPrefix(resp, "OK ")
+}
+
 // ChangeWallpaper changes the current wallpaper with fade transition
 func ChangeWallpaper(path string) error {
 	if !IsGSlapperRunning() {
 		return fmt.Errorf("gSlapper is not running")
 	}
 
-	// Set fade transition
-	SendCommand("set-transition fade")
-	SendCommand("set-transition-duration 0.5")
+	// Validate file exists before sending to gSlapper
+	if _, err := os.Stat(path); err != nil {
+		return fmt.Errorf("wallpaper file not found: %s", path)
+	}
+
+	// Set fade transition (best effort - don't fail if these don't work)
+	if _, err := SendCommand("set-transition fade"); err != nil {
+		// Log but continue - transition settings are optional
+	}
+	if _, err := SendCommand("set-transition-duration 0.5"); err != nil {
+		// Log but continue - transition settings are optional
+	}
 
 	// Change wallpaper
 	resp, err := SendCommand("change " + path)
@@ -61,7 +76,7 @@ func ChangeWallpaper(path string) error {
 		return err
 	}
 
-	if !strings.HasPrefix(resp, "OK") {
+	if !isOKResponse(resp) {
 		return fmt.Errorf("gSlapper error: %s", resp)
 	}
 
@@ -79,7 +94,7 @@ func PauseVideo() error {
 		return err
 	}
 
-	if resp != "OK" {
+	if !isOKResponse(resp) {
 		return fmt.Errorf("gSlapper error: %s", resp)
 	}
 
@@ -97,7 +112,7 @@ func ResumeVideo() error {
 		return err
 	}
 
-	if resp != "OK" {
+	if !isOKResponse(resp) {
 		return fmt.Errorf("gSlapper error: %s", resp)
 	}
 
