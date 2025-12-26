@@ -32,13 +32,21 @@
   overflow: visible !important;
 }
 
+/* Force all navigation toggles to be checked/expanded */
+.md-nav--primary .md-nav__toggle {
+  display: none !important;
+}
+
 .md-nav--primary .md-nav__toggle ~ .md-nav {
   display: block !important;
   max-height: none !important;
+  opacity: 1 !important;
 }
 
-.md-nav--primary .md-nav__toggle:checked ~ .md-nav {
+.md-nav--primary .md-nav__toggle:checked ~ .md-nav,
+.md-nav--primary .md-nav__toggle:not(:checked) ~ .md-nav {
   display: block !important;
+  max-height: none !important;
 }
 
 /* Use theme's accent color for links */
