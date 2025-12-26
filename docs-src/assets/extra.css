@@ -64,15 +64,16 @@
   display: list-item !important;
 }
 
-/* RAMA theme red color (#ef233c) for links and accents */
+/* Use theme's accent color for links */
 [data-md-color-scheme="slate"] a {
-  color: #ef233c;
+  color: var(--md-accent-fg-color);
 }
 
 [data-md-color-scheme="slate"] a:hover {
-  color: #d90429;
+  color: var(--md-accent-fg-color);
+  opacity: 0.8;
 }
 
 [data-md-color-scheme="slate"] .md-nav__link--active {
-  color: #ef233c;
+  color: var(--md-accent-fg-color);
 }
