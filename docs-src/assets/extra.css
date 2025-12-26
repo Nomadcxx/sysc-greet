@@ -47,20 +47,21 @@
   display: block !important;
 }
 
-/* Hide TOC checkbox and label in primary sidebar */
+/* Hide TOC from primary sidebar - Material theme shows TOC by default */
+.md-nav--primary .md-nav__item:has(input[id="__toc"]),
+.md-nav--primary .md-nav__item:has(label[for="__toc"]) {
+  display: none !important;
+}
+
+/* Hide TOC checkbox and related elements */
 .md-nav--primary input[id="__toc"],
 .md-nav--primary label[for="__toc"] {
   display: none !important;
 }
 
-/* Hide the TOC nav item that contains page headings */
-.md-nav--primary .md-nav__item:first-child:has(input[id="__toc"]) {
-  display: none !important;
-}
-
-/* Show site navigation items - ensure they're visible */
-.md-nav--primary .md-nav__item:not(:has(input[id="__toc"])) {
-  display: block !important;
+/* Ensure site navigation structure is visible */
+.md-nav--primary .md-nav__list > .md-nav__item:not(:has(input[id="__toc"])) {
+  display: list-item !important;
 }
 
 /* RAMA theme red color (#ef233c) for links and accents */
