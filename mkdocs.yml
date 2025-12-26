@@ -22,6 +22,7 @@ theme:
     - navigation.indexes
     - navigation.top
     - navigation.tracking
+    - navigation.path
     - search.suggest
     - search.highlight
   extra_css:
