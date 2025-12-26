@@ -21,6 +21,7 @@ theme:
     - navigation.expand
     - navigation.indexes
     - navigation.top
+    - navigation.tracking
     - search.suggest
     - search.highlight
   extra_css:
@@ -67,6 +68,7 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
+      toc_depth: 0
   - admonition
   - codehilite
   - pymdownx.superfences

@@ -30,20 +30,26 @@
   display: block !important;
 }
 
-/* Force navigation sections to be expanded */
+/* Force navigation sections to be expanded and visible */
 .md-nav--primary .md-nav__item--nested > .md-nav {
   display: block !important;
   max-height: none !important;
   overflow: visible !important;
 }
 
-.md-nav--primary .md-nav__toggle:checked ~ .md-nav {
+.md-nav--primary .md-nav__toggle:checked ~ .md-nav,
+.md-nav--primary .md-nav__toggle ~ .md-nav {
   display: block !important;
 }
 
 /* Show all navigation items */
 .md-nav--primary .md-nav__item--nested {
   display: block !important;
+}
+
+/* Hide TOC in primary sidebar - show only site navigation */
+.md-nav--primary .md-nav__item:has(input[id^="__toc"]) {
+  display: none !important;
 }
 
 /* RAMA theme red color (#ef233c) for links and accents */
