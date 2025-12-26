@@ -6,3 +6,16 @@
 .md-header__button.md-logo {
   margin-right: 0;
 }
+
+/* RAMA theme red color (#ef233c) for links and accents */
+[data-md-color-scheme="slate"] a {
+  color: #ef233c;
+}
+
+[data-md-color-scheme="slate"] a:hover {
+  color: #d90429;
+}
+
+[data-md-color-scheme="slate"] .md-nav__link--active {
+  color: #ef233c;
+}
