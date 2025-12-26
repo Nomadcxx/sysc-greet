@@ -48,7 +48,20 @@
 }
 
 /* Hide TOC in primary sidebar - show only site navigation */
+.md-nav--primary .md-nav__item input[id^="__toc"] {
+  display: none !important;
+}
+
 .md-nav--primary .md-nav__item:has(input[id^="__toc"]) {
+  display: none !important;
+}
+
+/* Alternative selector for browsers without :has() support */
+.md-nav--primary .md-nav__item input[id="__toc"] {
+  display: none !important;
+}
+
+.md-nav--primary label[for="__toc"] {
   display: none !important;
 }
 
