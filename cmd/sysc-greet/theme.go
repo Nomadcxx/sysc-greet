@@ -202,24 +202,38 @@ func setThemeWallpaper(themeName string, testMode bool) {
 		return
 	}
 
-	// Try gSlapper first (preferred)
-	if wallpaper.IsGSlapperRunning() {
-		go func() {
-			if err := wallpaper.ChangeWallpaper(wallpaperPath); err != nil {
-				logDebug("gSlapper wallpaper change failed: %v", err)
-			}
-		}()
-		return
-	}
-
-	// Fallback to swww if available
-	if _, err := exec.LookPath("swww"); err != nil {
-		// Neither gSlapper nor swww available, skip silently
-		return
-	}
-
 	// Use goroutine to avoid blocking the UI
 	go func() {
+		// Try gSlapper first (preferred)
+		if wallpaper.IsGSlapperRunning() {
+			// Use IPC to change wallpaper (flicker-free)
+			if err := wallpaper.ChangeWallpaper(wallpaperPath); err == nil {
+				return // Success via IPC
+			}
+			// IPC failed, fall through to restart gSlapper
+		}
+
+		// Check if gSlapper is available
+		if _, err := exec.LookPath("gslapper"); err == nil {
+			// Kill any existing gSlapper process and restart with wallpaper
+			exec.Command("pkill", "-f", "gslapper").Run()
+			time.Sleep(50 * time.Millisecond) // Brief pause for process cleanup
+
+			// Start gSlapper with wallpaper and IPC socket
+			cmd := exec.Command("gslapper", "-I", wallpaper.GSlapperSocket, "-o", "fill", "*", wallpaperPath)
+			cmd.Stdout = nil
+			cmd.Stderr = nil
+			if err := cmd.Start(); err == nil {
+				return // Success
+			}
+		}
+
+		// Fallback to swww if gSlapper unavailable/failed
+		if _, err := exec.LookPath("swww"); err != nil {
+			// Neither gSlapper nor swww available, skip silently
+			return
+		}
+
 		// First ensure swww-daemon is running
 		daemonCmd := exec.Command("swww-daemon")
 		daemonCmd.Stdout = nil
