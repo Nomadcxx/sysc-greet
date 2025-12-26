@@ -1,8 +1,3 @@
-/* Hide site name text in header, show only logo */
-.md-header__title {
-  display: none;
-}
-
 .md-header__button.md-logo {
   margin-right: 0;
 }
