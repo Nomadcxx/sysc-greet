@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 	"time"
 
@@ -54,12 +53,26 @@ const (
 	statusSkipped
 )
 
+type installSubTask struct {
+	name   string
+	status taskStatus
+}
+
+type errorInfo struct {
+	message string // Error message from command
+	command string // Command that was run
+	logFile string // Path to log file
+}
+
 type installTask struct {
-	name        string
-	description string
-	execute     func(*model) error
-	optional    bool
-	status      taskStatus
+	name           string
+	description    string
+	execute        func(*model) error
+	optional       bool
+	status         taskStatus
+	subTasks       []installSubTask // Sub-tasks for complex operations
+	currentSubTask int              // Index of current sub-task being executed
+	errorDetails   *errorInfo       // Error details when task fails
 }
 
 type model struct {
@@ -74,9 +87,11 @@ type model struct {
 	greetdInstalled    bool
 	needsGreetd        bool
 	uninstallMode      bool
-	selectedOption     int    // 0 = Install, 1 = Uninstall
-	selectedCompositor string // "niri", "hyprland", or "sway"
-	compositorIndex    int    // Current selection in compositor menu
+	selectedOption     int      // 0 = Install, 1 = Uninstall
+	selectedCompositor string   // "niri", "hyprland", or "sway"
+	compositorIndex    int      // Current selection in compositor menu
+	debugMode          bool     // Show verbose output
+	logFile            *os.File // Installer log file
 }
 
 type taskCompleteMsg struct {
@@ -85,7 +100,13 @@ type taskCompleteMsg struct {
 	error   string
 }
 
-func newModel() model {
+type subTaskUpdateMsg struct {
+	parentIndex  int
+	subTaskIndex int
+	status       taskStatus
+}
+
+func newModel(debugMode bool, logFile *os.File) model {
 	s := spinner.New()
 	s.Style = lipgloss.NewStyle().Foreground(Secondary)
 	s.Spinner = spinner.Dot
@@ -96,8 +117,21 @@ func newModel() model {
 		{name: "Install greetd", description: "Installing greetd daemon", execute: installGreetd, optional: false, status: statusPending},
 		{name: "Install kitty", description: "Installing kitty terminal", execute: installKitty, optional: false, status: statusPending},
 		{name: "Install compositor", description: "Installing Wayland compositor", execute: installCompositor, optional: false, status: statusPending},
-		{name: "Install gslapper", description: "Installing wallpaper daemon", execute: installGslapper, optional: false, status: statusPending},
-		{name: "Install swww", description: "Installing legacy wallpaper support", execute: installSwww, optional: true, status: statusPending},
+		{
+			name:        "Install gslapper",
+			description: "Installing wallpaper daemon",
+			execute:     installGslapper,
+			optional:    false,
+			status:      statusPending,
+			subTasks: []installSubTask{
+				{name: "Check for existing installation", status: statusPending},
+				{name: "Try AUR package (yay/paru)", status: statusPending},
+				{name: "Install GStreamer dependencies", status: statusPending},
+				{name: "Clone repository", status: statusPending},
+				{name: "Build from source", status: statusPending},
+				{name: "Install binary", status: statusPending},
+			},
+		},
 		{name: "Build binary", description: "Building sysc-greet", execute: buildBinary, status: statusPending},
 		{name: "Install binary", description: "Installing to system", execute: installBinary, status: statusPending},
 		{name: "Install configs", description: "Installing configurations", execute: installConfigs, status: statusPending},
@@ -112,6 +146,8 @@ func newModel() model {
 		currentTaskIndex: -1,
 		spinner:          s,
 		errors:           []string{},
+		debugMode:        debugMode,
+		logFile:          logFile,
 	}
 
 	// Detect package manager during initialization (not in async task)
@@ -251,6 +287,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Start next task
 		m.tasks[m.currentTaskIndex].status = statusRunning
 		return m, executeTask(m.currentTaskIndex, &m)
+
+	case subTaskUpdateMsg:
+		// Update sub-task status
+		if msg.parentIndex < len(m.tasks) {
+			task := &m.tasks[msg.parentIndex]
+			if msg.subTaskIndex < len(task.subTasks) {
+				task.subTasks[msg.subTaskIndex].status = msg.status
+				task.currentSubTask = msg.subTaskIndex
+			}
+		}
+		return m, nil
 
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -409,7 +456,8 @@ func (m model) renderInstalling() string {
 	var b strings.Builder
 
 	// Render all tasks with their current status
-	for i, task := range m.tasks {
+	for _, task := range m.tasks {
+		// Render parent task
 		var line string
 		switch task.status {
 		case statusPending:
@@ -423,16 +471,52 @@ func (m model) renderInstalling() string {
 		case statusSkipped:
 			line = skipMark.String() + " " + task.name
 		}
+		b.WriteString(line + "\n")
 
-		b.WriteString(line)
-		if i < len(m.tasks)-1 {
-			b.WriteString("\n")
+		// Render sub-tasks if present
+		if len(task.subTasks) > 0 {
+			for j, subTask := range task.subTasks {
+				isLast := (j == len(task.subTasks)-1)
+				prefix := "  ├─ "
+				if isLast {
+					prefix = "  └─ "
+				}
+
+				var subLine string
+				switch subTask.status {
+				case statusPending:
+					subLine = lipgloss.NewStyle().Foreground(FgMuted).Render(subTask.name)
+				case statusRunning:
+					subLine = m.spinner.View() + " " + subTask.name
+				case statusComplete:
+					subLine = checkMark.String() + " " + subTask.name
+				case statusFailed:
+					subLine = failMark.String() + " " + subTask.name
+				case statusSkipped:
+					subLine = skipMark.String() + " " + subTask.name
+				}
+
+				b.WriteString(prefix + subLine + "\n")
+			}
+		}
+
+		// Show error details for failed tasks
+		if task.status == statusFailed && task.errorDetails != nil {
+			err := task.errorDetails
+			b.WriteString(lipgloss.NewStyle().Foreground(ErrorColor).Render(
+				fmt.Sprintf("  └─ Error: %s\n", err.message)))
+			if err.command != "" {
+				b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render(
+					fmt.Sprintf("  └─ Command: %s\n", err.command)))
+			}
+			b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render(
+				fmt.Sprintf("  └─ See full logs: %s\n", err.logFile)))
 		}
 	}
 
 	// Show errors at bottom if any
 	if len(m.errors) > 0 {
-		b.WriteString("\n\n")
+		b.WriteString("\n")
 		for _, err := range m.errors {
 			b.WriteString(lipgloss.NewStyle().Foreground(WarningColor).Render(err))
 			b.WriteString("\n")
@@ -495,8 +579,9 @@ func executeTask(index int, m *model) tea.Cmd {
 		err := m.tasks[index].execute(m) // Pass pointer so model changes persist
 
 		if err != nil {
-			// DEBUG: Print error to stderr so we can see what's failing
-			fmt.Fprintf(os.Stderr, "\n[DEBUG] Task '%s' failed: %v\n", m.tasks[index].name, err)
+			if m.debugMode {
+				fmt.Fprintf(os.Stderr, "\n[DEBUG] Task '%s' failed: %v\n", m.tasks[index].name, err)
+			}
 			return taskCompleteMsg{
 				index:   index,
 				success: false,
@@ -511,13 +596,56 @@ func executeTask(index int, m *model) tea.Cmd {
 	}
 }
 
+// updateSubTaskStatus updates the status of a sub-task for the current task
+// Note: In a Bubble Tea app, this doesn't immediately update the UI - it just modifies the model.
+// The UI will update on the next render cycle.
+func updateSubTaskStatus(m *model, subTaskIndex int, status taskStatus) {
+	if m.currentTaskIndex >= 0 && m.currentTaskIndex < len(m.tasks) {
+		task := &m.tasks[m.currentTaskIndex]
+		if subTaskIndex >= 0 && subTaskIndex < len(task.subTasks) {
+			task.subTasks[subTaskIndex].status = status
+		}
+	}
+}
+
+// runCommand executes a command and logs it to the installer log file
+func runCommand(taskName string, cmd *exec.Cmd, m *model) error {
+	if m.logFile != nil {
+		// Log command before execution
+		cmdStr := cmd.String()
+		logEntry := fmt.Sprintf("[%s] [%s] Running: %s\n",
+			time.Now().Format("15:04:05"), taskName, cmdStr)
+		m.logFile.WriteString(logEntry)
+		m.logFile.Sync() // Flush to disk
+	}
+
+	// Capture output
+	output, err := cmd.CombinedOutput()
+
+	// Log output
+	if m.logFile != nil {
+		if len(output) > 0 {
+			m.logFile.Write(output)
+			m.logFile.WriteString("\n")
+		}
+		if err != nil {
+			m.logFile.WriteString(fmt.Sprintf("[%s] [%s] Error: %v\n\n",
+				time.Now().Format("15:04:05"), taskName, err))
+		} else {
+			m.logFile.WriteString(fmt.Sprintf("[%s] [%s] Success\n\n",
+				time.Now().Format("15:04:05"), taskName))
+		}
+		m.logFile.Sync()
+	}
+
+	return err
+}
+
 // Task execution functions
 
 func checkPrivileges(m *model) error {
 	if os.Geteuid() != 0 {
-		if _, err := exec.LookPath("sudo"); err != nil {
-			return fmt.Errorf("root privileges required")
-		}
+		return fmt.Errorf("root privileges required - run with sudo")
 	}
 	return nil
 }
@@ -541,12 +669,14 @@ func detectPackageManager(m *model) {
 	for _, pm := range packageManagers {
 		if _, err := os.Stat(pm.path); err == nil {
 			m.packageManager = pm.name
-			fmt.Fprintf(os.Stderr, "[DEBUG] Detected package manager: %s at %s\n", pm.name, pm.path)
+			if m.debugMode {
+				fmt.Fprintf(os.Stderr, "[DEBUG] Detected package manager: %s at %s\n", pm.name, pm.path)
+			}
 			break
 		}
 	}
 
-	if m.packageManager == "" {
+	if m.packageManager == "" && m.debugMode {
 		fmt.Fprintf(os.Stderr, "[DEBUG] No package manager detected!\n")
 	}
 
@@ -641,65 +771,6 @@ func installGreetd(m *model) error {
 
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to install greetd (try: manual installation)")
-	}
-
-	return nil
-}
-
-func installSwww(m *model) error {
-	// Check if already installed
-	if _, err := exec.LookPath("swww"); err == nil {
-		return nil // Already installed
-	}
-
-	if m.packageManager == "" {
-		return fmt.Errorf("package manager not detected - install swww manually")
-	}
-
-	var cmd *exec.Cmd
-
-	switch m.packageManager {
-	case "pacman":
-		// swww is in official Arch repos
-		cmd = exec.Command("pacman", "-S", "--noconfirm", "swww")
-
-	case "apt":
-		// For Debian/Ubuntu, swww might need to be built from source
-		// Try apt first, fall back to cargo if not available
-		testCmd := exec.Command("apt-cache", "show", "swww")
-		if testCmd.Run() == nil {
-			cmd = exec.Command("apt-get", "install", "-y", "swww")
-		} else {
-			// Build from cargo
-			return buildSwwwFromCargo(m)
-		}
-
-	case "dnf":
-		// Fedora - try dnf, fall back to cargo
-		cmd = exec.Command("dnf", "install", "-y", "swww")
-
-	case "yum":
-		cmd = exec.Command("yum", "install", "-y", "swww")
-
-	case "zypper":
-		cmd = exec.Command("zypper", "install", "-y", "swww")
-
-	case "apk":
-		// Alpine - swww might not be in repos, build from cargo
-		testCmd := exec.Command("apk", "search", "swww")
-		if testCmd.Run() == nil {
-			cmd = exec.Command("apk", "add", "swww")
-		} else {
-			return buildSwwwFromCargo(m)
-		}
-
-	default:
-		return fmt.Errorf("unsupported package manager '%s' - install swww manually", m.packageManager)
-	}
-
-	if err := cmd.Run(); err != nil {
-		// If package manager install fails, try building from cargo
-		return buildSwwwFromCargo(m)
 	}
 
 	return nil
@@ -864,49 +935,52 @@ func installCompositor(m *model) error {
 	return nil
 }
 
-func buildSwwwFromCargo(m *model) error {
-	// Check for cargo
-	if _, err := exec.LookPath("cargo"); err != nil {
-		return fmt.Errorf("cargo not found - install rust/cargo or swww manually")
-	}
-
-	// Install swww via cargo
-	cmd := exec.Command("cargo", "install", "swww")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("cargo install failed - install swww manually")
-	}
-
-	return nil
-}
-
 func installGslapper(m *model) error {
-	// Check if already installed
+	// Sub-task 0: Check if already installed
+	updateSubTaskStatus(m, 0, statusRunning)
 	if _, err := exec.LookPath("gslapper"); err == nil {
+		updateSubTaskStatus(m, 0, statusComplete)
+		// Mark remaining sub-tasks as skipped
+		for i := 1; i < 6; i++ {
+			updateSubTaskStatus(m, i, statusSkipped)
+		}
 		return nil
 	}
+	updateSubTaskStatus(m, 0, statusComplete)
 
-	// Try package manager first (Arch AUR)
+	// Sub-task 1: Try AUR package (yay/paru)
+	updateSubTaskStatus(m, 1, statusRunning)
+	aurInstalled := false
 	if m.packageManager == "pacman" {
 		// Try AUR helpers
 		if _, err := exec.LookPath("yay"); err == nil {
 			// IMPORTANT: yay must NOT be run as root
 			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" && sudoUser != "root" {
 				cmd := exec.Command("su", "-", sudoUser, "-c", "yay -S --noconfirm gslapper")
-				if err := cmd.Run(); err == nil {
-					return nil // Success
+				if err := runCommand("Install gslapper (yay)", cmd, m); err == nil {
+					aurInstalled = true
 				}
 			}
-			// If no SUDO_USER, skip yay (can't run as root)
 		} else if _, err := exec.LookPath("paru"); err == nil {
 			// IMPORTANT: paru must NOT be run as root
 			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" && sudoUser != "root" {
 				cmd := exec.Command("su", "-", sudoUser, "-c", "paru -S --noconfirm gslapper")
-				if err := cmd.Run(); err == nil {
-					return nil // Success
+				if err := runCommand("Install gslapper (paru)", cmd, m); err == nil {
+					aurInstalled = true
 				}
 			}
-			// If no SUDO_USER, skip paru (can't run as root)
 		}
+	}
+
+	if aurInstalled {
+		updateSubTaskStatus(m, 1, statusComplete)
+		// Mark remaining sub-tasks as skipped
+		for i := 2; i < 6; i++ {
+			updateSubTaskStatus(m, i, statusSkipped)
+		}
+		return nil
+	} else {
+		updateSubTaskStatus(m, 1, statusSkipped)
 	}
 
 	// Fall back to building from source (works on all distros)
@@ -929,13 +1003,14 @@ func getGStreamerDeps(packageManager string) []string {
 		}
 	case "apt":
 		// Debian/Ubuntu - note the different naming convention (gstreamer1.0-*)
+		// gstreamer1.0-gtk4 is from rust-gst-plugin-gtk4 package
 		return []string{
 			"libgstreamer1.0-dev",
 			"libgstreamer-plugins-base1.0-dev",
 			"gstreamer1.0-plugins-base",
 			"gstreamer1.0-plugins-good",
 			"gstreamer1.0-plugins-bad",
-			"gstreamer1.0-gtk3",
+			"gstreamer1.0-gtk4",
 			"libgtk-4-dev",
 			"libgtk4-layer-shell-dev",
 			"libwayland-dev",
@@ -1023,11 +1098,15 @@ func installGStreamerDeps(m *model) error {
 }
 
 func buildGslapperFromSource(m *model) error {
-	// Install GStreamer dependencies first
+	// Sub-task 2: Install GStreamer dependencies
+	updateSubTaskStatus(m, 2, statusRunning)
 	if err := installGStreamerDeps(m); err != nil {
-		fmt.Fprintf(os.Stderr, "[DEBUG] GStreamer deps install warning: %v\n", err)
+		if m.debugMode {
+			fmt.Fprintf(os.Stderr, "[DEBUG] GStreamer deps install warning: %v\n", err)
+		}
 		// Continue anyway - deps might already be installed
 	}
+	updateSubTaskStatus(m, 2, statusComplete)
 
 	// Check for build tools
 	buildTools := []string{"meson", "ninja", "git", "pkg-config"}
@@ -1052,46 +1131,58 @@ func buildGslapperFromSource(m *model) error {
 			args := append([]string{"install", "-y"}, missing...)
 			cmd = exec.Command("dnf", args...)
 		default:
+			updateSubTaskStatus(m, 3, statusFailed)
 			return fmt.Errorf("missing build tools: %s", strings.Join(missing, ", "))
 		}
 		if cmd != nil {
-			cmd.Run() // Best effort
+			runCommand("Install build tools", cmd, m) // Best effort
 		}
 	}
 
 	// Verify build tools are now available
 	for _, tool := range []string{"meson", "ninja", "git"} {
 		if _, err := exec.LookPath(tool); err != nil {
+			updateSubTaskStatus(m, 3, statusFailed)
 			return fmt.Errorf("missing build tool: %s", tool)
 		}
 	}
 
-	// Clone repo
+	// Sub-task 3: Clone repository
+	updateSubTaskStatus(m, 3, statusRunning)
 	exec.Command("rm", "-rf", "/tmp/gslapper-build").Run()
 	cloneCmd := exec.Command("git", "clone", "https://github.com/Nomadcxx/gSlapper", "/tmp/gslapper-build")
-	if err := cloneCmd.Run(); err != nil {
+	if err := runCommand("Clone gSlapper", cloneCmd, m); err != nil {
+		updateSubTaskStatus(m, 3, statusFailed)
 		return fmt.Errorf("clone failed")
 	}
+	updateSubTaskStatus(m, 3, statusComplete)
 
-	// Build
+	// Sub-task 4: Build from source
+	updateSubTaskStatus(m, 4, statusRunning)
 	setupCmd := exec.Command("meson", "setup", "build", "--prefix=/usr/local")
 	setupCmd.Dir = "/tmp/gslapper-build"
-	if err := setupCmd.Run(); err != nil {
+	if err := runCommand("Configure build", setupCmd, m); err != nil {
+		updateSubTaskStatus(m, 4, statusFailed)
 		return fmt.Errorf("build setup failed - check GStreamer dependencies")
 	}
 
 	buildCmd := exec.Command("ninja", "-C", "build")
 	buildCmd.Dir = "/tmp/gslapper-build"
-	if err := buildCmd.Run(); err != nil {
+	if err := runCommand("Build gSlapper", buildCmd, m); err != nil {
+		updateSubTaskStatus(m, 4, statusFailed)
 		return fmt.Errorf("build failed")
 	}
+	updateSubTaskStatus(m, 4, statusComplete)
 
-	// Install
+	// Sub-task 5: Install binary
+	updateSubTaskStatus(m, 5, statusRunning)
 	installCmd := exec.Command("ninja", "-C", "build", "install")
 	installCmd.Dir = "/tmp/gslapper-build"
-	if err := installCmd.Run(); err != nil {
+	if err := runCommand("Install gSlapper", installCmd, m); err != nil {
+		updateSubTaskStatus(m, 5, statusFailed)
 		return fmt.Errorf("install failed")
 	}
+	updateSubTaskStatus(m, 5, statusComplete)
 
 	// Cleanup
 	exec.Command("rm", "-rf", "/tmp/gslapper-build").Run()
@@ -1425,67 +1516,6 @@ func enableService(m *model) error {
 	return nil
 }
 
-// Monitor detection (simplified from original)
-type Monitor struct {
-	Name        string
-	Width       int
-	Height      int
-	RefreshRate int
-	Primary     bool
-}
-
-func parseNiriOutputs(output string) []Monitor {
-	var monitors []Monitor
-	lines := strings.Split(output, "\n")
-	var current *Monitor
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		if strings.HasPrefix(line, "Output") {
-			if current != nil {
-				monitors = append(monitors, *current)
-			}
-			current = &Monitor{}
-
-			if start := strings.LastIndex(line, "("); start != -1 {
-				if end := strings.LastIndex(line, ")"); end != -1 {
-					current.Name = strings.TrimSpace(line[start+1 : end])
-				}
-			}
-		}
-
-		if current != nil && strings.Contains(line, "Current mode:") {
-			parts := strings.Fields(line)
-			for i, part := range parts {
-				if strings.Contains(part, "x") {
-					dims := strings.Split(part, "x")
-					if len(dims) == 2 {
-						current.Width, _ = strconv.Atoi(dims[0])
-						current.Height, _ = strconv.Atoi(dims[1])
-					}
-				}
-				if part == "@" && i+1 < len(parts) {
-					rate := strings.TrimSpace(parts[i+1])
-					if f, err := strconv.ParseFloat(rate, 64); err == nil {
-						current.RefreshRate = int(f)
-					}
-				}
-			}
-		}
-	}
-
-	if current != nil {
-		monitors = append(monitors, *current)
-	}
-
-	if len(monitors) > 0 {
-		monitors[0].Primary = true
-	}
-
-	return monitors
-}
-
 // Uninstall functions
 
 func disableService(m *model) error {
@@ -1539,7 +1569,30 @@ func cleanCache(m *model) error {
 }
 
 func main() {
-	p := tea.NewProgram(newModel())
+	// Check for debug flag
+	debugMode := false
+	for _, arg := range os.Args[1:] {
+		if arg == "--debug" || arg == "-d" {
+			debugMode = true
+			break
+		}
+	}
+
+	// Create log file
+	logFile, err := os.Create("/tmp/sysc-greet-installer.log")
+	if err != nil {
+		fmt.Printf("Warning: Could not create log file: %v\n", err)
+		logFile = nil
+	}
+	if logFile != nil {
+		defer logFile.Close()
+		// Write startup info
+		logFile.WriteString(fmt.Sprintf("=== sysc-greet Installer Log ===\n"))
+		logFile.WriteString(fmt.Sprintf("Started: %s\n", time.Now().Format("2006-01-02 15:04:05")))
+		logFile.WriteString(fmt.Sprintf("Debug Mode: %v\n\n", debugMode))
+	}
+
+	p := tea.NewProgram(newModel(debugMode, logFile))
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
