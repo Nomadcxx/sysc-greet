@@ -2,6 +2,21 @@
   margin-right: 0;
 }
 
+/* Ensure sidebar navigation is visible */
+[data-md-color-scheme="slate"] .md-sidebar {
+  background-color: transparent;
+}
+
+[data-md-color-scheme="slate"] .md-nav__item {
+  color: var(--md-default-fg-color);
+}
+
+[data-md-color-scheme="slate"] .md-nav__item--active,
+[data-md-color-scheme="slate"] .md-nav__link--active {
+  color: var(--md-accent-fg-color);
+  background-color: var(--md-accent-bg-color);
+}
+
 /* RAMA theme red color (#ef233c) for links and accents */
 [data-md-color-scheme="slate"] a {
   color: #ef233c;
