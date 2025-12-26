@@ -217,10 +217,12 @@ func setThemeWallpaper(themeName string, testMode bool) {
 		if _, err := exec.LookPath("gslapper"); err == nil {
 			// Kill any existing gSlapper process and restart with wallpaper
 			exec.Command("pkill", "-f", "gslapper").Run()
-			time.Sleep(50 * time.Millisecond) // Brief pause for process cleanup
+			time.Sleep(100 * time.Millisecond) // Brief pause for process cleanup
 
 			// Start gSlapper with wallpaper and IPC socket
-			cmd := exec.Command("gslapper", "-I", wallpaper.GSlapperSocket, "-o", "fill", "*", wallpaperPath)
+			// Use -f to fork so the greeter doesn't wait for gslapper
+			// "fill" is default for images, no need to specify
+			cmd := exec.Command("gslapper", "-f", "-I", wallpaper.GSlapperSocket, "*", wallpaperPath)
 			cmd.Stdout = nil
 			cmd.Stderr = nil
 			if err := cmd.Start(); err == nil {

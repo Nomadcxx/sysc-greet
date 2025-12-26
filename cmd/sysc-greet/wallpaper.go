@@ -98,11 +98,11 @@ func launchGslapperWallpaper(wallpaperFilename string) {
 		var cmd *exec.Cmd
 		switch ext {
 		case ".mp4", ".mkv", ".webm", ".avi", ".mov":
-			// Video: use loop and panscan with IPC socket
-			cmd = exec.Command("gslapper", "-I", wallpaper.GSlapperSocket, "-s", "-o", "loop panscan=1.0", "*", wallpaperPath)
+			// Video: use loop, auto-stop when hidden, fork to background
+			cmd = exec.Command("gslapper", "-f", "-s", "-I", wallpaper.GSlapperSocket, "-o", "loop", "*", wallpaperPath)
 		default:
-			// Static image: use fill mode with IPC socket
-			cmd = exec.Command("gslapper", "-I", wallpaper.GSlapperSocket, "-o", "fill", "*", wallpaperPath)
+			// Static image: fork to background (fill is default for images)
+			cmd = exec.Command("gslapper", "-f", "-I", wallpaper.GSlapperSocket, "*", wallpaperPath)
 		}
 		cmd.Start()
 	}()
@@ -192,7 +192,8 @@ func launchAssetVideo(filename string) {
 		exec.Command("pkill", "-f", "gslapper").Run()
 
 		// Start new gslapper with asset video and IPC socket
-		cmd := exec.Command("gslapper", "-I", wallpaper.GSlapperSocket, "-s", "-o", "loop panscan=1.0", "*", assetPath)
+		// Use -f to fork, -s for auto-stop when hidden, -o loop to loop the video
+		cmd := exec.Command("gslapper", "-f", "-s", "-I", wallpaper.GSlapperSocket, "-o", "loop", "*", assetPath)
 		cmd.Start()
 	}()
 }
