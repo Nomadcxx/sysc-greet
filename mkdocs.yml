@@ -1,0 +1,76 @@
+site_name: sysc-greet
+site_description: A graphical console greeter for greetd written in Go
+site_author: Nomadcxx
+site_url: https://nomadcxx.github.io/sysc-greet
+repo_url: https://github.com/Nomadcxx/sysc-greet
+repo_name: Nomadcxx/sysc-greet
+edit_uri: edit/master/docs-src/
+
+docs_dir: docs-src
+site_dir: site
+
+theme:
+  name: material
+  logo: assets/logo.png
+  font:
+    text: 'Fira Code'
+    code: 'Fira Code'
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+  extra_css:
+    - assets/extra.css
+  palette:
+    - scheme: slate
+      primary: green
+      accent: green
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+    - scheme: default
+      primary: green
+      accent: green
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started/installation.md
+      - Quick Start: getting-started/quick-start.md
+      - Troubleshooting: getting-started/troubleshooting.md
+  - Features:
+      - Backgrounds & Effects: features/backgrounds-effects.md
+      - ASCII Art: features/ascii-art.md
+      - Wallpapers: features/wallpapers.md
+      - Screensaver: features/screensaver.md
+  - Configuration:
+      - Themes: configuration/themes.md
+      - Backgrounds: configuration/backgrounds.md
+      - Keyboard Layout: configuration/keyboard-layout.md
+  - Compositors:
+      - Niri: compositors/niri.md
+      - Hyprland: compositors/hyprland.md
+      - Sway: compositors/sway.md
+  - Development:
+      - Architecture: development/architecture.md
+      - Building: development/building.md
+      - Testing: development/testing.md
+
+markdown_extensions:
+  - tables
+  - toc:
+      permalink: true
+  - admonition
+  - codehilite
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+
+extra:
+  version:
+    sysc-greet: dev
