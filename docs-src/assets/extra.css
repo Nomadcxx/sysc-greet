@@ -2,7 +2,7 @@
   margin-right: 0;
 }
 
-/* Ensure sidebar navigation is visible */
+/* Ensure sidebar navigation is visible and properly styled */
 [data-md-color-scheme="slate"] .md-sidebar {
   background-color: transparent;
 }
@@ -15,6 +15,15 @@
 [data-md-color-scheme="slate"] .md-nav__link--active {
   color: var(--md-accent-fg-color);
   background-color: var(--md-accent-bg-color);
+}
+
+/* Ensure navigation sections are visible */
+.md-nav--primary .md-nav__list {
+  display: block;
+}
+
+.md-nav--primary .md-nav__item {
+  display: block;
 }
 
 /* RAMA theme red color (#ef233c) for links and accents */
