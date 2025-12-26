@@ -61,7 +61,8 @@ window-rule {
     opacity 0.90
 }
 
-spawn-at-startup "gslapper" "-I" "/tmp/sysc-greet-wallpaper.sock" "-o" "fill" "*" "/usr/share/sysc-greet/wallpapers/sysc-greet-default.png"
+// Start gslapper with default wallpaper (forked to background with IPC socket)
+spawn-at-startup "gslapper" "-f" "-I" "/tmp/sysc-greet-wallpaper.sock" "*" "/usr/share/sysc-greet/wallpapers/sysc-greet-default.png"
 
 spawn-sh-at-startup "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
 
