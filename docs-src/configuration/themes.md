@@ -22,30 +22,19 @@ sysc-greet includes multiple built-in color themes. Themes affect the entire col
 
 ## Changing Themes
 
-Press **F1** to open the Settings menu, then select **Themes** to cycle through available themes.
+Press **F1** → **Themes** to cycle through available themes. Your selection is saved automatically.
 
-### Theme Behavior
+## Custom Themes
 
-Themes are applied immediately when selected and saved to user preferences. The next time sysc-greet starts, the last selected theme will be loaded automatically.
+Custom themes are not currently supported. All themes are compiled into the binary.
 
-### Theme Colors
+If you want a specific color scheme added, open a [feature request](https://github.com/Nomadcxx/sysc-greet/issues/new) with:
 
-Each theme defines the following color variables:
-
-- **BgBase** - Main background color
-- **BgElevated** - Elevated surface background (same as BgBase for consistency)
-- **BgSubtle** - Subtle background color
-- **BgActive** - Active element background color
-- **Primary** - Primary brand color (borders, focused elements)
-- **Secondary** - Secondary accent color
-- **Accent** - Tertiary accent color
-- **Warning** - Warning state color
-- **Danger** - Error state color
-- **FgPrimary** - Primary text color
-- **FgSecondary** - Secondary text color
-- **FgMuted** - Muted text color
-- **FgSubtle** - Subtle text color
-- **BorderFocus** - Border color when focused
+- Theme name
+- Primary color (hex, e.g., `#bd93f9`)
+- Secondary color
+- Accent color
+- Background color
 
 ### TTY Compatibility
 
