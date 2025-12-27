@@ -1,8 +1,8 @@
 # Keyboard Layout
 
-Keyboard layout is configured in the compositor, not in sysc-greet directly.
+sysc-greet runs inside a compositor, so keyboard layout is set there.
 
-## Niri
+## niri
 
 Edit `/etc/greetd/niri-greeter-config.kdl`:
 
@@ -10,71 +10,58 @@ Edit `/etc/greetd/niri-greeter-config.kdl`:
 input {
     keyboard {
         xkb {
-            layout "us"  # Change to your layout
+            layout "de"
         }
     }
 }
 ```
 
-Available layouts are defined in `/usr/share/X11/xkb/rules/base.lst`. Common values:
-- `us` - US English
-- `de` - German
-- `gb` - British
-- `fr` - French
-- `es` - Spanish
-
-## Sway
+## sway
 
 Edit `/etc/greetd/sway-greeter-config`:
 
-```
+```bash
 input * {
-    xkb_layout "us"  # Change to your layout
+    xkb_layout "de"
 }
 ```
 
-## Hyprland
+## hyprland
 
 Edit `/etc/greetd/hyprland-greeter-config.conf`:
 
 ```ini
 input {
-    kb_layout = us  # Change to your layout
+    kb_layout = de
 }
 ```
 
+Replace `de` with your layout (`us`, `fr`, `es`, `uk`, etc). Full list in `/usr/share/X11/xkb/rules/base.lst`.
+
 ## Non-US Layouts with Kitty
 
-If your layout doesn't work correctly in Kitty (e.g., Shift key reverts to QWERTY), set XKB environment variables in the compositor config.
+If your layout doesn't work correctly in Kitty (e.g., Shift key reverts to QWERTY), set XKB environment variables in the compositor config's Kitty exec line.
 
-**Niri example:**
+*Thanks to [@morganorix](https://github.com/morganorix) for discovering this solution!*
+
+**niri** (`/etc/greetd/niri-greeter-config.kdl`):
+
 ```kdl
-exec-once kitty --config /etc/greetd/kitty.conf --override hide_window_decorations=yes -e env XKB_DEFAULT_LAYOUT=fr XKB_DEFAULT_VARIANT=oss /usr/local/bin/sysc-greet
+spawn-sh-at-startup "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB_DEFAULT_LAYOUT=fr XKB_DEFAULT_VARIANT=oss kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
 ```
 
-**Sway example:**
-```
-exec env XKB_DEFAULT_LAYOUT=fr XKB_DEFAULT_VARIANT=oss kitty --config /etc/greetd/kitty.conf -e /usr/local/bin/sysc-greet
-```
-
-**Hyprland example:**
-```ini
-exec-once = kitty --config /etc/greetd/kitty.conf -e env XKB_DEFAULT_LAYOUT=fr XKB_DEFAULT_VARIANT=oss /usr/local/bin/sysc-greet
-```
-
-Replace `fr` and `oss` with your layout and variant. Omit the variant line if not needed.
-
-## Applying Changes
-
-After modifying compositor config, restart greetd:
+**sway** (`/etc/greetd/sway-greeter-config`):
 
 ```bash
-sudo systemctl restart greetd
+exec "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB_DEFAULT_LAYOUT=fr XKB_DEFAULT_VARIANT=oss kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; swaymsg exit"
 ```
 
-## Verification
+**hyprland** (`/etc/greetd/hyprland-greeter-config.conf`):
 
-Test the keyboard layout at the login screen:
-1. Enter username field
-2. Type characters to verify correct mapping
-3. Test Shift, Alt, and special keys
+```ini
+exec-once = XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB_DEFAULT_LAYOUT=fr XKB_DEFAULT_VARIANT=oss kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
+```
+
+Replace `fr` with your layout and `oss` with your variant (or omit `XKB_DEFAULT_VARIANT` if not needed).
+
+Restart greetd after changes: `sudo systemctl restart greetd`

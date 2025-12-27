@@ -1,65 +1,45 @@
 # Backgrounds
 
-sysc-greet supports multiple background types for the login screen.
+sysc-greet supports background effects and wallpapers.
 
 ## Background Effects
 
-### Fire Effect
+Access via **F1** → **Backgrounds**:
 
-DOOM PSX-style fire effect renders at top of screen. This is a particle-based animation that runs independently of the main interface.
+| Effect | Description |
+|--------|-------------|
+| Fire | DOOM PSX-style fire effect |
+| Matrix | Matrix rain (green characters) |
+| ASCII Rain | Falling ASCII characters (theme colors) |
+| Fireworks | Random firework explosions |
+| Aquarium | Swimming fish and bubbles |
+| None | Disable background effect |
 
-**Configuration:** Not configurable - static implementation
+## Wallpapers
 
-**Access:** F1 Settings > Backgrounds > Fire
+Wallpapers take priority over background effects. Managed by [gSlapper](https://github.com/Nomadcxx/gSlapper).
 
-### Matrix Effect
+### Themed Wallpapers
 
-Matrix rain effect displays falling green characters similar to The Matrix movie.
+**Location:** `/usr/share/sysc-greet/wallpapers/`
 
-**Configuration:** Not configurable - static implementation
+Auto-switch when theme changes. Named `sysc-greet-{theme}.png`.
 
-**Access:** F1 Settings > Backgrounds > Matrix
+### Custom Wallpapers
 
-### ASCII Rain Effect
+**Location:** `/var/lib/greeter/Pictures/wallpapers/`
 
-Falling ASCII characters rain down the screen. This effect uses the current theme's color palette instead of the Matrix green.
+Add your own images or videos:
 
-**Configuration:** Not configurable - static implementation
+```bash
+sudo cp ~/my-wallpaper.mp4 /var/lib/greeter/Pictures/wallpapers/
+sudo chown greeter:greeter /var/lib/greeter/Pictures/wallpapers/my-wallpaper.mp4
+```
 
-**Access:** F1 Settings > Backgrounds > ASCII Rain
+Access via **F1** → **Wallpaper**.
 
-### Fireworks Effect
+## Priority
 
-Firework explosion animations appear at random screen positions. This is a lightweight particle system.
-
-**Configuration:** Not configurable - static implementation
-
-**Access:** F1 Settings > Backgrounds > Fireworks
-
-### Aquarium Effect
-
-Animated aquarium scene with swimming fish, bubbles, and seaweed. Colors adapt to the selected theme.
-
-**Configuration:** Not configurable - static implementation
-
-**Access:** F1 Settings > Backgrounds > Aquarium
-
-## Background Effect Priority
-
-Background effects are mutually exclusive. When you enable one, others are automatically disabled. The priority order is:
-
-1. User-selected background (highest priority)
-2. Last active background (if not explicitly disabled)
-
-## TTY Compatibility
-
-All background effects render using `lipgloss` for styling, which provides TTY compatibility through the `colorprofile` library:
-- TrueColor terminals get full 24-bit color support
-- ANSI256 terminals get 256-color palette support
-- Basic TTY falls back to 16 ANSI colors
-
-## Video Wallpapers
-
-Video wallpapers take priority over all background effects when active. The wallpaper system uses gSlapper for video playback.
-
-For details on video wallpapers, see [Wallpapers Feature](../features/wallpapers.md).
+1. Custom wallpaper (if selected)
+2. Themed wallpaper (auto-matches theme)
+3. Background effect (if no wallpaper)

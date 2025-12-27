@@ -1,10 +1,8 @@
-# Hyprland Compositor Configuration
+# Hyprland Setup
 
-sysc-greet works with the Hyprland Wayland compositor. This guide covers the configuration required for sysc-greet to function properly.
+Configuration for running sysc-greet with the Hyprland Wayland compositor.
 
-## greetd Configuration
-
-### config.toml
+## greetd Config
 
 Edit `/etc/greetd/config.toml`:
 
@@ -15,78 +13,90 @@ vt = 1
 [default_session]
 command = "Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
 user = "greeter"
+
+[initial_session]
+command = "Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
+user = "greeter"
 ```
 
-## Hyprland Config
-
-sysc-greet provides a pre-configured Hyprland configuration file.
-
-### hyprland-greeter-config.conf
+## Compositor Config
 
 Edit `/etc/greetd/hyprland-greeter-config.conf`:
 
 ```ini
-# Source default Hyprland config
-source = ~/.config/hypr/hyprland.conf
+# SYSC-Greet Hyprland config for greetd greeter session
+# Monitors auto-detected by Hyprland at runtime
 
-# Auto-start gSlapper with default wallpaper
-# Comment this out if using swww or no wallpaper
-exec-once = gslapper -s -o "loop panscan=1.0" '*' /usr/share/sysc-greet/wallpapers/sysc-greet-default.png
+# No animations for faster greeter startup
+animations {
+    enabled = false
+}
 
-# Hide cursor
+# Minimal decorations
+decoration {
+    rounding = 0
+    blur {
+        enabled = false
+    }
+}
+
+# Greeter doesn't need gaps
+general {
+    gaps_in = 0
+    gaps_out = 0
+    border_size = 0
+}
+
+misc {
+    disable_hyprland_logo = true
+    disable_splash_rendering = true
+    background_color = rgb(000000)
+}
+
+# Input configuration
+input {
+    kb_layout = us
+    repeat_delay = 400
+    repeat_rate = 40
+
+    touchpad {
+        tap-to-click = true
+    }
+}
+
+# Window rules for kitty greeter
+windowrulev2 = fullscreen, class:^(kitty)$
+windowrulev2 = opacity 1.0 override, class:^(kitty)$
+
+# Layer rules for wallpaper daemon
+layerrule = blur, wallpaper
+
+# Startup applications
+# Start gslapper with default wallpaper (forked to background with IPC socket)
+exec-once = gslapper -f -I /tmp/sysc-greet-wallpaper.sock '*' /usr/share/sysc-greet/wallpapers/sysc-greet-default.png
+exec-once = XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
+```
+
+## Cursor Visibility
+
+To hide the cursor completely, add:
+
+```ini
 cursor {
     invisible = true
 }
-
-# Start kitty with sysc-greet
-exec-once = kitty --config /etc/greetd/kitty.conf --override hide_window_decorations=yes -e /usr/local/bin/sysc-greet
 ```
 
-### Key Fields
+## Keyboard Layout
 
-| Setting | Value | Description |
-|----------|--------|-------------|
-| exec-once | gslapper | Start gSlapper wallpaper daemon |
-| exec-once | kitty | Start sysc-greet in kitty terminal |
-| -s | Daemon mode | Run gSlapper in background |
-| -o "loop panscan=1.0" | GStreamer options | Loop and panscan settings |
-| cursor.invisible | true | Hide cursor completely |
-| hide_window_decorations | Kitty option | Hide window title bar |
-
-## Wallpaper Setup
-
-sysc-greet configures gSlapper to use the Unix socket at `/tmp/sysc-greet-wallpaper.sock` for IPC communication.
-
-### Themed Wallpapers
-
-When you change themes, sysc-greet automatically switches to themed wallpapers in `/usr/share/sysc-greet/wallpapers/`.
-
-### Video Wallpapers
-
-Video wallpapers are stored in `/var/lib/greeter/Pictures/wallpapers/` and can be selected from the F1 Wallpaper menu.
-
-## Permissions
-
-Ensure proper file permissions:
-
-```bash
-sudo chown -R greeter:greeter /var/cache/sysc-greet
-sudo chown -R greeter:greeter /var/lib/greeter/Pictures/wallpapers
-sudo chmod 755 /var/lib/greeter
-```
+Change `kb_layout = us` to your preferred layout. See [Keyboard Layout](../configuration/keyboard-layout.md) for details.
 
 ## Verification
-
-After configuration, verify Hyprland starts correctly:
 
 ```bash
 # Restart greetd
 sudo systemctl restart greetd
 
-# View greetd logs (includes compositor output)
+# Check logs
 journalctl -u greetd -n 50
 ```
-
-## Keyboard Layout
-
-For non-US layouts, see [Keyboard Layout Configuration](../configuration/keyboard-layout.md).
