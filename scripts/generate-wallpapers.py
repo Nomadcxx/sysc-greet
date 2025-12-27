@@ -29,9 +29,9 @@ THEMES = {
     "dark": ("#000000", "#ffffff"),
 }
 
-# Image dimensions (1920x1080 for standard HD)
-WIDTH = 1920
-HEIGHT = 1080
+# Image dimensions (3840x2160 for 4K UHD - scales down nicely to all displays)
+WIDTH = 3840
+HEIGHT = 2160
 
 
 def hex_to_rgb(hex_color):
@@ -102,7 +102,7 @@ def generate_wallpaper(theme_name, bg_color, text_color, lines, output_dir):
     draw = ImageDraw.Draw(img)
 
     # Load font
-    font_size = 28
+    font_size = 18
     font = get_monospace_font(font_size)
 
     # Calculate dimensions using a reference character for consistent spacing
@@ -110,7 +110,7 @@ def generate_wallpaper(theme_name, bg_color, text_color, lines, output_dir):
     ref_bbox = draw.textbbox((0, 0), "█", font=font)
     char_width = ref_bbox[2] - ref_bbox[0]
     char_height = ref_bbox[3] - ref_bbox[1]
-    line_height = char_height + 4  # Add small line spacing
+    line_height = int(char_height * 0.85)  # Overlap slightly for connected look
 
     # Find the widest line in characters
     max_chars = find_max_line_width(lines)
