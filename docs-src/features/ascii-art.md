@@ -39,27 +39,31 @@ colors=#89b4fa,#a6e3a1,#f9e2af,#fab387,#f38ba8,#cba6f7
 
 **ASCII generators:**
 
+- [bit](https://github.com/superstarryeyes/bit) - Terminal ASCII art generator with many fonts
 - [patorjk.com/software/taag](http://patorjk.com/software/taag/) - Web-based generator
 - [ASCII Art Archive](https://www.asciiart.eu/) - Browse existing art
-- [Mobius](https://github.com/Mobius-Team/Mobius) - Advanced ASCII art tools
 
-**Using figlet:**
-
-Install figlet and figlet-fonts for local generation:
+**Using bit:**
 
 ```bash
-# Arch Linux
-sudo pacman -S figlet
+# Quick install (Linux/macOS)
+curl -sfL https://raw.githubusercontent.com/superstarryeyes/bit/main/install.sh | sh
 
-# Install additional fonts
-git clone https://github.com/xero/figlet-fonts
-sudo cp figlet-fonts/* /usr/share/figlet/
+# Or build from source
+git clone https://github.com/superstarryeyes/bit
+cd bit
+make build
+./bit  # Interactive TUI mode
 
-# Generate ASCII
-figlet -f dos_rebel "HYPRLAND"
+# CLI mode - generate ASCII art
+bit "HYPRLAND"
+
+# List available fonts
+bit -list
+
+# Use specific font with gradient
+bit -font banner -color 31 -gradient 34 "HYPRLAND"
 ```
-
-**Figlet fonts:** [github.com/xero/figlet-fonts](https://github.com/xero/figlet-fonts)
 
 **Important:** Keep ASCII art under 80 columns wide for compatibility.
 

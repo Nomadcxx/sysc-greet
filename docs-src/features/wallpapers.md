@@ -38,6 +38,35 @@ sudo cp ~/my-bg.png /usr/share/sysc-greet/wallpapers/sysc-greet-mytheme.png
 sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/sysc-greet-mytheme.png
 ```
 
+### Generating Custom Themed Wallpapers
+
+Use the included script to generate themed wallpapers from ASCII art:
+
+```bash
+cd sysc-greet/scripts
+
+# Generate all theme wallpapers (uses scripts/ASCII.txt by default)
+python3 generate-wallpapers.py
+
+# Generate with custom ASCII art
+python3 generate-wallpapers.py --ascii /path/to/my-ascii.txt
+
+# Generate only a specific theme
+python3 generate-wallpapers.py --theme dracula
+
+# Specify output directory
+python3 generate-wallpapers.py --output ~/my-wallpapers/
+```
+
+The script generates 4K (3840x2160) PNG images that scale down nicely to all displays.
+
+**Install generated wallpapers:**
+
+```bash
+sudo cp wallpapers/*.png /usr/share/sysc-greet/wallpapers/
+sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/*.png
+```
+
 ## Custom Wallpapers (Videos & Images)
 
 **Location:** `/var/lib/greeter/Pictures/wallpapers/`
