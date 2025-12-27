@@ -86,8 +86,8 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 				switch key {
 				case "name":
 					config.Name = value
-				case "colors":
-					config.Colors = strings.Split(value, ",")
+				case "color":
+					config.Color = strings.TrimSpace(value)
 				case "animation_style":
 					config.AnimationStyle = value
 				case "animation_speed":

@@ -234,7 +234,7 @@ type ASCIIConfig struct {
 	ASCII              string   // DEPRECATED: Use ASCIIVariants instead
 	ASCIIVariants      []string // Support multiple ASCII art variants (ascii_1, ascii_2, etc.)
 	MaxASCIIHeight     int      // Track max height across all variants for normalization
-	Colors             []string
+	Color              string   // Optional hex color override for ASCII art (e.g., "#89b4fa")
 	AnimationStyle     string  // "gradient", "wave", "pulse", "rainbow", "matrix", "typewriter", "glow", "static"
 	AnimationSpeed     float64 // 0.1 (slow) to 2.0 (fast), default 1.0
 	AnimationDirection string  // "left", "right", "up", "down", "center-out", "random"
