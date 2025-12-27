@@ -1,120 +1,100 @@
 # Wallpapers
 
-sysc-greet supports two types of wallpapers: themed static images and video backgrounds.
+sysc-greet supports two types of wallpapers: themed static images and custom wallpapers (including video backgrounds).
 
-## Themed Wallpapers
+## Themed Wallpapers (Static Images)
 
-Themed wallpapers are static images that automatically match the selected theme.
+**Location:** `/usr/share/sysc-greet/wallpapers/`
 
-### Location
+**Managed by:** [gSlapper](https://github.com/Nomadcxx/gSlapper) (Wayland wallpaper daemon)
 
-`/usr/share/sysc-greet/wallpapers/`
-
-### Naming Convention
-
-Images must follow the naming convention: `sysc-greet-{theme}.png`
-
-Examples:
-- `sysc-greet-dracula.png` - Displayed when Dracula theme is active
-- `sysc-greet-nord.png` - Displayed when Nord theme is active
-- `sysc-greet-catppuccin.png` - Displayed when Catppuccin theme is active
-
-### Automatic Theme Switching
-
-When you change themes using F1 Settings, sysc-greet automatically switches to the matching themed wallpaper if it exists.
+These auto-match your selected theme using the naming convention `sysc-greet-{theme}.png`.
 
 ### Included Themed Wallpapers
 
-sysc-greet ships with themed wallpapers for all built-in themes:
-- Dracula
-- Gruvbox
-- Material
-- Nord
-- Tokyo Night
-- Catppuccin
-- Solarized
-- Monochrome
-- TransIsHardJob
-- Eldritch
-- RAMA
-- Default
+- `sysc-greet-dracula.png`
+- `sysc-greet-gruvbox.png`
+- `sysc-greet-nord.png`
+- `sysc-greet-tokyo-night.png`
+- `sysc-greet-catppuccin.png`
+- `sysc-greet-material.png`
+- `sysc-greet-solarized.png`
+- `sysc-greet-monochrome.png`
+- `sysc-greet-eldritch.png`
+- `sysc-greet-transishardjob.png`
+- `sysc-greet-rama.png`
+- `sysc-greet-default.png`
+- `sysc-greet-dark.png`
 
 ### Adding or Replacing Themed Wallpapers
 
 ```bash
 # Replace an existing theme wallpaper
-sudo cp ~/my-custom-bg.png /usr/share/sysc-greet/wallpapers/sysc-greet-dracula.png
-sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/sysc-greet-dracula.png
+sudo cp ~/my-nord-bg.png /usr/share/sysc-greet/wallpapers/sysc-greet-nord.png
+sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/sysc-greet-nord.png
 
 # Add a wallpaper for a new theme
 sudo cp ~/my-bg.png /usr/share/sysc-greet/wallpapers/sysc-greet-mytheme.png
 sudo chown greeter:greeter /usr/share/sysc-greet/wallpapers/sysc-greet-mytheme.png
 ```
 
-## Custom Wallpapers
+## Custom Wallpapers (Videos & Images)
 
-The wallpaper menu provides access to both static images and video backgrounds stored in the user wallpaper directory.
+**Location:** `/var/lib/greeter/Pictures/wallpapers/`
 
-### Location
+**Managed by:** [gSlapper](https://github.com/Nomadcxx/gSlapper) (Video wallpaper manager)
 
-`/var/lib/greeter/Pictures/wallpapers/`
+Video wallpapers provide animated backgrounds with multi-monitor support.
+
+### Requirements
+
+```bash
+# Install gSlapper (if not already installed)
+yay -S gslapper
+# or build from source: https://github.com/Nomadcxx/gSlapper
+```
+
+### Adding Custom Wallpapers
+
+```bash
+# Copy video to greeter's wallpaper directory
+sudo cp ~/Videos/cool-animation.mp4 /var/lib/greeter/Pictures/wallpapers/
+
+# Set correct ownership
+sudo chown greeter:greeter /var/lib/greeter/Pictures/wallpapers/cool-animation.mp4
+```
 
 ### Supported Formats
 
-**Static Images:**
-- PNG
-- JPG / JPEG
-- WebP
-- GIF
+**Static Images:** PNG, JPG, JPEG, WebP, GIF
 
-**Video:**
-- MP4
-- WebM
-- MKV
-- AVI
-- MOV
+**Video:** MP4, WebM, MKV, AVI, MOV
 
-### Accessing Wallpapers
+## Accessing Wallpapers in Greeter
 
-Press **F1** Settings then **Wallpaper** to browse available wallpapers. The menu lists both static images and video files.
+Press `F1` (Settings) → Backgrounds → Select your wallpaper or video
 
-### Adding Wallpapers
+Both static and video wallpapers will appear in the same menu.
 
-```bash
-# Copy static image to greeter's wallpaper directory
-sudo cp ~/Pictures/my-bg.png /var/lib/greeter/Pictures/wallpapers/
-sudo chown greeter:greeter /var/lib/greeter/Pictures/wallpapers/my-bg.png
+## Stop Video Wallpaper
 
-# Copy video to greeter's wallpaper directory
-sudo cp ~/Videos/my-animation.mp4 /var/lib/greeter/Pictures/wallpapers/
-sudo chown greeter:greeter /var/lib/greeter/Pictures/wallpapers/my-animation.mp4
-```
-
-### Stop Video Wallpaper
-
-From the wallpaper menu, select **Stop Video Wallpaper** to pause video playback and revert to a static wallpaper. This uses gSlapper's IPC to pause the video without restarting the daemon.
-
-## Wallpaper Priority
-
-1. Custom wallpapers (gSlapper) - Highest priority. When a wallpaper is selected from the menu (video or static), it overrides themed wallpapers and background effects
-2. Themed wallpapers - Auto-selected when theme changes, unless a custom wallpaper is active
-3. Background effects - Fire, Matrix, etc. Only active when no wallpaper is set
+From the wallpaper menu, select **Stop Video Wallpaper** to pause video playback. This uses gSlapper's IPC to pause without restarting the daemon.
 
 ## Troubleshooting
 
-**gSlapper not starting:**
-```bash
-# Check gSlapper debug log
-cat /tmp/sysc-greet-wallpaper.log
+**Wallpaper not displaying:**
 
-# Verify gSlapper is installed
+```bash
+# Check gSlapper is installed
 which gslapper
 
-# Check compositor config has gSlapper startup command
-cat /etc/greetd/niri-greeter-config.kdl
+# Verify gSlapper socket exists
+ls -la /tmp/sysc-greet-wallpaper.sock
+
+# Check compositor config
+cat /etc/greetd/niri-greeter-config.kdl | grep gslapper
 ```
 
-**Wallpaper not changing:**
-- Verify gSlapper socket is running: `ls /tmp/sysc-greet-wallpaper.sock`
-- Check compositor is actually starting gSlapper in its config
-- Review debug logs: `journalctl -u greetd -n 50`
+**Multi-monitor issues:**
+
+gSlapper should display wallpapers on all monitors. If only one monitor shows the wallpaper, ensure you're using gSlapper v1.0.9+ which fixed the multi-monitor rendering bug.

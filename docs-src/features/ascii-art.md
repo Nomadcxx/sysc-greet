@@ -1,54 +1,51 @@
-# ASCII Art Configuration
+# ASCII Art Customization
 
-Each session type can have custom ASCII art with multiple variants. Users can cycle through variants using Page Up/Down keys at the greeter.
+Each session type can have its own ASCII art with multiple variants. Press `Page Up/Down` at the greeter to cycle through them.
 
 ## Configuration Location
 
 `/usr/share/sysc-greet/ascii_configs/`
 
-Each session has a `.conf` file with the session name as the filename.
+Each session gets a `.conf` file (e.g., `hyprland.conf`, `kde.conf`, `gnome_desktop.conf`).
 
 ## Format
 
 ```ini
-name=Session Name
+name=Hyprland
 
-# ASCII variants (can have multiple: ascii_1, ascii_2, etc.)
+# Multiple variants (user can cycle through these)
 ascii_1=
-  ╔════════════════════════════╗
-  ║    SESSION NAME ART          ║
-  ╚════════════════════════════╝
-
+_____________________________  ________  .______________
+\______   \_   _____/\______ \ \______ \ |   \__    ___/
+ |       _/|    __)_  |    |  \ |    |  \|   | |    |
+ |    |   \|        \ |    `   \|    `   \   | |    |
+ |____|_  /_______  //_______  /_______  /___| |____|
+        \/        \/         \/        \/
 ascii_2=
-   _____  __   _____  _____   __
-  |   _/ /  / __ \ / __ \ / /
-  |  /  / _/  /_/ / /_/ /_/ 
+ ________  ___  ___  ________  ___  __    ________
+|\   ____\|\  \|\  \|\   ____\|\  \|\  \ |\   ____\
+\ \  \___|\ \  \\\  \ \  \___|\ \  \/  /|\ \  \___|_
+ \ \_____  \ \  \\\  \ \  \    \ \   ___  \ \_____  \
+  \|____|\  \ \  \\\  \ \  \____\ \  \\ \  \|____|\  \
+    ____\_\  \ \_______\ \_______\ \__\\ \__\____\_\  \
+   |\_________\|_______|\|_______|\|__| \|__|\_________\
+   \|_________|                             \|_________|
+
+# Color gradient (hex colors - used for theme color overrides)
+colors=#89b4fa,#a6e3a1,#f9e2af,#fab387,#f38ba8,#cba6f7
 ```
-
-# Optional: Custom colors for rainbow effect (comma-separated hex)
-colors=#4285f4,#34a853,#fbbc05,#ea4335,#9c27b0,#ff9800
-```
-
-## Fields
-
-- **name** - Display name for the session (used in session dropdown)
-- **ascii_1**, **ascii_2**, etc. - Multiple ASCII art variants that users can cycle through
-- **colors** - Optional hex colors for rainbow gradient effect on ASCII art
-
-## ASCII Variant Cycling
-
-Press **Page Up** or **Page Down** at the greeter to cycle through ASCII variants for the selected session. The last selected variant is saved to preferences and restored on next login.
 
 ## Creating Custom ASCII
 
-**ASCII Generators:**
+**ASCII generators:**
+
 - [patorjk.com/software/taag](http://patorjk.com/software/taag/) - Web-based generator
 - [ASCII Art Archive](https://www.asciiart.eu/) - Browse existing art
 - [Mobius](https://github.com/Mobius-Team/Mobius) - Advanced ASCII art tools
 
 **Using figlet:**
 
-Install figlet and figlet-fonts:
+Install figlet and figlet-fonts for local generation:
 
 ```bash
 # Arch Linux
@@ -62,28 +59,58 @@ sudo cp figlet-fonts/* /usr/share/figlet/
 figlet -f dos_rebel "HYPRLAND"
 ```
 
-**Important:** Keep ASCII art under 80 columns wide for compatibility with most terminal sizes.
-
 **Figlet fonts:** [github.com/xero/figlet-fonts](https://github.com/xero/figlet-fonts)
+
+**Important:** Keep ASCII art under 80 columns wide for compatibility.
+
+**Test your config:**
+
+```bash
+sysc-greet --test
+```
+
+## Roast Messages
+
+Custom messages displayed with typewriter and scrolling ticker effects.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| roasts | String | Messages separated by `│` character |
+
+**Example:**
+
+```ini
+roasts=First message │ Second message │ Third message
+```
+
+**How to customize roasts:**
+
+1. Open the matching session config in `/usr/share/sysc-greet/ascii_configs/` (e.g., `hyprland.conf`, `kde.conf`, `openbox.conf`). The `name=` should reflect the session/WM.
+2. Add or edit a single `roasts=` line with your messages separated by `│` (pipe). Keep it on one line.
+3. If `roasts=` is omitted or left empty, the greeter falls back to built-in defaults per WM.
+4. Use straight ASCII text; emojis may not render in all terminals.
+5. Leave `screensaver.conf` without `roasts=` (screensaver uses clock/ASCII only).
+
+The typewriter and scrolling ticker effects will cycle through these messages.
 
 ## Session Name Mapping
 
 sysc-greet maps session names from XDG session files to config filenames:
 
 | Session Name | Config Filename |
-|-------------|-----------------|
-| GNOME Desktop | gnome_desktop |
-| KDE Plasma | kde |
-| Hyprland | hyprland |
-| Sway | sway |
-| i3 | i3wm |
-| BSPWM | bspwm_manager |
-| Xmonad | xmonad |
-| Openbox | openbox |
-| Xfce | xfce |
-| Cinnamon | cinnamon |
-| IceWM | icewm |
-| Qtile | qtile |
-| Weston | weston |
+|--------------|-----------------|
+| GNOME Desktop | gnome_desktop.conf |
+| KDE Plasma | kde.conf |
+| Hyprland | hyprland.conf |
+| Sway | sway.conf |
+| i3 | i3wm.conf |
+| BSPWM | bspwm_manager.conf |
+| Xmonad | xmonad.conf |
+| Openbox | openbox.conf |
+| Xfce | xfce.conf |
+| Cinnamon | cinnamon.conf |
+| IceWM | icewm.conf |
+| Qtile | qtile.conf |
+| Weston | weston.conf |
 
 For sessions not listed, the lowercase first word of the session name is used as the config filename.
