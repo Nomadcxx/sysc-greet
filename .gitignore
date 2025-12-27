@@ -116,8 +116,13 @@ src/
 # MkDocs build output
 site/
 
-# Arch Linux package build dirs
-# (PKGBUILD, .install, and .SRCINFO files are now tracked for AUR releases)
+# Arch Linux package files (managed in separate AUR repos)
+PKGBUILD*
+*.install
+.SRCINFO*
+
+# Configuration doc (replaced by MkDocs site)
+CONFIGURATION.md
 
 # Development scripts (not for end users)
 .dev-scripts/
