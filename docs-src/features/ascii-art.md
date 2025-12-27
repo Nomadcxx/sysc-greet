@@ -30,9 +30,6 @@ ascii_2=
     ____\_\  \ \_______\ \_______\ \__\\ \__\____\_\  \
    |\_________\|_______|\|_______|\|__| \|__|\_________\
    \|_________|                             \|_________|
-
-# Color gradient (hex colors - used for theme color overrides)
-colors=#89b4fa,#a6e3a1,#f9e2af,#fab387,#f38ba8,#cba6f7
 ```
 
 ## Creating Custom ASCII
