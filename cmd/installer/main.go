@@ -148,8 +148,8 @@ func newModel(debugMode bool, logFile *os.File) model {
 			optional:    false,
 			status:      statusPending,
 			subTasks: []installSubTask{
-				{name: "Detecting distro and AUR helper", status: statusPending},
-				{name: "Installing via AUR", status: statusPending},
+				{name: "Check existing installation", status: statusPending},
+				{name: "AUR install (if pre-installed)", status: statusPending},
 				{name: "Install GStreamer dependencies", status: statusPending},
 				{name: "Clone repository", status: statusPending},
 				{name: "Build from source", status: statusPending},
@@ -961,49 +961,25 @@ func installCompositor(m *model) error {
 }
 
 func installGslapper(m *model) error {
-	// Sub-task 0: Detect environment
+	// Sub-task 0: Check if already installed
 	updateSubTaskStatus(m, 0, statusRunning)
 
-	isArch := isArchBased()
-	aurHelper := ""
-	originalUser := os.Getenv("SUDO_USER")
-
-	if isArch && originalUser != "" && originalUser != "root" {
-		aurHelper = detectAURHelper()
-	}
-	updateSubTaskStatus(m, 0, statusComplete)
-
-	// Sub-task 1: Try AUR package if on Arch with helper
-	updateSubTaskStatus(m, 1, statusRunning)
-	aurInstalled := false
-
-	if isArch && aurHelper != "" && originalUser != "" {
-		// Run AUR helper as original user (not root)
-		// Uses sudo -u to drop privileges
-		cmd := exec.Command("sudo", "-u", originalUser, aurHelper, "-S", "--noconfirm", "gslapper")
-		if err := runCommand(fmt.Sprintf("Install gslapper (%s)", aurHelper), cmd, m); err == nil {
-			aurInstalled = true
-		}
-	}
-
-	if aurInstalled {
-		updateSubTaskStatus(m, 1, statusComplete)
+	// Check if gslapper is already installed (via AUR or otherwise)
+	if _, err := exec.LookPath("gslapper"); err == nil {
+		updateSubTaskStatus(m, 0, statusComplete)
 		// Mark remaining sub-tasks as skipped
-		for i := 2; i < 6; i++ {
+		for i := 1; i < 6; i++ {
 			updateSubTaskStatus(m, i, statusSkipped)
 		}
 		return nil
-	} else {
-		if isArch && aurHelper != "" {
-			// AUR was attempted but failed
-			updateSubTaskStatus(m, 1, statusFailed)
-		} else {
-			// AUR not applicable (not Arch or no helper)
-			updateSubTaskStatus(m, 1, statusSkipped)
-		}
 	}
+	updateSubTaskStatus(m, 0, statusComplete)
 
-	// Fall back to building from source (works on all distros)
+	// Sub-task 1: Skip AUR (nested sudo doesn't work reliably)
+	// Users can pre-install gslapper from AUR if they prefer
+	updateSubTaskStatus(m, 1, statusSkipped)
+
+	// Build from source (works reliably on all distros)
 	return buildGslapperFromSource(m)
 }
 

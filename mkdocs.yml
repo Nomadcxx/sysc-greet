@@ -69,6 +69,7 @@ markdown_extensions:
   - tables
   - toc:
       permalink: true
+      baselevel: 2
   - admonition
   - codehilite
   - pymdownx.superfences
