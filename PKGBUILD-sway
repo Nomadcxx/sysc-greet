@@ -14,7 +14,7 @@ makedepends=('go>=1.21')
 provides=('sysc-greet')
 conflicts=('sysc-greet-niri' 'sysc-greet-hyprland' 'sysc-greet')
 source=("${pkgname%-*}-${pkgver}.tar.gz::https://github.com/Nomadcxx/sysc-greet/archive/refs/tags/v${pkgver}.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('0d9498d39754df89a5c91d87270246b8081855f297a748cd617f52ec72c2d2ef')
 backup=('etc/greetd/config.toml' 'etc/greetd/sway-greeter-config' 'etc/polkit-1/rules.d/85-greeter.rules')
 install=sysc-greet-sway.install
 

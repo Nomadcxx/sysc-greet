@@ -12,7 +12,7 @@ optdepends=(
 )
 makedepends=('go>=1.21')
 source=("${pkgname}-${pkgver}.tar.gz::https://github.com/Nomadcxx/sysc-greet/archive/refs/tags/v${pkgver}.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('0d9498d39754df89a5c91d87270246b8081855f297a748cd617f52ec72c2d2ef')
 backup=('etc/greetd/config.toml' 'etc/greetd/niri-greeter-config.kdl' 'etc/polkit-1/rules.d/85-greeter.rules')
 install=${pkgname}.install
 
