@@ -12,6 +12,30 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// isArchBased checks if running on Arch or Arch-based distro
+func isArchBased() bool {
+	// Check for arch-release file
+	if _, err := os.Stat("/etc/arch-release"); err == nil {
+		return true
+	}
+	// Check for pacman
+	if _, err := exec.LookPath("pacman"); err == nil {
+		return true
+	}
+	return false
+}
+
+// detectAURHelper finds available AUR helper (yay > paru > none)
+func detectAURHelper() string {
+	helpers := []string{"yay", "paru"}
+	for _, helper := range helpers {
+		if path, err := exec.LookPath(helper); err == nil {
+			return path
+		}
+	}
+	return ""
+}
+
 // Theme colors - Monochrome (ASCII style)
 var (
 	BgBase       = lipgloss.Color("#1a1a1a")
@@ -124,8 +148,8 @@ func newModel(debugMode bool, logFile *os.File) model {
 			optional:    false,
 			status:      statusPending,
 			subTasks: []installSubTask{
-				{name: "Check for existing installation", status: statusPending},
-				{name: "Try AUR package (yay/paru)", status: statusPending},
+				{name: "Detecting distro and AUR helper", status: statusPending},
+				{name: "Installing via AUR", status: statusPending},
 				{name: "Install GStreamer dependencies", status: statusPending},
 				{name: "Clone repository", status: statusPending},
 				{name: "Build from source", status: statusPending},
@@ -204,6 +228,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						{name: "Check privileges", description: "Checking root access", execute: checkPrivileges, status: statusPending},
 						{name: "Disable service", description: "Disabling greetd service", execute: disableService, status: statusPending},
 						{name: "Remove binary", description: "Removing sysc-greet binary", execute: removeBinary, status: statusPending},
+						{name: "Remove gslapper", description: "Removing wallpaper daemon", execute: uninstallGslapper, optional: true, status: statusPending},
 						{name: "Remove configs", description: "Removing configurations", execute: removeConfigs, status: statusPending},
 						{name: "Clean cache", description: "Cleaning cache directories", execute: cleanCache, optional: true, status: statusPending},
 					}
@@ -936,39 +961,28 @@ func installCompositor(m *model) error {
 }
 
 func installGslapper(m *model) error {
-	// Sub-task 0: Check if already installed
+	// Sub-task 0: Detect environment
 	updateSubTaskStatus(m, 0, statusRunning)
-	if _, err := exec.LookPath("gslapper"); err == nil {
-		updateSubTaskStatus(m, 0, statusComplete)
-		// Mark remaining sub-tasks as skipped
-		for i := 1; i < 6; i++ {
-			updateSubTaskStatus(m, i, statusSkipped)
-		}
-		return nil
+
+	isArch := isArchBased()
+	aurHelper := ""
+	originalUser := os.Getenv("SUDO_USER")
+
+	if isArch && originalUser != "" && originalUser != "root" {
+		aurHelper = detectAURHelper()
 	}
 	updateSubTaskStatus(m, 0, statusComplete)
 
-	// Sub-task 1: Try AUR package (yay/paru)
+	// Sub-task 1: Try AUR package if on Arch with helper
 	updateSubTaskStatus(m, 1, statusRunning)
 	aurInstalled := false
-	if m.packageManager == "pacman" {
-		// Try AUR helpers
-		if _, err := exec.LookPath("yay"); err == nil {
-			// IMPORTANT: yay must NOT be run as root
-			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" && sudoUser != "root" {
-				cmd := exec.Command("su", "-", sudoUser, "-c", "yay -S --noconfirm gslapper")
-				if err := runCommand("Install gslapper (yay)", cmd, m); err == nil {
-					aurInstalled = true
-				}
-			}
-		} else if _, err := exec.LookPath("paru"); err == nil {
-			// IMPORTANT: paru must NOT be run as root
-			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" && sudoUser != "root" {
-				cmd := exec.Command("su", "-", sudoUser, "-c", "paru -S --noconfirm gslapper")
-				if err := runCommand("Install gslapper (paru)", cmd, m); err == nil {
-					aurInstalled = true
-				}
-			}
+
+	if isArch && aurHelper != "" && originalUser != "" {
+		// Run AUR helper as original user (not root)
+		// Uses sudo -u to drop privileges
+		cmd := exec.Command("sudo", "-u", originalUser, aurHelper, "-S", "--noconfirm", "gslapper")
+		if err := runCommand(fmt.Sprintf("Install gslapper (%s)", aurHelper), cmd, m); err == nil {
+			aurInstalled = true
 		}
 	}
 
@@ -980,7 +994,13 @@ func installGslapper(m *model) error {
 		}
 		return nil
 	} else {
-		updateSubTaskStatus(m, 1, statusSkipped)
+		if isArch && aurHelper != "" {
+			// AUR was attempted but failed
+			updateSubTaskStatus(m, 1, statusFailed)
+		} else {
+			// AUR not applicable (not Arch or no helper)
+			updateSubTaskStatus(m, 1, statusSkipped)
+		}
 	}
 
 	// Fall back to building from source (works on all distros)
@@ -1564,6 +1584,39 @@ func cleanCache(m *model) error {
 
 	// Note: We don't remove /var/lib/greeter or the greeter user
 	// as they might be used by other greeters
+
+	return nil
+}
+
+func uninstallGslapper(m *model) error {
+	// Detect installation method
+	isArch := isArchBased()
+	packagesToRemove := []string{}
+
+	if isArch {
+		// Check for both gslapper and gslapper-debug packages
+		for _, pkg := range []string{"gslapper", "gslapper-debug"} {
+			cmd := exec.Command("pacman", "-Qi", pkg)
+			if err := cmd.Run(); err == nil {
+				packagesToRemove = append(packagesToRemove, pkg)
+			}
+		}
+	}
+
+	var cmd *exec.Cmd
+	if len(packagesToRemove) > 0 {
+		// Uninstall via pacman (already running as root, no sudo needed)
+		args := append([]string{"-R", "--noconfirm"}, packagesToRemove...)
+		cmd = exec.Command("pacman", args...)
+	} else {
+		// Manually remove binaries (source install)
+		cmd = exec.Command("rm", "-f", "/usr/local/bin/gslapper", "/usr/local/bin/gslapper-holder")
+	}
+
+	if err := runCommand("Uninstall gSlapper", cmd, m); err != nil {
+		// Not critical if gslapper wasn't installed
+		return nil
+	}
 
 	return nil
 }
