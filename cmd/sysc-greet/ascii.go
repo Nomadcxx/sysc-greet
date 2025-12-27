@@ -233,8 +233,14 @@ func (m model) getSessionASCII() string {
 	// All WM ASCII art now maintains natural height for consistent distance to border elements
 
 	// CHANGED 2025-10-18 19:09 - Apply styling to entire ASCII block instead of per-line to fix width calculation mangling - Problem: Per-line Render() caused JoinVertical(Center) to miscalculate widths
-	// Apply static primary color to entire ASCII art block
-	style := lipgloss.NewStyle().Foreground(Primary).Background(BgBase)
+	// Determine ASCII color: use config override if set, otherwise theme Primary
+	asciiColor := Primary
+	if asciiConfig.Color != "" {
+		asciiColor = lipgloss.Color(asciiConfig.Color)
+	}
+
+	// Apply color to entire ASCII art block
+	style := lipgloss.NewStyle().Foreground(asciiColor).Background(BgBase)
 	return style.Render(currentASCII)
 }
 
