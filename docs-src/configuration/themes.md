@@ -26,15 +26,36 @@ Press **F1** → **Themes** to cycle through available themes. Your selection is
 
 ## Custom Themes
 
-Custom themes are not currently supported. All themes are compiled into the binary.
+Create custom themes by placing TOML files in:
 
-If you want a specific color scheme added, open a [feature request](https://github.com/Nomadcxx/sysc-greet/issues/new) with:
+- `/usr/share/sysc-greet/themes/` (system-wide)
+- `~/.config/sysc-greet/themes/` (user)
 
-- Theme name
-- Primary color (hex, e.g., `#bd93f9`)
-- Secondary color
-- Accent color
-- Background color
+Custom themes appear in F1 → Themes alongside built-in themes.
+
+### Format
+
+```toml
+# my-theme.toml
+name = "My Theme"
+
+[colors]
+bg_base = "#1a1a2e"
+bg_active = "#2a2a3e"
+primary = "#e94560"
+secondary = "#0f3460"
+accent = "#16213e"
+warning = "#f59e0b"
+danger = "#ef4444"
+fg_primary = "#ffffff"
+fg_secondary = "#cccccc"
+fg_muted = "#888888"
+border_focus = "#e94560"
+```
+
+All color fields are required. Use hex format (`#RRGGBB`).
+
+An example theme is provided in the repository at `examples/themes/example.toml`.
 
 ### TTY Compatibility
 

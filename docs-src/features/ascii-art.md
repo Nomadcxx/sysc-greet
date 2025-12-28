@@ -32,6 +32,20 @@ ascii_2=
    \|_________|                             \|_________|
 ```
 
+## Per-Session Color Override
+
+Override the ASCII art color for a specific session, independent of your selected theme:
+
+```ini
+name=Hyprland
+color=#89b4fa
+
+ascii_1=
+...
+```
+
+If `color=` is set, that color is used for ASCII art. If omitted, the theme's primary color is used.
+
 ## Creating Custom ASCII
 
 **ASCII generators:**
