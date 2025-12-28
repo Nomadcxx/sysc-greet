@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -321,6 +322,7 @@ type model struct {
 	selectedBorderStyle    string
 	selectedBackground     string
 	currentTheme           string
+	availableThemes        []string // Built-in + custom theme names
 	borderAnimationEnabled bool
 	selectedFont           string
 	// CHANGED 2025-10-01 - Added animation control fields
@@ -508,6 +510,17 @@ func initialModel(config Config, screensaverMode bool) model {
 		currentTheme = theme
 	}
 
+	// Scan for custom themes
+	themeDirs := []string{
+		"/usr/share/sysc-greet/themes",
+		filepath.Join(os.Getenv("HOME"), ".config/sysc-greet/themes"),
+	}
+	customThemeNames := themesOld.ScanCustomThemes(themeDirs)
+
+	// Combine built-in and custom themes
+	availableThemes := themesOld.GetAvailableThemes()
+	availableThemes = append(availableThemes, customThemeNames...)
+
 	// Set initial focus
 	ti.Focus()
 
@@ -547,6 +560,7 @@ func initialModel(config Config, screensaverMode bool) model {
 		selectedBorderStyle:    "classic",
 		selectedBackground:     "none",
 		currentTheme:           "dracula",
+		availableThemes:        availableThemes,
 		borderAnimationEnabled: false,
 		selectedFont:           "/usr/share/bubble-greet/fonts/dos_rebel.flf", // Absolute path
 		customASCIIText:        "",
