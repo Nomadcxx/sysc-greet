@@ -11,6 +11,15 @@ from PIL import Image, ImageDraw, ImageFont
 import os
 import sys
 import argparse
+import glob
+
+try:
+    import tomllib  # Python 3.11+
+except ImportError:
+    try:
+        import tomli as tomllib  # Fallback for older Python
+    except ImportError:
+        tomllib = None
 
 # Theme definitions: name -> (bg_color, text_color)
 THEMES = {
@@ -38,6 +47,42 @@ def hex_to_rgb(hex_color):
     """Convert hex color to RGB tuple."""
     hex_color = hex_color.lstrip('#')
     return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+
+def load_custom_themes():
+    """Scan for custom theme TOML files and return dict of themes."""
+    if tomllib is None:
+        return {}
+
+    custom_themes = {}
+    theme_dirs = [
+        "/usr/share/sysc-greet/themes",
+        os.path.expanduser("~/.config/sysc-greet/themes"),
+    ]
+
+    for theme_dir in theme_dirs:
+        if not os.path.isdir(theme_dir):
+            continue
+
+        for toml_path in glob.glob(os.path.join(theme_dir, "*.toml")):
+            try:
+                with open(toml_path, "rb") as f:
+                    data = tomllib.load(f)
+
+                name = data.get("name", os.path.basename(toml_path).replace(".toml", ""))
+                colors = data.get("colors", {})
+                bg_color = colors.get("bg_base", "#1a1a1a")
+                text_color = colors.get("primary", "#ffffff")
+
+                # Use lowercase name for consistency
+                theme_key = name.lower().replace(" ", "-")
+                custom_themes[theme_key] = (bg_color, text_color)
+                print(f"Loaded custom theme: {name} ({theme_key})")
+
+            except Exception as e:
+                print(f"Warning: Failed to load {toml_path}: {e}")
+
+    return custom_themes
 
 
 def load_ascii_art(filepath):
@@ -184,14 +229,21 @@ def main():
         print(f"  {i+1}: '{line[:60]}...'") if len(line) > 60 else print(f"  {i+1}: '{line}'")
     print()
 
+    # Load custom themes and merge with built-in themes
+    all_themes = dict(THEMES)
+    custom_themes = load_custom_themes()
+    if custom_themes:
+        print()
+    all_themes.update(custom_themes)
+
     # Generate wallpapers
-    themes_to_generate = THEMES.items()
+    themes_to_generate = all_themes.items()
     if args.theme:
-        if args.theme not in THEMES:
+        if args.theme not in all_themes:
             print(f"Error: Unknown theme '{args.theme}'")
-            print(f"Available themes: {', '.join(THEMES.keys())}")
+            print(f"Available themes: {', '.join(all_themes.keys())}")
             sys.exit(1)
-        themes_to_generate = [(args.theme, THEMES[args.theme])]
+        themes_to_generate = [(args.theme, all_themes[args.theme])]
 
     for theme_name, (bg_color, text_color) in themes_to_generate:
         generate_wallpaper(theme_name, bg_color, text_color, lines, output_dir)
