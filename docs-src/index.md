@@ -6,7 +6,7 @@ sysc-greet is a graphical console greeter for greetd, written in Go with the Bub
 
 ## Features
 
-- **Multiple Themes**: Dracula, Gruvbox, Material, Nord, Tokyo Night, Catppuccin, Solarized, Monochrome, TransIsHardJob, Eldritch (plus custom themes)
+- **Multiple Themes**: Dracula, Gruvbox, Material, Nord, Tokyo Night, Catppuccin, Solarized, Monochrome, TransIsHardJob, Eldritch, RAMA, Dark (plus custom themes)
 - **Background Effects**: Fire (DOOM PSX), Matrix rain, ASCII rain, Fireworks, Aquarium
 - **ASCII Effects**: Typewriter, Print, Beams, and Pour effects for session text
 - **Border Styles**: Classic, Modern, Minimal, ASCII-1, ASCII-2, Wave, Pulse
@@ -233,6 +233,8 @@ sysc-greet includes multiple built-in themes:
 | Monochrome | #ffffff | Black and white minimal theme |
 | TransIsHardJob | #5BCEFA | Transgender flag colors |
 | Eldritch | #37f499 | Purple and green theme |
+| RAMA | #ef233c | RAMA keyboard aesthetics |
+| Dark | #ffffff | True black and white minimal theme |
 
 Custom themes can be added via TOML files in `/usr/share/sysc-greet/themes/` or `~/.config/sysc-greet/themes/`. See [Themes Configuration](configuration/themes.md) for details.
 

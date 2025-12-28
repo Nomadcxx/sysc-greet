@@ -269,6 +269,48 @@ func GetTheme(themeName string) ThemeColors {
 			BorderFocus:   lipgloss.Color("#37f499"),
 		}
 
+	case "rama":
+		// RAMA theme - Inspired by RAMA keyboard aesthetics
+		return ThemeColors{
+			Name:          "rama",
+			BgBase:        lipgloss.Color("#2b2d42"),
+			BgElevated:    lipgloss.Color("#2b2d42"),
+			BgSubtle:      lipgloss.Color("#2b2d42"),
+			BgActive:      lipgloss.Color("#3b3d52"),
+			Primary:       lipgloss.Color("#ef233c"),
+			Secondary:     lipgloss.Color("#d90429"),
+			Accent:        lipgloss.Color("#ef233c"),
+			Warning:       lipgloss.Color("#f59e0b"),
+			Danger:        lipgloss.Color("#ef233c"),
+			FgPrimary:     lipgloss.Color("#edf2f4"),
+			FgSecondary:   lipgloss.Color("#8d99ae"),
+			FgMuted:       lipgloss.Color("#8d99ae"),
+			FgSubtle:      lipgloss.Color("#6d7a8e"),
+			BorderDefault: lipgloss.Color("#3b3d52"),
+			BorderFocus:   lipgloss.Color("#ef233c"),
+		}
+
+	case "dark":
+		// DARK theme - True black and true white minimalism
+		return ThemeColors{
+			Name:          "dark",
+			BgBase:        lipgloss.Color("#000000"),
+			BgElevated:    lipgloss.Color("#000000"),
+			BgSubtle:      lipgloss.Color("#000000"),
+			BgActive:      lipgloss.Color("#1a1a1a"),
+			Primary:       lipgloss.Color("#ffffff"),
+			Secondary:     lipgloss.Color("#ffffff"),
+			Accent:        lipgloss.Color("#808080"),
+			Warning:       lipgloss.Color("#aaaaaa"),
+			Danger:        lipgloss.Color("#999999"),
+			FgPrimary:     lipgloss.Color("#ffffff"),
+			FgSecondary:   lipgloss.Color("#cccccc"),
+			FgMuted:       lipgloss.Color("#666666"),
+			FgSubtle:      lipgloss.Color("#444444"),
+			BorderDefault: lipgloss.Color("#333333"),
+			BorderFocus:   lipgloss.Color("#ffffff"),
+		}
+
 	default: // Fallback to Dracula
 		return ThemeColors{
 			Name:          "dracula",
@@ -304,6 +346,8 @@ func GetAvailableThemes() []string {
 		"Monochrome",
 		"TransIsHardJob",
 		"Eldritch",
+		"RAMA",
+		"Dark",
 	}
 }
 

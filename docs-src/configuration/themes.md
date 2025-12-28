@@ -16,6 +16,8 @@ sysc-greet includes multiple built-in color themes. Themes affect the entire col
 | Monochrome | #ffffff | Black and white minimal theme |
 | TransIsHardJob | #5BCEFA | Transgender flag colors |
 | Eldritch | #37f499 | Purple and green theme |
+| RAMA | #ef233c | RAMA keyboard aesthetics |
+| Dark | #ffffff | True black and white minimal theme |
 
 ## Changing Themes
 
