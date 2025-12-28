@@ -1,0 +1,17 @@
+# Example custom theme for sysc-greet
+# Copy to /usr/share/sysc-greet/themes/ or ~/.config/sysc-greet/themes/
+
+name = "Example"
+
+[colors]
+bg_base = "#1a1a2e"
+bg_active = "#2a2a3e"
+primary = "#e94560"
+secondary = "#0f3460"
+accent = "#16213e"
+warning = "#f59e0b"
+danger = "#ef4444"
+fg_primary = "#ffffff"
+fg_secondary = "#cccccc"
+fg_muted = "#888888"
+border_focus = "#e94560"
