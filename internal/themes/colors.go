@@ -62,6 +62,11 @@ type ThemeColors struct {
 
 // GetTheme returns theme colors for the given theme name
 func GetTheme(themeName string) ThemeColors {
+	// Check custom themes first (allows overriding built-ins)
+	if theme, ok := CustomThemes[strings.ToLower(themeName)]; ok {
+		return theme
+	}
+
 	switch strings.ToLower(themeName) {
 	case "gruvbox":
 		return ThemeColors{
