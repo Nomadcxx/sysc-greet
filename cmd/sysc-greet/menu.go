@@ -8,21 +8,9 @@ import (
 
 // navigateToThemesSubmenu switches to the themes submenu
 func (m model) navigateToThemesSubmenu() (tea.Model, tea.Cmd) {
-	m.menuOptions = []string{
-		"← Back",
-		"Theme: Nord",
-		"Theme: Gruvbox",
-		"Theme: Material",
-		"Theme: Dracula",
-		"Theme: Catppuccin",
-		"Theme: Tokyo Night",
-		"Theme: Solarized",
-		"Theme: Monochrome",
-		"Theme: TransIsHardJob",
-		"Theme: Eldritch",
-		"Theme: RAMA",
-		"Theme: DARK",
-		"Theme: Default",
+	m.menuOptions = []string{"← Back"}
+	for _, theme := range m.availableThemes {
+		m.menuOptions = append(m.menuOptions, "Theme: "+theme)
 	}
 
 	m.mode = ModeThemesSubmenu
