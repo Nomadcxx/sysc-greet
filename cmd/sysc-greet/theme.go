@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Nomadcxx/sysc-greet/internal/themes"
 	"github.com/Nomadcxx/sysc-greet/internal/wallpaper"
 	"github.com/charmbracelet/lipgloss/v2"
 )
@@ -18,7 +19,34 @@ import (
 // applyTheme sets the color scheme for the entire application based on theme name
 // CHANGED 2025-10-01 - Theme support with proper color palettes
 // CHANGED 2025-10-11 - Added testMode parameter
+// CHANGED 2025-12-28 - Added custom theme support
 func applyTheme(themeName string, testMode bool) {
+	// Check if this is a custom theme
+	if theme, ok := themes.CustomThemes[strings.ToLower(themeName)]; ok {
+		// Apply custom theme colors
+		BgBase = theme.BgBase
+		BgElevated = theme.BgElevated
+		BgSubtle = theme.BgSubtle
+		BgActive = theme.BgActive
+		Primary = theme.Primary
+		Secondary = theme.Secondary
+		Accent = theme.Accent
+		Warning = theme.Warning
+		Danger = theme.Danger
+		FgPrimary = theme.FgPrimary
+		FgSecondary = theme.FgSecondary
+		FgMuted = theme.FgMuted
+		FgSubtle = theme.FgSubtle
+
+		// Set border colors from custom theme
+		BorderDefault = theme.BorderDefault
+		BorderFocus = theme.BorderFocus
+
+		// Set wallpaper for custom theme
+		setThemeWallpaper(themeName, testMode)
+		return
+	}
+
 	switch strings.ToLower(themeName) {
 	case "gruvbox":
 		// Gruvbox Dark theme
