@@ -1211,6 +1211,7 @@ func installConfigs(m *model) error {
 		configPath + "/fonts",
 		configPath + "/Assets",
 		configPath + "/wallpapers",
+		configPath + "/themes",
 	}
 
 	for _, dir := range dirs {
@@ -1242,6 +1243,14 @@ func installConfigs(m *model) error {
 	if _, err := os.Stat("wallpapers"); err == nil {
 		if err := exec.Command("cp", "-r", "wallpapers/", configPath+"/").Run(); err != nil {
 			return fmt.Errorf("failed to copy wallpapers")
+		}
+	}
+
+	// Copy example theme if it exists
+	// ADDED 2025-12-28 - Copy example custom theme template
+	if _, err := os.Stat("examples/themes/example.toml"); err == nil {
+		if err := exec.Command("cp", "examples/themes/example.toml", configPath+"/themes/").Run(); err != nil {
+			return fmt.Errorf("failed to copy example theme")
 		}
 	}
 
