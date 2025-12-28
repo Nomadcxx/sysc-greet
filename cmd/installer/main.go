@@ -1248,8 +1248,9 @@ func installConfigs(m *model) error {
 
 	// Copy example theme if it exists
 	// ADDED 2025-12-28 - Copy example custom theme template
+	// FIXED 2025-12-28 - Use install with 644 permissions so greeter user can read it
 	if _, err := os.Stat("examples/themes/example.toml"); err == nil {
-		if err := exec.Command("cp", "examples/themes/example.toml", configPath+"/themes/").Run(); err != nil {
+		if err := exec.Command("install", "-m", "644", "examples/themes/example.toml", configPath+"/themes/").Run(); err != nil {
 			return fmt.Errorf("failed to copy example theme")
 		}
 	}

@@ -269,24 +269,24 @@ func GetTheme(themeName string) ThemeColors {
 			BorderFocus:   lipgloss.Color("#37f499"),
 		}
 
-	default: // "default" - Original Crush-inspired theme
+	default: // Fallback to Dracula
 		return ThemeColors{
-			Name:          "default",
-			BgBase:        lipgloss.Color("#1a1a1a"),
-			BgElevated:    lipgloss.Color("#1a1a1a"),
-			BgSubtle:      lipgloss.Color("#1a1a1a"),
-			BgActive:      lipgloss.Color("#2a2a2a"),
-			Primary:       lipgloss.Color("#8b5cf6"),
-			Secondary:     lipgloss.Color("#06b6d4"),
-			Accent:        lipgloss.Color("#10b981"),
-			Warning:       lipgloss.Color("#f59e0b"),
-			Danger:        lipgloss.Color("#ef4444"),
-			FgPrimary:     lipgloss.Color("#f8fafc"),
-			FgSecondary:   lipgloss.Color("#cbd5e1"),
-			FgMuted:       lipgloss.Color("#94a3b8"),
-			FgSubtle:      lipgloss.Color("#64748b"),
-			BorderDefault: lipgloss.Color("#334155"),
-			BorderFocus:   lipgloss.Color("#8b5cf6"),
+			Name:          "dracula",
+			BgBase:        lipgloss.Color("#282a36"),
+			BgElevated:    lipgloss.Color("#282a36"),
+			BgSubtle:      lipgloss.Color("#282a36"),
+			BgActive:      lipgloss.Color("#44475a"),
+			Primary:       lipgloss.Color("#bd93f9"),
+			Secondary:     lipgloss.Color("#8be9fd"),
+			Accent:        lipgloss.Color("#50fa7b"),
+			Warning:       lipgloss.Color("#f1fa8c"),
+			Danger:        lipgloss.Color("#ff5555"),
+			FgPrimary:     lipgloss.Color("#f8f8f2"),
+			FgSecondary:   lipgloss.Color("#f1f2f6"),
+			FgMuted:       lipgloss.Color("#6272a4"),
+			FgSubtle:      lipgloss.Color("#44475a"),
+			BorderDefault: lipgloss.Color("#44475a"),
+			BorderFocus:   lipgloss.Color("#bd93f9"),
 		}
 	}
 }
@@ -304,7 +304,6 @@ func GetAvailableThemes() []string {
 		"Monochrome",
 		"TransIsHardJob",
 		"Eldritch",
-		"Default",
 	}
 }
 
