@@ -56,6 +56,17 @@ All color fields are required. Use hex format (`#RRGGBB`).
 
 An example theme is provided in the repository at `examples/themes/example.toml`.
 
+### Generating Wallpapers
+
+After adding a new theme, regenerate wallpapers to include theme-matched backgrounds:
+
+```bash
+cd scripts/
+python3 generate-wallpapers.py
+```
+
+This creates wallpapers for all themes in `/usr/share/sysc-greet/wallpapers/`. See [Wallpapers](../features/wallpapers.md) for more options.
+
 ### TTY Compatibility
 
 sysc-greet uses the `colorprofile` library to detect terminal capabilities and fall back gracefully:
