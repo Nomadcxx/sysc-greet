@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/Nomadcxx/sysc-greet/internal/themes"
 	"github.com/Nomadcxx/sysc-greet/internal/ui"
 )
 
@@ -79,10 +80,15 @@ func getThemeColorsForBeams(themeName string) ([]string, []string) {
 	var beamGradientStops []string
 	var finalGradientStops []string
 
-	// Normalize theme name to lowercase for comparison
-	themeName = strings.ToLower(themeName)
+	// Layer 1: Check custom themes first
+	if colors, ok := themes.GetThemeColorStrings(themeName); ok {
+		beamGradientStops = []string{colors.FgPrimary, colors.Secondary, colors.Primary}
+		finalGradientStops = []string{colors.FgMuted, colors.Primary, colors.FgPrimary}
+		return beamGradientStops, finalGradientStops
+	}
 
-	switch themeName {
+	// Layer 2: Built-in themes
+	switch strings.ToLower(themeName) {
 	case "dracula":
 		beamGradientStops = []string{"#ffffff", "#8be9fd", "#bd93f9"}
 		finalGradientStops = []string{"#6272a4", "#bd93f9", "#f8f8f2"}
@@ -129,10 +135,13 @@ func getThemeColorsForBeams(themeName string) ([]string, []string) {
 
 // getThemeColorsForPour returns color palette for pour effect based on theme
 func getThemeColorsForPour(themeName string) []string {
-	// Normalize theme name to lowercase for comparison
-	themeName = strings.ToLower(themeName)
+	// Layer 1: Check custom themes first
+	if colors, ok := themes.GetThemeColorStrings(themeName); ok {
+		return []string{colors.Primary, colors.Secondary, colors.FgPrimary}
+	}
 
-	switch themeName {
+	// Layer 2: Built-in themes
+	switch strings.ToLower(themeName) {
 	case "dracula":
 		return []string{"#ff79c6", "#bd93f9", "#ffffff"}
 	case "gruvbox":
@@ -164,10 +173,21 @@ func getThemeColorsForPour(themeName string) []string {
 
 // getThemeColorsForAquarium returns color palette for aquarium effect based on theme
 func getThemeColorsForAquarium(themeName string) (fishColors, waterColors, seaweedColors []string, bubbleColor, diverColor, boatColor, mermaidColor, anchorColor string) {
-	// Normalize theme name to lowercase for comparison
-	themeName = strings.ToLower(themeName)
+	// Layer 1: Check custom themes first
+	if colors, ok := themes.GetThemeColorStrings(themeName); ok {
+		fishColors = []string{colors.Primary, colors.Secondary, colors.Accent, colors.Warning, colors.Danger}
+		waterColors = []string{colors.BgBase, colors.Accent}
+		seaweedColors = []string{colors.BgBase, colors.Accent, colors.Secondary}
+		bubbleColor = colors.Secondary
+		diverColor = colors.FgPrimary
+		boatColor = colors.Warning
+		mermaidColor = colors.Primary
+		anchorColor = colors.FgMuted
+		return
+	}
 
-	switch themeName {
+	// Layer 2: Built-in themes
+	switch strings.ToLower(themeName) {
 	case "dracula":
 		fishColors = []string{"#ff79c6", "#bd93f9", "#8be9fd", "#50fa7b", "#ffb86c"}
 		waterColors = []string{"#6272a4", "#c2b280"}
