@@ -212,13 +212,14 @@ func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
 
 	updates := []string{
 		"Updates:",
+		"  • Custom themes: Create your own themes via TOML files",
+		"      Place in /usr/share/sysc-greet/themes/ or ~/.config/sysc-greet/themes/",
+		"  • All effects respect custom theme colors:",
+		"      Fire, Matrix, Rain, Fireworks, Aquarium, Beams, Pour, Screensaver",
+		"  • Wallpaper generation script now supports custom themes",
 		"  • Aquarium background effect with fish, diver, and sea life",
 		"  • Pour ASCII animation with theme-aware gradients",
 		"  • New themes: RAMA (red/gray) and DARK (true black/white)",
-		"  • Fixed animation speeds for smooth, relaxing motion",
-		"  • All effects now fully theme-sensitive with live updates",
-		"  • Better screensaver cycling and timing",
-		"  • Minor UI fixes for borders and navigation",
 		"",
 	}
 
