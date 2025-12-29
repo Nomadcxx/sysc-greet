@@ -23,7 +23,6 @@ These auto-match your selected theme using the naming convention `sysc-greet-{th
 - `sysc-greet-eldritch.png`
 - `sysc-greet-transishardjob.png`
 - `sysc-greet-rama.png`
-- `sysc-greet-default.png`
 - `sysc-greet-dark.png`
 
 ### Adding or Replacing Themed Wallpapers
@@ -59,6 +58,8 @@ python3 generate-wallpapers.py --output ~/my-wallpapers/
 ```
 
 The script generates 4K (3840x2160) PNG images that scale down nicely to all displays.
+
+**Custom themes:** The script automatically detects custom themes from `/usr/share/sysc-greet/themes/` and `~/.config/sysc-greet/themes/` and generates matching wallpapers.
 
 **Install generated wallpapers:**
 

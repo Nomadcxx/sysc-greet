@@ -25,6 +25,12 @@ Access via **F1** → **ASCII Effects**:
 | Beams | Horizontal color beam scanning |
 | Pour | Characters pour down with gradient |
 
+## Custom Theme Support
+
+All effects automatically use colors from custom themes. When you select a custom theme, effects generate palettes from your theme's `primary`, `secondary`, `accent`, `warning`, and `danger` colors.
+
+See [Custom Themes](../configuration/themes.md#custom-themes) for creating your own themes.
+
 ## Behavior
 
 - Background effects are mutually exclusive
