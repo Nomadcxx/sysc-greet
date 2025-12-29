@@ -1,10 +1,22 @@
 package animations
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/Nomadcxx/sysc-greet/internal/themes"
+)
 
 // GetFirePalette returns theme-specific fire colors
 func GetFirePalette(themeName string) []string {
-	// Case-insensitive matching
+	// Layer 1: Check custom themes first
+	if colors, ok := themes.GetThemeColorStrings(themeName); ok {
+		return []string{
+			colors.BgBase, colors.BgActive, colors.Accent,
+			colors.Warning, colors.Danger, colors.Primary, colors.FgPrimary,
+		}
+	}
+
+	// Layer 2: Built-in themes
 	switch strings.ToLower(themeName) {
 	case "dracula":
 		return []string{
@@ -151,6 +163,15 @@ func GetDefaultFirePalette() []string {
 
 // GetMatrixPalette returns theme-specific matrix rain colors
 func GetMatrixPalette(themeName string) []string {
+	// Layer 1: Check custom themes first
+	if colors, ok := themes.GetThemeColorStrings(themeName); ok {
+		return []string{
+			colors.BgBase, colors.BgActive, colors.Accent,
+			colors.Secondary, colors.Primary, colors.FgPrimary,
+		}
+	}
+
+	// Layer 2: Built-in themes
 	switch strings.ToLower(themeName) {
 	case "dracula":
 		return []string{"#282a36", "#44475a", "#6272a4", "#8be9fd", "#50fa7b", "#ff5555"}
@@ -211,6 +232,14 @@ func GetParticlePalette(themeName string) []string {
 
 // GetRainPalette returns theme-specific rain colors
 func GetRainPalette(themeName string) []string {
+	// Layer 1: Check custom themes first
+	if colors, ok := themes.GetThemeColorStrings(themeName); ok {
+		return []string{
+			colors.Primary, colors.Secondary, colors.Accent, colors.FgMuted,
+		}
+	}
+
+	// Layer 2: Built-in themes
 	switch strings.ToLower(themeName) {
 	case "dracula":
 		return []string{"#8be9fd", "#50fa7b", "#ffb86c", "#ff79c6", "#bd93f9"}
@@ -243,6 +272,15 @@ func GetRainPalette(themeName string) []string {
 
 // GetFireworksPalette returns theme-specific fireworks colors
 func GetFireworksPalette(themeName string) []string {
+	// Layer 1: Check custom themes first
+	if colors, ok := themes.GetThemeColorStrings(themeName); ok {
+		return []string{
+			colors.Primary, colors.Secondary, colors.Accent,
+			colors.Warning, colors.Danger, colors.FgPrimary,
+		}
+	}
+
+	// Layer 2: Built-in themes
 	switch strings.ToLower(themeName) {
 	case "dracula":
 		return []string{"#ff5555", "#ff79c6", "#bd93f9", "#8be9fd", "#50fa7b", "#ffb86c", "#ffffff"}
@@ -277,6 +315,15 @@ func GetFireworksPalette(themeName string) []string {
 // GetScreensaverPalette returns theme-specific colors for screensaver elements
 // Returns: [background, ascii_primary, ascii_secondary, clock_primary, clock_secondary, date_color]
 func GetScreensaverPalette(themeName string) []string {
+	// Layer 1: Check custom themes first
+	if colors, ok := themes.GetThemeColorStrings(themeName); ok {
+		return []string{
+			colors.BgBase, colors.Primary, colors.Secondary,
+			colors.Accent, colors.Warning, colors.FgPrimary,
+		}
+	}
+
+	// Layer 2: Built-in themes
 	switch strings.ToLower(themeName) {
 	case "dracula":
 		return []string{"#282a36", "#bd93f9", "#8be9fd", "#50fa7b", "#f1fa8c", "#f8f8f2"}

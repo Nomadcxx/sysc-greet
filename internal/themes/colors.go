@@ -439,3 +439,51 @@ func loadCustomTheme(path string) (ThemeColors, error) {
 		BorderFocus:   lipgloss.Color(config.Colors.BorderFocus),
 	}, nil
 }
+
+// ThemeColorStrings holds hex color strings for a theme (for palette generation)
+type ThemeColorStrings struct {
+	BgBase    string
+	BgActive  string
+	Primary   string
+	Secondary string
+	Accent    string
+	Warning   string
+	Danger    string
+	FgPrimary string
+	FgMuted   string
+}
+
+// GetThemeColorStrings returns hex color strings for a custom theme
+// Returns the colors and true if theme is custom, empty struct and false otherwise
+// Used by animations package to generate theme-aware palettes
+func GetThemeColorStrings(themeName string) (ThemeColorStrings, bool) {
+	name := strings.ToLower(themeName)
+
+	// Check custom themes
+	if theme, ok := CustomThemes[name]; ok {
+		return ThemeColorStrings{
+			BgBase:    colorToHex(theme.BgBase),
+			BgActive:  colorToHex(theme.BgActive),
+			Primary:   colorToHex(theme.Primary),
+			Secondary: colorToHex(theme.Secondary),
+			Accent:    colorToHex(theme.Accent),
+			Warning:   colorToHex(theme.Warning),
+			Danger:    colorToHex(theme.Danger),
+			FgPrimary: colorToHex(theme.FgPrimary),
+			FgMuted:   colorToHex(theme.FgMuted),
+		}, true
+	}
+
+	// Not a custom theme - caller should use built-in palette
+	return ThemeColorStrings{}, false
+}
+
+// colorToHex converts a color.Color to hex string
+// Returns #000000 if color is nil (safe fallback)
+func colorToHex(c color.Color) string {
+	if c == nil {
+		return "#000000"
+	}
+	r, g, b, _ := c.RGBA()
+	return fmt.Sprintf("#%02x%02x%02x", r>>8, g>>8, b>>8)
+}

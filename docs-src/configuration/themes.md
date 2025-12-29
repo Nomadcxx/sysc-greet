@@ -67,6 +67,17 @@ python3 generate-wallpapers.py
 
 This creates wallpapers for all themes in `/usr/share/sysc-greet/wallpapers/`. See [Wallpapers](../features/wallpapers.md) for more options.
 
+### Background Effects
+
+Custom themes automatically work with all background effects (fire, matrix, rain, fireworks). The effects generate color palettes from your theme's colors:
+
+- **Fire** uses `bg_base` → `warning` → `danger` → `primary` gradient
+- **Matrix** uses `bg_base` → `secondary` → `primary` for the falling characters
+- **Rain** uses `primary`, `secondary`, `accent` for the drops
+- **Fireworks** uses all accent colors for variety
+
+No additional configuration needed - just select your custom theme and enable an effect.
+
 ### TTY Compatibility
 
 sysc-greet uses the `colorprofile` library to detect terminal capabilities and fall back gracefully:
