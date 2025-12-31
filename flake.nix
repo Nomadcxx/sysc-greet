@@ -169,7 +169,7 @@ EOF
                     if cfg.compositor == "niri" then
                       "${pkgs.niri}/bin/niri -c /etc/greetd/niri-greeter-config.kdl"
                     else if cfg.compositor == "hyprland" then
-                      "${pkgs.hyprland}/bin/Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
+                      "${pkgs.hyprland}/bin/start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
                     else
                       "${pkgs.sway}/bin/sway -c /etc/greetd/sway-greeter-config";
                   user = "greeter";

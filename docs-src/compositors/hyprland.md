@@ -51,6 +51,8 @@ misc {
     disable_hyprland_logo = true
     disable_splash_rendering = true
     background_color = rgb(000000)
+    # Suppress watchdog warning - greetd doesn't pass fd properly to start-hyprland
+    disable_watchdog_warning = true
 }
 
 # Input configuration
