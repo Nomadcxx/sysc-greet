@@ -120,7 +120,7 @@ vt = 1
 [default_session]
 # Choose your compositor:
 command = "niri -c /etc/greetd/niri-greeter-config.kdl"
-# command = "Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
+# command = "start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
 # command = "sway --unsupported-gpu -c /etc/greetd/sway-greeter-config"
 user = "greeter"
 ```

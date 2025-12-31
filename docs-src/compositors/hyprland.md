@@ -11,11 +11,11 @@ Edit `/etc/greetd/config.toml`:
 vt = 1
 
 [default_session]
-command = "Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
+command = "start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
 user = "greeter"
 
 [initial_session]
-command = "Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
+command = "start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
 user = "greeter"
 ```
 
@@ -65,11 +65,10 @@ input {
 }
 
 # Window rules for kitty greeter
-windowrulev2 = fullscreen, class:^(kitty)$
-windowrulev2 = opacity 1.0 override, class:^(kitty)$
+windowrule = match:class ^(kitty)$, fullscreen on, opacity 1.0
 
 # Layer rules for wallpaper daemon
-layerrule = blur, wallpaper
+layerrule = match:namespace wallpaper, blur on
 
 # Startup applications
 # Start gslapper with default wallpaper (forked to background with IPC socket)
