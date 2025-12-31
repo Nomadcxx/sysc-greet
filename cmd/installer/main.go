@@ -52,9 +52,9 @@ var (
 
 // Styles
 var (
-	checkMark  = lipgloss.NewStyle().Foreground(Accent).SetString("[OK]")
-	failMark   = lipgloss.NewStyle().Foreground(ErrorColor).SetString("[FAIL]")
-	skipMark   = lipgloss.NewStyle().Foreground(WarningColor).SetString("[SKIP]")
+	checkMark   = lipgloss.NewStyle().Foreground(Accent).SetString("[OK]")
+	failMark    = lipgloss.NewStyle().Foreground(ErrorColor).SetString("[FAIL]")
+	skipMark    = lipgloss.NewStyle().Foreground(WarningColor).SetString("[SKIP]")
 	headerStyle = lipgloss.NewStyle().Foreground(Primary).Bold(true)
 )
 
@@ -686,9 +686,9 @@ func detectPackageManager(m *model) {
 		{"apt", "/usr/bin/apt"},
 		{"apt", "/usr/bin/apt-get"}, // Fallback for older Debian/Ubuntu
 		{"dnf", "/usr/bin/dnf"},
-		{"yum", "/usr/bin/yum"}, // Older Fedora/RHEL
+		{"yum", "/usr/bin/yum"},       // Older Fedora/RHEL
 		{"zypper", "/usr/bin/zypper"}, // openSUSE
-		{"apk", "/sbin/apk"}, // Alpine Linux
+		{"apk", "/sbin/apk"},          // Alpine Linux
 	}
 
 	for _, pm := range packageManagers {
@@ -1413,18 +1413,17 @@ input {
 # No binds = no user control
 
 # Window rules for kitty greeter
-windowrulev2 = fullscreen, class:^(kitty)$
-windowrulev2 = opacity 1.0 override, class:^(kitty)$
+windowrule = match:class ^(kitty)$, fullscreen on, opacity 1.0
 
 # Layer rules for wallpaper daemon
-layerrule = blur, wallpaper
+layerrule = match:namespace wallpaper, blur on
 
 # Startup applications
 exec-once = gslapper -I /tmp/sysc-greet-wallpaper.sock -o "fill" '*' /usr/share/sysc-greet/wallpapers/sysc-greet-default.png
 exec-once = XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
 `
 		configPath = "/etc/greetd/hyprland-greeter-config.conf"
-		greetdCommand = "Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
+		greetdCommand = "start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
 
 	case "sway":
 		compositorConfig = `# SYSC-Greet Sway config for greetd greeter session
