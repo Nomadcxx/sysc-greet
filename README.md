@@ -18,14 +18,7 @@ One-line installer that works on most Linux distributions:
 curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo bash
 ```
 
-The installer automatically detects your package manager and works on:
-- **Arch Linux** (pacman)
-- **Debian/Ubuntu** (apt)
-- **Fedora** (dnf/yum)
-- **openSUSE** (zypper)
-- **Alpine Linux** (apk)
-
-It'll handle compositor selection, install dependencies, and set everything up for you.
+The installer automatically detects your package manager and works on Arch Linux, Debian/Ubuntu, Fedora, and openSUSE. It'll handle compositor selection, install dependencies, and set everything up for you.
 
 ### Build from Source
 
@@ -108,4 +101,4 @@ For detailed docs, configuration guides, troubleshooting, and usage instructions
 
 ## License
 
-MIT
+GPL-3.0
