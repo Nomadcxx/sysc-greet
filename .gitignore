@@ -126,3 +126,6 @@ CONFIGURATION.md
 
 # Development scripts (not for end users)
 .dev-scripts/
+
+# Internal planning documents
+docs/plans/

@@ -36,6 +36,96 @@ func detectAURHelper() string {
 	return ""
 }
 
+// binaryToPackage maps binary names to package names for distros where they differ
+// Key: package manager, Value: map of binary name to package name
+var binaryToPackage = map[string]map[string]string{
+	"apt": {
+		"ninja": "ninja-build",
+	},
+	"dnf": {
+		"ninja": "ninja-build",
+	},
+	"yum": {
+		"ninja": "ninja-build",
+	},
+}
+
+// getBinaryPackageName returns the package name for a binary, accounting for distro differences
+func getBinaryPackageName(binary, packageManager string) string {
+	if pmMap, ok := binaryToPackage[packageManager]; ok {
+		if pkg, ok := pmMap[binary]; ok {
+			return pkg
+		}
+	}
+	return binary // Default: package name matches binary name
+}
+
+// checkPackageInstalled checks if a package is already installed
+func checkPackageInstalled(pkg, packageManager string) bool {
+	var cmd *exec.Cmd
+	switch packageManager {
+	case "pacman":
+		cmd = exec.Command("pacman", "-Q", pkg)
+	case "apt":
+		cmd = exec.Command("dpkg-query", "-W", "-f=${Status}", pkg)
+		output, err := cmd.Output()
+		if err != nil {
+			return false
+		}
+		return strings.Contains(string(output), "install ok installed")
+	case "dnf", "yum", "zypper":
+		cmd = exec.Command("rpm", "-q", pkg)
+	default:
+		return false
+	}
+	return cmd.Run() == nil
+}
+
+// checkPackageExists checks if a package exists in repos (can be installed)
+func checkPackageExists(pkg, packageManager string) bool {
+	var cmd *exec.Cmd
+	switch packageManager {
+	case "pacman":
+		cmd = exec.Command("pacman", "-Si", pkg)
+	case "apt":
+		cmd = exec.Command("apt-cache", "show", pkg)
+	case "dnf":
+		cmd = exec.Command("dnf", "info", pkg)
+	case "yum":
+		cmd = exec.Command("yum", "info", pkg)
+	case "zypper":
+		cmd = exec.Command("zypper", "info", pkg)
+	default:
+		return false
+	}
+	// Suppress output
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	return cmd.Run() == nil
+}
+
+// packageCheckResult holds the categorized packages for installation
+type packageCheckResult struct {
+	toInstall        []string // Packages that exist and need installation
+	alreadyInstalled []string // Packages already installed
+	notFound         []string // Packages not found in repos
+}
+
+// getPackagesToInstall categorizes packages by their installation status
+func getPackagesToInstall(packages []string, packageManager string) packageCheckResult {
+	result := packageCheckResult{}
+	for _, pkg := range packages {
+		if checkPackageInstalled(pkg, packageManager) {
+			result.alreadyInstalled = append(result.alreadyInstalled, pkg)
+		} else if checkPackageExists(pkg, packageManager) {
+			result.toInstall = append(result.toInstall, pkg)
+		} else {
+			result.notFound = append(result.notFound, pkg)
+		}
+	}
+	return result
+}
+
 // Theme colors - Monochrome (ASCII style)
 var (
 	BgBase       = lipgloss.Color("#1a1a1a")
@@ -688,7 +778,6 @@ func detectPackageManager(m *model) {
 		{"dnf", "/usr/bin/dnf"},
 		{"yum", "/usr/bin/yum"},       // Older Fedora/RHEL
 		{"zypper", "/usr/bin/zypper"}, // openSUSE
-		{"apk", "/sbin/apk"},          // Alpine Linux
 	}
 
 	for _, pm := range packageManagers {
@@ -784,12 +873,6 @@ func installGreetd(m *model) error {
 	case "zypper":
 		cmd = exec.Command("zypper", "install", "-y", "greetd")
 
-	case "apk":
-		// Update package index first
-		updateCmd = exec.Command("apk", "update")
-		updateCmd.Run()
-		cmd = exec.Command("apk", "add", "greetd")
-
 	default:
 		return fmt.Errorf("unsupported package manager '%s' - install greetd manually", m.packageManager)
 	}
@@ -828,9 +911,6 @@ func installKitty(m *model) error {
 
 	case "zypper":
 		cmd = exec.Command("zypper", "install", "-y", "kitty")
-
-	case "apk":
-		cmd = exec.Command("apk", "add", "kitty")
 
 	default:
 		return fmt.Errorf("unsupported package manager '%s' - install kitty manually", m.packageManager)
@@ -936,15 +1016,6 @@ func installCompositor(m *model) error {
 			return fmt.Errorf("%s may not be in zypper repos - install manually", m.selectedCompositor)
 		}
 
-	case "apk":
-		// Alpine
-		switch m.selectedCompositor {
-		case "sway":
-			cmd = exec.Command("apk", "add", "sway")
-		default:
-			return fmt.Errorf("%s may not be in apk repos - install manually", m.selectedCompositor)
-		}
-
 	default:
 		return fmt.Errorf("unsupported package manager '%s' - install %s manually", m.packageManager, m.selectedCompositor)
 	}
@@ -983,7 +1054,12 @@ func installGslapper(m *model) error {
 	return buildGslapperFromSource(m)
 }
 
-// getGStreamerDeps returns the distro-specific GStreamer package names
+// getGStreamerDeps returns the distro-specific GStreamer package names for building gSlapper
+// gSlapper dependencies from meson.build:
+//   - gstreamer-1.0, gstreamer-video-1.0, gstreamer-gl-1.0
+//   - wayland-client, wayland-egl, wayland-protocols
+//   - egl
+// NOTE: gSlapper does NOT use GTK4 - it uses wlr-layer-shell protocol directly
 func getGStreamerDeps(packageManager string) []string {
 	switch packageManager {
 	case "pacman":
@@ -993,23 +1069,21 @@ func getGStreamerDeps(packageManager string) []string {
 			"gst-plugins-base",
 			"gst-plugins-good",
 			"gst-plugins-bad",
-			"gst-plugin-gtk4",
-			"gtk4-layer-shell",
+			"wayland",
 			"wayland-protocols",
+			"egl-wayland",
 		}
 	case "apt":
 		// Debian/Ubuntu - note the different naming convention (gstreamer1.0-*)
-		// gstreamer1.0-gtk4 is from rust-gst-plugin-gtk4 package
 		return []string{
 			"libgstreamer1.0-dev",
 			"libgstreamer-plugins-base1.0-dev",
 			"gstreamer1.0-plugins-base",
 			"gstreamer1.0-plugins-good",
 			"gstreamer1.0-plugins-bad",
-			"gstreamer1.0-gtk4",
-			"libgtk-4-dev",
-			"libgtk4-layer-shell-dev",
+			"libegl1-mesa-dev",
 			"libwayland-dev",
+			"libwayland-egl-backend-dev",
 			"wayland-protocols",
 		}
 	case "dnf":
@@ -1020,8 +1094,7 @@ func getGStreamerDeps(packageManager string) []string {
 			"gstreamer1-plugins-base",
 			"gstreamer1-plugins-good",
 			"gstreamer1-plugins-bad-free",
-			"gtk4-devel",
-			"gtk4-layer-shell-devel",
+			"mesa-libEGL-devel",
 			"wayland-devel",
 			"wayland-protocols-devel",
 		}
@@ -1030,23 +1103,17 @@ func getGStreamerDeps(packageManager string) []string {
 		return []string{
 			"gstreamer1-devel",
 			"gstreamer1-plugins-base-devel",
-			"gtk3-devel",
+			"mesa-libEGL-devel",
+			"wayland-devel",
 		}
 	case "zypper":
 		// openSUSE
 		return []string{
 			"gstreamer-devel",
 			"gstreamer-plugins-base-devel",
-			"gtk4-devel",
+			"Mesa-libEGL-devel",
 			"wayland-devel",
-		}
-	case "apk":
-		// Alpine Linux
-		return []string{
-			"gstreamer-dev",
-			"gst-plugins-base-dev",
-			"gtk4.0-dev",
-			"wayland-dev",
+			"wayland-protocols-devel",
 		}
 	default:
 		return []string{}
@@ -1060,35 +1127,70 @@ func installGStreamerDeps(m *model) error {
 		return fmt.Errorf("no GStreamer packages defined for %s", m.packageManager)
 	}
 
+	// Categorize packages by installation status
+	result := getPackagesToInstall(deps, m.packageManager)
+
+	// Log status in debug mode
+	if m.debugMode {
+		if len(result.alreadyInstalled) > 0 {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Already installed: %s\n", strings.Join(result.alreadyInstalled, ", "))
+		}
+		if len(result.notFound) > 0 {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Not found in repos: %s\n", strings.Join(result.notFound, ", "))
+		}
+	}
+
+	// Log to file
+	if m.logFile != nil && len(result.notFound) > 0 {
+		m.logFile.WriteString(fmt.Sprintf("[GStreamer] Warning: packages not found: %s\n", strings.Join(result.notFound, ", ")))
+	}
+
+	// Nothing to install - all packages either installed or not found
+	if len(result.toInstall) == 0 {
+		if len(result.notFound) > 0 && len(result.alreadyInstalled) == 0 {
+			// Only missing packages, nothing installed - this is an error
+			return fmt.Errorf("no installable packages found (missing: %s)", strings.Join(result.notFound, ", "))
+		}
+		return nil // All already installed
+	}
+
+	// Warn if some packages not found but proceeding with others
+	if len(result.notFound) > 0 {
+		if m.debugMode {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Warning: some packages not found, proceeding with available: %s\n",
+				strings.Join(result.notFound, ", "))
+		}
+		if m.logFile != nil {
+			m.logFile.WriteString(fmt.Sprintf("[GStreamer] Warning: proceeding without unavailable packages: %s\n",
+				strings.Join(result.notFound, ", ")))
+		}
+	}
+
 	var cmd *exec.Cmd
 	switch m.packageManager {
 	case "pacman":
-		args := append([]string{"-S", "--noconfirm", "--needed"}, deps...)
+		args := append([]string{"-S", "--noconfirm", "--needed"}, result.toInstall...)
 		cmd = exec.Command("pacman", args...)
 	case "apt":
 		// Update first
 		exec.Command("apt-get", "update").Run()
-		args := append([]string{"install", "-y"}, deps...)
+		args := append([]string{"install", "-y"}, result.toInstall...)
 		cmd = exec.Command("apt-get", args...)
 	case "dnf":
-		args := append([]string{"install", "-y"}, deps...)
+		args := append([]string{"install", "-y"}, result.toInstall...)
 		cmd = exec.Command("dnf", args...)
 	case "yum":
-		args := append([]string{"install", "-y"}, deps...)
+		args := append([]string{"install", "-y"}, result.toInstall...)
 		cmd = exec.Command("yum", args...)
 	case "zypper":
-		args := append([]string{"install", "-y"}, deps...)
+		args := append([]string{"install", "-y"}, result.toInstall...)
 		cmd = exec.Command("zypper", args...)
-	case "apk":
-		exec.Command("apk", "update").Run()
-		args := append([]string{"add"}, deps...)
-		cmd = exec.Command("apk", args...)
 	default:
 		return fmt.Errorf("unsupported package manager for GStreamer deps")
 	}
 
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("failed to install GStreamer dependencies")
+	if err := runCommand("Install GStreamer deps", cmd, m); err != nil {
+		return fmt.Errorf("failed to install GStreamer dependencies: %s", strings.Join(result.toInstall, ", "))
 	}
 	return nil
 }
@@ -1106,29 +1208,46 @@ func buildGslapperFromSource(m *model) error {
 
 	// Check for build tools
 	buildTools := []string{"meson", "ninja", "git", "pkg-config"}
-	missing := []string{}
+	missingBinaries := []string{}
 	for _, tool := range buildTools {
 		if _, err := exec.LookPath(tool); err != nil {
-			missing = append(missing, tool)
+			missingBinaries = append(missingBinaries, tool)
 		}
 	}
 
-	// Try to install missing build tools
-	if len(missing) > 0 {
+	// Try to install missing build tools (converting binary names to package names)
+	if len(missingBinaries) > 0 {
+		// Convert binary names to package names for this distro
+		missingPackages := make([]string, len(missingBinaries))
+		for i, bin := range missingBinaries {
+			missingPackages[i] = getBinaryPackageName(bin, m.packageManager)
+		}
+
+		if m.debugMode {
+			fmt.Fprintf(os.Stderr, "[DEBUG] Installing build tools: %s (packages: %s)\n",
+				strings.Join(missingBinaries, ", "), strings.Join(missingPackages, ", "))
+		}
+
 		var cmd *exec.Cmd
 		switch m.packageManager {
 		case "pacman":
-			args := append([]string{"-S", "--noconfirm", "--needed"}, missing...)
+			args := append([]string{"-S", "--noconfirm", "--needed"}, missingPackages...)
 			cmd = exec.Command("pacman", args...)
 		case "apt":
-			args := append([]string{"install", "-y"}, missing...)
+			args := append([]string{"install", "-y"}, missingPackages...)
 			cmd = exec.Command("apt-get", args...)
 		case "dnf":
-			args := append([]string{"install", "-y"}, missing...)
+			args := append([]string{"install", "-y"}, missingPackages...)
 			cmd = exec.Command("dnf", args...)
+		case "yum":
+			args := append([]string{"install", "-y"}, missingPackages...)
+			cmd = exec.Command("yum", args...)
+		case "zypper":
+			args := append([]string{"install", "-y"}, missingPackages...)
+			cmd = exec.Command("zypper", args...)
 		default:
 			updateSubTaskStatus(m, 3, statusFailed)
-			return fmt.Errorf("missing build tools: %s", strings.Join(missing, ", "))
+			return fmt.Errorf("missing build tools: %s", strings.Join(missingBinaries, ", "))
 		}
 		if cmd != nil {
 			runCommand("Install build tools", cmd, m) // Best effort
