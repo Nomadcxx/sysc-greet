@@ -518,7 +518,7 @@ func initialModel(config Config, screensaverMode bool) model {
 
 	// Scan for custom themes
 	themeDirs := []string{
-		"/usr/share/sysc-greet/themes",
+		dataDir + "/themes",
 		filepath.Join(os.Getenv("HOME"), ".config/sysc-greet/themes"),
 	}
 	customThemeNames := themesOld.ScanCustomThemes(themeDirs)
