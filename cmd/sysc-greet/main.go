@@ -31,6 +31,12 @@ var (
 	BuildDate = "unknown"
 )
 
+// Data directory for resources (ASCII configs, wallpapers, themes, fonts)
+// Can be overridden at build time via: -ldflags="-X 'main.dataDir=/custom/path'"
+// Defaults to /usr/share/sysc-greet for standard Linux builds
+// NixOS flake injects the actual Nix store path at build time
+var dataDir = "/usr/share/sysc-greet"
+
 // CHANGED 2025-10-06 - Add debug logging to file
 var debugLog *log.Logger
 
