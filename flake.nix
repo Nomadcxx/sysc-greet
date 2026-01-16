@@ -22,10 +22,12 @@
           vendorHash = "sha256-dNkp1/ms1dO6sWNK9qYVq9VGWuFbyMlqdAn+D8vpZ8w=";
 
           # Build flags matching Makefile
+          # Note: dataDir is set to the Nix store path for resources
           ldflags = [
             "-X main.Version=${version}"
             "-X main.GitCommit=${self.rev or "dev"}"
             "-X main.BuildDate=1970-01-01"
+            "-X main.dataDir=${placeholder "out"}/share/sysc-greet"
           ];
 
           # Build from cmd/sysc-greet
@@ -47,6 +49,11 @@
             # Install wallpapers
             mkdir -p $out/share/sysc-greet/wallpapers
             cp -r wallpapers/* $out/share/sysc-greet/wallpapers/
+
+            # Install assets (logo, showcase)
+            mkdir -p $out/share/sysc-greet/Assets
+            cp assets/logo.png $out/share/sysc-greet/Assets/
+            cp assets/showcase.gif $out/share/sysc-greet/Assets/
 
             # Install kitty config
             mkdir -p $out/etc/greetd
@@ -200,6 +207,7 @@ EOF
             # Create cache directory
             systemd.tmpfiles.rules = [
               "d /var/cache/sysc-greet 0755 greeter greeter -"
+              "L+ /usr/share/sysc-greet - - - - ${package}/share/sysc-greet"
             ];
 
             # Enable polkit (required for shutdown/reboot)
