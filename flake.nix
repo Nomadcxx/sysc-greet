@@ -208,6 +208,8 @@ EOF
             # Create cache directory
             systemd.tmpfiles.rules = [
               "d /var/cache/sysc-greet 0755 greeter greeter -"
+              # Symlink for wallpaper paths (compositor configs use gslapper with these paths)
+              # ASCII configs use dataDir ldflags injection instead, but wallpapers keep symlink
               "L+ /usr/share/sysc-greet - - - - ${package}/share/sysc-greet"
             ];
 
