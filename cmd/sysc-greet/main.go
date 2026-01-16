@@ -646,7 +646,7 @@ func initialModel(config Config, screensaverMode bool) model {
 				default:
 					configFileName = sessionName
 				}
-				configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+				configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 
 				switch m.selectedBackground {
 				case "ticker":
@@ -1373,7 +1373,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					configFileName = sessionName
 				}
 
-				configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+				configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 				if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 					m.asciiArtCount = len(asciiConfig.ASCIIVariants)
 					m.asciiMaxHeight = asciiConfig.MaxASCIIHeight
@@ -1469,7 +1469,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					configFileName = sessionName
 				}
 
-				configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+				configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 				if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 					m.asciiArtCount = len(asciiConfig.ASCIIVariants)
 					m.asciiMaxHeight = asciiConfig.MaxASCIIHeight
@@ -1803,7 +1803,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							default:
 								configFileName = sessionName
 							}
-							configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 							customRoasts := ""
 							if asciiConfig, err := loadASCIIConfig(configPath); err == nil {
 								customRoasts = asciiConfig.Roasts
@@ -1840,7 +1840,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 								configFileName = sessionName
 							}
 
-							configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 								// Get current ASCII variant
 								variantIndex := m.asciiArtIndex
@@ -1886,7 +1886,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 								configFileName = sessionName
 							}
 
-							configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 								variantIndex := m.asciiArtIndex
 								if variantIndex >= len(asciiConfig.ASCIIVariants) {
@@ -1947,7 +1947,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 								configFileName = sessionName
 							}
 
-							configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 								variantIndex := m.asciiArtIndex
 								if variantIndex >= len(asciiConfig.ASCIIVariants) {
