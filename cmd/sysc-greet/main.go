@@ -2408,7 +2408,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -version\n")
 		fmt.Fprintf(os.Stderr, "    	Show version information\n")
 		fmt.Fprintf(os.Stderr, "\nConfiguration:\n")
-		fmt.Fprintf(os.Stderr, "  ASCII configs: /usr/share/sysc-greet/ascii_configs/\n")
+		fmt.Fprintf(os.Stderr, "  ASCII configs: %s/ascii_configs/\n", dataDir)
 		fmt.Fprintf(os.Stderr, "\nKey Bindings:\n")
 		fmt.Fprintf(os.Stderr, "  Tab       Cycle focus between elements\n")
 		fmt.Fprintf(os.Stderr, "  ↑↓       Navigate sessions when focused\n")

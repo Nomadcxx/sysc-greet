@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss/v2"
@@ -213,7 +214,7 @@ func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
 	updates := []string{
 		"Updates:",
 		"  • Custom themes: Create your own themes via TOML files",
-		"      Place in /usr/share/sysc-greet/themes/ or ~/.config/sysc-greet/themes/",
+		fmt.Sprintf("      Place in %s/themes/ or ~/.config/sysc-greet/themes/", dataDir),
 		"  • All effects respect custom theme colors:",
 		"      Fire, Matrix, Rain, Fireworks, Aquarium, Beams, Pour, Screensaver",
 		"  • Wallpaper generation script now supports custom themes",
