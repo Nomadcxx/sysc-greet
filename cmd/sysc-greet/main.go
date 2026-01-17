@@ -2343,7 +2343,26 @@ func (m model) authenticate(username, password string) tea.Cmd {
 					m.ipcClient.CancelSession()
 					return fmt.Errorf("no session selected")
 				}
-				cmd := []string{m.selectedSession.Exec}
+				// FIXED 2026-01-17 - Add --unsupported-gpu flag for Sway sessions (NVIDIA compatibility)
+				// This ensures NVIDIA users can log in without being kicked back to greeter
+				// Use filepath.Base() to handle full paths (e.g., /usr/bin/sway) and preserve original Exec
+				execParts := strings.Fields(m.selectedSession.Exec)
+				if len(execParts) > 0 && filepath.Base(execParts[0]) == "sway" {
+					// Check if --unsupported-gpu is already present (avoid duplicates)
+					hasFlag := false
+					for _, part := range execParts {
+						if part == "--unsupported-gpu" {
+							hasFlag = true
+							break
+						}
+					}
+					if !hasFlag {
+						// Insert --unsupported-gpu after the binary name but before other args
+						execParts = append([]string{execParts[0], "--unsupported-gpu"}, execParts[1:]...)
+					}
+				}
+				// Use parsed Exec (with --unsupported-gpu added if needed)
+				cmd := execParts
 				env := []string{} // Can be populated if needed
 				if err := m.ipcClient.StartSession(cmd, env); err != nil {
 					// Cancel session on StartSession failure
