@@ -172,8 +172,8 @@ func launchAssetVideo(filename string) {
 	// Check if file exists in Assets directory
 	assetPath := filepath.Join("Assets", filename)
 	if _, err := os.Stat(assetPath); os.IsNotExist(err) {
-		// File doesn't exist in Assets, try /usr/share/sysc-greet/Assets (production path)
-		assetPath = filepath.Join("/usr/share/sysc-greet/Assets", filename)
+		// File doesn't exist in Assets, try dataDir/Assets (production path)
+		assetPath = filepath.Join(dataDir, "Assets", filename)
 		if _, err := os.Stat(assetPath); os.IsNotExist(err) {
 			// Asset not found, silently return
 			return

@@ -95,6 +95,10 @@ Then rebuild:
 sudo nixos-rebuild switch --flake .#your-hostname
 ```
 
+> **Note:** On NixOS, sysc-greet automatically uses the correct data directory
+> via build-time path injection. The Nix store path is injected at build time,
+> so no manual configuration or symlinks are needed.
+
 ## Documentation
 
 For detailed docs, configuration guides, troubleshooting, and usage instructions, check out the [full documentation site](https://nomadcxx.github.io/sysc-greet/).

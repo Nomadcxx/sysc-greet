@@ -184,7 +184,7 @@ func (m model) getSessionASCII() string {
 
 	// Try to load ASCII config for this session
 	// Fixed path to use sysc-greet instead of bubble-greet
-	configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 	asciiConfig, err := loadASCIIConfig(configPath)
 	if err != nil {
 		// Fallback to session name as text
@@ -717,7 +717,7 @@ func (m model) getSessionASCIIMonochrome() string {
 
 	// Try to load ASCII config for this session
 	// FIXED 2025-10-15 - Corrected path from bubble-greet to sysc-greet
-	configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 	asciiConfig, err := loadASCIIConfig(configPath)
 	if err != nil {
 		// Fallback to session name as text
@@ -776,7 +776,7 @@ func (m *model) resetPrintEffectForSession(sessionName string) {
 		configFileName = sessionLower
 	}
 
-	configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 	if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 		variantIndex := m.asciiArtIndex
 		if variantIndex >= len(asciiConfig.ASCIIVariants) {
@@ -810,7 +810,7 @@ func (m *model) resetPourEffectForSession(sessionName string) {
 		configFileName = sessionLower
 	}
 
-	configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 	if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 		variantIndex := m.asciiArtIndex
 		if variantIndex >= len(asciiConfig.ASCIIVariants) {
@@ -872,7 +872,7 @@ func (m *model) resetBeamsEffectForSession(sessionName string) {
 		configFileName = sessionLower
 	}
 
-	configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 	if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 		variantIndex := m.asciiArtIndex
 		if variantIndex >= len(asciiConfig.ASCIIVariants) {
@@ -924,7 +924,7 @@ func getCustomRoastsForSession(sessionName string) string {
 		configFileName = sessionLower
 	}
 
-	configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 	if asciiConfig, err := loadASCIIConfig(configPath); err == nil {
 		return asciiConfig.Roasts
 	}

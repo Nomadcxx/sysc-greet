@@ -31,6 +31,12 @@ var (
 	BuildDate = "unknown"
 )
 
+// Data directory for resources (ASCII configs, wallpapers, themes, fonts)
+// Can be overridden at build time via: -ldflags="-X 'main.dataDir=/custom/path'"
+// Defaults to /usr/share/sysc-greet for standard Linux builds
+// NixOS flake injects the actual Nix store path at build time
+var dataDir = "/usr/share/sysc-greet"
+
 // CHANGED 2025-10-06 - Add debug logging to file
 var debugLog *log.Logger
 
@@ -512,7 +518,7 @@ func initialModel(config Config, screensaverMode bool) model {
 
 	// Scan for custom themes
 	themeDirs := []string{
-		"/usr/share/sysc-greet/themes",
+		dataDir + "/themes",
 		filepath.Join(os.Getenv("HOME"), ".config/sysc-greet/themes"),
 	}
 	customThemeNames := themesOld.ScanCustomThemes(themeDirs)
@@ -640,7 +646,7 @@ func initialModel(config Config, screensaverMode bool) model {
 				default:
 					configFileName = sessionName
 				}
-				configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+				configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 
 				switch m.selectedBackground {
 				case "ticker":
@@ -1367,7 +1373,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					configFileName = sessionName
 				}
 
-				configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+				configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 				if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 					m.asciiArtCount = len(asciiConfig.ASCIIVariants)
 					m.asciiMaxHeight = asciiConfig.MaxASCIIHeight
@@ -1463,7 +1469,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					configFileName = sessionName
 				}
 
-				configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+				configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 				if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 					m.asciiArtCount = len(asciiConfig.ASCIIVariants)
 					m.asciiMaxHeight = asciiConfig.MaxASCIIHeight
@@ -1797,7 +1803,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							default:
 								configFileName = sessionName
 							}
-							configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 							customRoasts := ""
 							if asciiConfig, err := loadASCIIConfig(configPath); err == nil {
 								customRoasts = asciiConfig.Roasts
@@ -1834,7 +1840,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 								configFileName = sessionName
 							}
 
-							configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 								// Get current ASCII variant
 								variantIndex := m.asciiArtIndex
@@ -1880,7 +1886,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 								configFileName = sessionName
 							}
 
-							configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 								variantIndex := m.asciiArtIndex
 								if variantIndex >= len(asciiConfig.ASCIIVariants) {
@@ -1941,7 +1947,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 								configFileName = sessionName
 							}
 
-							configPath := fmt.Sprintf("/usr/share/sysc-greet/ascii_configs/%s.conf", configFileName)
+							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 								variantIndex := m.asciiArtIndex
 								if variantIndex >= len(asciiConfig.ASCIIVariants) {
@@ -2337,7 +2343,26 @@ func (m model) authenticate(username, password string) tea.Cmd {
 					m.ipcClient.CancelSession()
 					return fmt.Errorf("no session selected")
 				}
-				cmd := []string{m.selectedSession.Exec}
+				// FIXED 2026-01-17 - Add --unsupported-gpu flag for Sway sessions (NVIDIA compatibility)
+				// This ensures NVIDIA users can log in without being kicked back to greeter
+				// Use filepath.Base() to handle full paths (e.g., /usr/bin/sway) and preserve original Exec
+				execParts := strings.Fields(m.selectedSession.Exec)
+				if len(execParts) > 0 && filepath.Base(execParts[0]) == "sway" {
+					// Check if --unsupported-gpu is already present (avoid duplicates)
+					hasFlag := false
+					for _, part := range execParts {
+						if part == "--unsupported-gpu" {
+							hasFlag = true
+							break
+						}
+					}
+					if !hasFlag {
+						// Insert --unsupported-gpu after the binary name but before other args
+						execParts = append([]string{execParts[0], "--unsupported-gpu"}, execParts[1:]...)
+					}
+				}
+				// Use parsed Exec (with --unsupported-gpu added if needed)
+				cmd := execParts
 				env := []string{} // Can be populated if needed
 				if err := m.ipcClient.StartSession(cmd, env); err != nil {
 					// Cancel session on StartSession failure
@@ -2402,7 +2427,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  -version\n")
 		fmt.Fprintf(os.Stderr, "    	Show version information\n")
 		fmt.Fprintf(os.Stderr, "\nConfiguration:\n")
-		fmt.Fprintf(os.Stderr, "  ASCII configs: /usr/share/sysc-greet/ascii_configs/\n")
+		fmt.Fprintf(os.Stderr, "  ASCII configs: %s/ascii_configs/\n", dataDir)
 		fmt.Fprintf(os.Stderr, "\nKey Bindings:\n")
 		fmt.Fprintf(os.Stderr, "  Tab       Cycle focus between elements\n")
 		fmt.Fprintf(os.Stderr, "  ↑↓       Navigate sessions when focused\n")

@@ -45,7 +45,7 @@ func loadScreensaverConfig() ScreensaverConfig {
 
 	// Try to load from config file
 	paths := []string{
-		"/usr/share/sysc-greet/ascii_configs/screensaver.conf",
+		dataDir + "/ascii_configs/screensaver.conf",
 		"ascii_configs/screensaver.conf",
 		"screensaver.conf",
 	}

@@ -223,7 +223,7 @@ func setThemeWallpaper(themeName string, testMode bool) {
 
 	// Normalize theme name for filename
 	themeFile := strings.ToLower(strings.ReplaceAll(themeName, " ", "-"))
-	wallpaperPath := fmt.Sprintf("/usr/share/sysc-greet/wallpapers/sysc-greet-%s.png", themeFile)
+	wallpaperPath := fmt.Sprintf("%s/wallpapers/sysc-greet-%s.png", dataDir, themeFile)
 
 	// Check if wallpaper exists
 	if _, err := os.Stat(wallpaperPath); err != nil {
