@@ -1519,6 +1519,12 @@ misc {
     disable_watchdog_warning = true
 }
 
+# Suppress annoying update/donation popups
+ecosystem {
+    no_update_news = true
+    no_donation_nag = true
+}
+
 # Input configuration
 input {
     kb_layout = us
