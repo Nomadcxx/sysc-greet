@@ -132,7 +132,7 @@ EOF
         with lib;
         let
           cfg = config.services.sysc-greet;
-          package = self.packages.${pkgs.system}.default;
+          package = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
         in
         {
           options.services.sysc-greet = {
