@@ -58,6 +58,42 @@ yay -S sysc-greet-hyprland
 yay -S sysc-greet-sway
 ```
 
+## Pre-built Packages
+
+Download pre-built packages from [GitHub Releases](https://github.com/Nomadcxx/sysc-greet/releases):
+
+### Debian/Ubuntu (.deb)
+
+```bash
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/vX.X.X/sysc-greet_vX.X.X_amd64.deb
+sudo apt install ./sysc-greet_vX.X.X_amd64.deb
+```
+
+The package will:
+1. Install sysc-greet to `/usr/local/bin/`
+2. Install configs to `/usr/share/sysc-greet/`
+3. Detect your compositor and configure greetd
+4. Enable the greetd service
+
+**Note:** Package configs use conservative syntax compatible with stable distribution versions. For bleeding-edge compositor features, use the Go installer or AUR instead.
+
+### Fedora (.rpm)
+
+```bash
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/vX.X.X/sysc-greet-X.X.X-1.x86_64.rpm
+sudo dnf install ./sysc-greet-X.X.X-1.x86_64.rpm
+```
+
+### Post-Installation
+
+After installation, **reboot** your system to see sysc-greet.
+
+### Uninstall
+
+**Debian/Ubuntu:** `sudo apt remove sysc-greet`
+
+**Fedora:** `sudo dnf remove sysc-greet`
+
 ## NixOS (Flake)
 
 ### Add to flake.nix

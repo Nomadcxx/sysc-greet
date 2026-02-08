@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Install nfpm
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+
+      - name: Get version
+        id: get_version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build static binary
+        run: |
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+            go build -buildvcs=false \
+            -ldflags "-s -w -X main.Version=${{ steps.get_version.outputs.TAG }}" \
+            -o sysc-greet ./cmd/sysc-greet/
+
+      - name: Build packages
+        env:
+          VERSION: ${{ steps.get_version.outputs.VERSION }}
+        run: |
+          nfpm package --config nfpm.yaml --packager deb --target .
+          nfpm package --config nfpm.yaml --packager rpm --target .
+
+      - name: Generate checksums
+        run: |
+          sha256sum sysc-greet *.deb *.rpm > SHA256SUMS
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            sysc-greet
+            *.deb
+            *.rpm
+            SHA256SUMS
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
