@@ -115,7 +115,7 @@ wget https://github.com/Nomadcxx/sysc-greet/releases/download/vX.X.X/sysc-greet-
 sudo dnf install ./sysc-greet-X.X.X-1.x86_64.rpm
 ```
 
-See [Package Installation Guide](docs/PACKAGE_INSTALL.md) for details.
+See [Installation Guide](https://nomadcxx.github.io/sysc-greet/getting-started/installation/) for details.
 
 
 ## Documentation
