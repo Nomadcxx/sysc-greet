@@ -99,6 +99,25 @@ sudo nixos-rebuild switch --flake .#your-hostname
 > via build-time path injection. The Nix store path is injected at build time,
 > so no manual configuration or symlinks are needed (in theory)
 
+### Pre-built Packages (Debian/Ubuntu/Fedora)
+
+Download pre-built packages from [GitHub Releases](https://github.com/Nomadcxx/sysc-greet/releases):
+
+**Debian/Ubuntu:**
+```bash
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/vX.X.X/sysc-greet_vX.X.X_amd64.deb
+sudo apt install ./sysc-greet_vX.X.X_amd64.deb
+```
+
+**Fedora:**
+```bash
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/vX.X.X/sysc-greet-X.X.X-1.x86_64.rpm
+sudo dnf install ./sysc-greet-X.X.X-1.x86_64.rpm
+```
+
+See [Package Installation Guide](docs/PACKAGE_INSTALL.md) for details.
+
+
 ## Documentation
 
 For detailed docs, configuration guides, troubleshooting, and usage instructions, check out the [full documentation site](https://nomadcxx.github.io/sysc-greet/).
