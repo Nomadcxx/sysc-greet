@@ -101,18 +101,20 @@ sudo nixos-rebuild switch --flake .#your-hostname
 
 ### Pre-built Packages (Debian/Ubuntu/Fedora)
 
-Download pre-built packages from [GitHub Releases](https://github.com/Nomadcxx/sysc-greet/releases):
+Download pre-built packages from [GitHub Releases](https://github.com/Nomadcxx/sysc-greet/releases/latest):
+
+**Latest: v1.1.2**
 
 **Debian/Ubuntu:**
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/vX.X.X/sysc-greet_vX.X.X_amd64.deb
-sudo apt install ./sysc-greet_vX.X.X_amd64.deb
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.2/sysc-greet_1.1.2_amd64.deb
+sudo apt install ./sysc-greet_1.1.2_amd64.deb
 ```
 
 **Fedora:**
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/vX.X.X/sysc-greet-X.X.X-1.x86_64.rpm
-sudo dnf install ./sysc-greet-X.X.X-1.x86_64.rpm
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.2/sysc-greet-1.1.2-1.x86_64.rpm
+sudo dnf install ./sysc-greet-1.1.2-1.x86_64.rpm
 ```
 
 See [Installation Guide](https://nomadcxx.github.io/sysc-greet/getting-started/installation/) for details.
