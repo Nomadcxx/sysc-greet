@@ -2533,11 +2533,37 @@ func (m model) View() tea.View {
 	x := (termWidth - contentWidth) / 2
 	y := (termHeight - contentHeight) / 2
 
-	// Removed ticker fullscreen check
-	// Use layer X/Y positioning instead of Place()
-	view.Layer = lipgloss.NewCanvas(lipgloss.NewLayer(content).X(x).Y(y))
+	if x < 0 {
+		x = 0
+	}
+	if y < 0 {
+		y = 0
+	}
+
+	// Keep a full-terminal backing layer so small popups clear stale cells even
+	// when Bubble Tea is running without alt-screen.
+	view.Layer = lipgloss.NewCanvas(
+		lipgloss.NewLayer(blankTerminalContent(termWidth, termHeight)).X(0).Y(0),
+		lipgloss.NewLayer(content).X(x).Y(y),
+	)
 	view.BackgroundColor = BgBase
 	return view
+}
+
+func blankTerminalContent(width, height int) string {
+	if width < 1 {
+		width = 1
+	}
+	if height < 1 {
+		height = 1
+	}
+
+	line := strings.Repeat(" ", width)
+	lines := make([]string, height)
+	for i := range lines {
+		lines[i] = line
+	}
+	return strings.Join(lines, "\n")
 }
 
 // CHANGED 2025-10-06 - Ensure content fills entire terminal to prevent ghosting
