@@ -223,7 +223,7 @@ type model struct {
 	needsGreetd        bool
 	uninstallMode      bool
 	selectedOption     int      // 0 = Install, 1 = Uninstall
-	selectedCompositor string   // "niri", "hyprland", or "sway"
+	selectedCompositor string   // "niri", "hyprland", "sway", or "cage"
 	compositorIndex    int      // Current selection in compositor menu
 	debugMode          bool     // Show verbose output
 	logFile            *os.File // Installer log file
@@ -340,7 +340,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "down", "j":
 			if m.step == stepWelcome && m.selectedOption < 1 {
 				m.selectedOption++
-			} else if m.step == stepCompositorSelect && m.compositorIndex < 2 {
+			} else if m.step == stepCompositorSelect && m.compositorIndex < 3 {
 				m.compositorIndex++
 			}
 		case "enter":
@@ -373,7 +373,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			} else if m.step == stepCompositorSelect {
 				// Set compositor based on selection
-				compositors := []string{"niri", "hyprland", "sway"}
+				compositors := []string{"cage", "niri", "sway", "hyprland"}
 				m.selectedCompositor = compositors[m.compositorIndex]
 
 				// Validate compositor is installed
@@ -381,6 +381,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					"niri":     {"niri"},
 					"hyprland": {"Hyprland", "hyprland"},
 					"sway":     {"sway"},
+					"cage":     {"cage"},
 				}
 
 				compositorInstalled := false
@@ -563,9 +564,10 @@ func (m model) renderCompositorSelect() string {
 		name string
 		desc string
 	}{
-		{"niri", "Tiling compositor with scrollable workspaces"},
-		{"hyprland", "Dynamic tiling compositor with extensive features"},
-		{"sway", "Stable i3-compatible tiling compositor"},
+		{"cage", "Recommended — minimal kiosk; fast boot; TUI backgrounds only"},
+		{"niri", "Tiling compositor with scrollable workspaces + gSlapper wallpapers"},
+		{"sway", "Stable i3-compatible tiling compositor + gSlapper wallpapers"},
+		{"hyprland", "Deprecated — greeter support ending in ~3 months; migrate to cage"},
 	}
 
 	for i, comp := range compositors {
@@ -577,7 +579,11 @@ func (m model) renderCompositorSelect() string {
 		b.WriteString("    " + comp.desc + "\n\n")
 	}
 
-	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("The greeter will work identically on all compositors"))
+	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Hyprland greeter support is being phased out — cage is the recommended path"))
+	if m.compositorIndex == 3 {
+		b.WriteString("\n")
+		b.WriteString(lipgloss.NewStyle().Foreground(ErrorColor).Render("⚠ Hyprland will be removed from the greeter in ~3 months. Use cage or niri instead."))
+	}
 
 	// Show errors if any
 	if len(m.errors) > 0 {
@@ -953,6 +959,7 @@ func installCompositor(m *model) error {
 		"niri":     {"niri"},
 		"hyprland": {"Hyprland", "hyprland"},
 		"sway":     {"sway"},
+		"cage":     {"cage"},
 	}
 
 	// Check if compositor already installed
@@ -996,6 +1003,8 @@ func installCompositor(m *model) error {
 			cmd = exec.Command("pacman", "-S", "--noconfirm", "hyprland")
 		case "sway":
 			cmd = exec.Command("pacman", "-S", "--noconfirm", "sway")
+		case "cage":
+			cmd = exec.Command("pacman", "-S", "--noconfirm", "cage")
 		}
 
 	case "apt":
@@ -1007,6 +1016,8 @@ func installCompositor(m *model) error {
 			return fmt.Errorf("hyprland not in standard apt repos - see https://hyprland.org for installation")
 		case "sway":
 			cmd = exec.Command("apt-get", "install", "-y", "sway")
+		case "cage":
+			return fmt.Errorf("cage not in standard apt repos — build from https://github.com/cage-kiosk/cage")
 		}
 
 	case "dnf":
@@ -1018,6 +1029,8 @@ func installCompositor(m *model) error {
 			return fmt.Errorf("hyprland not in standard dnf repos - see https://hyprland.org for installation")
 		case "sway":
 			cmd = exec.Command("dnf", "install", "-y", "sway")
+		case "cage":
+			return fmt.Errorf("cage not in standard dnf repos — build from https://github.com/cage-kiosk/cage")
 		}
 
 	case "yum":
@@ -1612,12 +1625,31 @@ exec "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=f
 		configPath = "/etc/greetd/sway-greeter-config"
 		greetdCommand = "sway --unsupported-gpu -c /etc/greetd/sway-greeter-config"
 
+	case "cage":
+		compositorConfig = `#!/bin/sh
+# SYSC-Greet Cage launcher (lite mode — no gSlapper wallpaper daemon)
+# See docs-src/compositors/cage.md
+
+set -eu
+
+export XDG_CACHE_HOME=/tmp/greeter-cache
+export HOME=/var/lib/greeter
+
+exec kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet
+`
+		configPath = "/etc/greetd/cage-greeter-session.sh"
+		greetdCommand = "cage -s -m extend -- /etc/greetd/cage-greeter-session.sh"
+
 	default:
 		return fmt.Errorf("unknown compositor: %s", m.selectedCompositor)
 	}
 
-	// Write compositor config
-	if err := os.WriteFile(configPath, []byte(compositorConfig), 0644); err != nil {
+	// Write compositor config (or cage launcher script)
+	configMode := os.FileMode(0644)
+	if m.selectedCompositor == "cage" {
+		configMode = 0755
+	}
+	if err := os.WriteFile(configPath, []byte(compositorConfig), configMode); err != nil {
 		return fmt.Errorf("compositor config write failed")
 	}
 
@@ -1702,6 +1734,7 @@ func removeConfigs(m *model) error {
 		"/etc/greetd/niri-greeter-config.kdl",
 		"/etc/greetd/hyprland-greeter-config.conf",
 		"/etc/greetd/sway-greeter-config",
+		"/etc/greetd/cage-greeter-session.sh",
 	}
 
 	for _, path := range paths {

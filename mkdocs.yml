@@ -60,6 +60,7 @@ nav:
       - Niri: compositors/niri.md
       - Hyprland: compositors/hyprland.md
       - Sway: compositors/sway.md
+      - Cage (experimental): compositors/cage.md
   - Development:
       - Architecture: development/architecture.md
       - Building: development/building.md
