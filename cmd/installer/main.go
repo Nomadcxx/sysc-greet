@@ -69,6 +69,9 @@ var binaryToPackage = map[string]map[string]string{
 	"yum": {
 		"ninja": "ninja-build",
 	},
+	"xbps": {
+		"ninja": "ninja",
+	},
 }
 
 // getBinaryPackageName returns the package name for a binary, accounting for distro differences
@@ -96,6 +99,8 @@ func checkPackageInstalled(pkg, packageManager string) bool {
 		return strings.Contains(string(output), "install ok installed")
 	case "dnf", "yum", "zypper":
 		cmd = exec.Command("rpm", "-q", pkg)
+	case "xbps":
+		cmd = exec.Command("xbps-query", pkg)
 	default:
 		return false
 	}
@@ -116,6 +121,8 @@ func checkPackageExists(pkg, packageManager string) bool {
 		cmd = exec.Command("yum", "info", pkg)
 	case "zypper":
 		cmd = exec.Command("zypper", "info", pkg)
+	case "xbps":
+		cmd = exec.Command("xbps-query", "-Rs", pkg)
 	default:
 		return false
 	}
@@ -219,11 +226,15 @@ type model struct {
 	spinner            spinner.Model
 	errors             []string
 	packageManager     string
-	greetdInstalled    bool
+	initSystem           string
+	distroID             string
+	greeterUser          string
+	greeterHome          string
+	greetdInstalled      bool
 	needsGreetd        bool
 	uninstallMode      bool
 	selectedOption     int      // 0 = Install, 1 = Uninstall
-	selectedCompositor string   // "niri", "hyprland", or "sway"
+	selectedCompositor string   // "niri", "hyprland", "sway", or "cage"
 	compositorIndex    int      // Current selection in compositor menu
 	debugMode          bool     // Show verbose output
 	logFile            *os.File // Installer log file
@@ -291,8 +302,9 @@ func newModel(debugMode bool, logFile *os.File) model {
 		beams:            beams,
 	}
 
-	// Detect package manager during initialization (not in async task)
+	// Detect package manager and platform during initialization (not in async task)
 	detectPackageManager(&m)
+	detectPlatform(&m)
 
 	// Check for pre-selected compositor from environment variable
 	if comp := os.Getenv("SYSC_COMPOSITOR"); comp != "" {
@@ -340,7 +352,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "down", "j":
 			if m.step == stepWelcome && m.selectedOption < 1 {
 				m.selectedOption++
-			} else if m.step == stepCompositorSelect && m.compositorIndex < 2 {
+			} else if m.step == stepCompositorSelect && m.compositorIndex < 3 {
 				m.compositorIndex++
 			}
 		case "enter":
@@ -373,7 +385,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			} else if m.step == stepCompositorSelect {
 				// Set compositor based on selection
-				compositors := []string{"niri", "hyprland", "sway"}
+				compositors := []string{"cage", "niri", "sway", "hyprland"}
 				m.selectedCompositor = compositors[m.compositorIndex]
 
 				// Validate compositor is installed
@@ -381,6 +393,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					"niri":     {"niri"},
 					"hyprland": {"Hyprland", "hyprland"},
 					"sway":     {"sway"},
+					"cage":     {"cage"},
 				}
 
 				compositorInstalled := false
@@ -563,9 +576,10 @@ func (m model) renderCompositorSelect() string {
 		name string
 		desc string
 	}{
-		{"niri", "Tiling compositor with scrollable workspaces"},
-		{"hyprland", "Dynamic tiling compositor with extensive features"},
-		{"sway", "Stable i3-compatible tiling compositor"},
+		{"cage", "Recommended — minimal kiosk; fast boot; TUI backgrounds only"},
+		{"niri", "Tiling compositor with scrollable workspaces + gSlapper wallpapers"},
+		{"sway", "Stable i3-compatible tiling compositor + gSlapper wallpapers"},
+		{"hyprland", "Deprecated — greeter support ending in ~3 months; migrate to cage"},
 	}
 
 	for i, comp := range compositors {
@@ -577,7 +591,15 @@ func (m model) renderCompositorSelect() string {
 		b.WriteString("    " + comp.desc + "\n\n")
 	}
 
-	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("The greeter will work identically on all compositors"))
+	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Hyprland greeter support is being phased out — cage is the recommended path"))
+	if m.distroID == "void" {
+		b.WriteString("\n")
+		b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Void Linux: uses xbps + runit (_greeter user). cage skips gSlapper build."))
+	}
+	if m.compositorIndex == 3 {
+		b.WriteString("\n")
+		b.WriteString(lipgloss.NewStyle().Foreground(ErrorColor).Render("⚠ Hyprland will be removed from the greeter in ~3 months. Use cage or niri instead."))
+	}
 
 	// Show errors if any
 	if len(m.errors) > 0 {
@@ -802,6 +824,7 @@ func detectPackageManager(m *model) {
 		{"dnf", "/usr/bin/dnf"},
 		{"yum", "/usr/bin/yum"},       // Older Fedora/RHEL
 		{"zypper", "/usr/bin/zypper"}, // openSUSE
+		{"xbps", "/usr/bin/xbps-install"}, // Void Linux
 	}
 
 	for _, pm := range packageManagers {
@@ -827,12 +850,15 @@ func detectPackageManager(m *model) {
 func checkDependencies(m *model) error {
 	missing := []string{}
 
-	// Check critical deps
 	if _, err := exec.LookPath("go"); err != nil {
 		missing = append(missing, "go")
 	}
-	if _, err := exec.LookPath("systemctl"); err != nil {
-		missing = append(missing, "systemd")
+
+	switch m.initSystem {
+	case initSystemd, initRunit:
+		// supported
+	case "":
+		missing = append(missing, "init (systemd or runit)")
 	}
 
 	if len(missing) > 0 {
@@ -897,6 +923,9 @@ func installGreetd(m *model) error {
 	case "zypper":
 		cmd = exec.Command("zypper", "install", "-y", "greetd")
 
+	case "xbps":
+		cmd = exec.Command("xbps-install", xbpsInstallArgs("greetd")...)
+
 	default:
 		return fmt.Errorf("unsupported package manager '%s' - install greetd manually", m.packageManager)
 	}
@@ -905,6 +934,7 @@ func installGreetd(m *model) error {
 		return fmt.Errorf("failed to install greetd (try: manual installation)")
 	}
 
+	resolveGreeterAccount(m)
 	return nil
 }
 
@@ -936,6 +966,9 @@ func installKitty(m *model) error {
 	case "zypper":
 		cmd = exec.Command("zypper", "install", "-y", "kitty")
 
+	case "xbps":
+		cmd = exec.Command("xbps-install", xbpsInstallArgs("kitty")...)
+
 	default:
 		return fmt.Errorf("unsupported package manager '%s' - install kitty manually", m.packageManager)
 	}
@@ -953,6 +986,7 @@ func installCompositor(m *model) error {
 		"niri":     {"niri"},
 		"hyprland": {"Hyprland", "hyprland"},
 		"sway":     {"sway"},
+		"cage":     {"cage"},
 	}
 
 	// Check if compositor already installed
@@ -996,6 +1030,8 @@ func installCompositor(m *model) error {
 			cmd = exec.Command("pacman", "-S", "--noconfirm", "hyprland")
 		case "sway":
 			cmd = exec.Command("pacman", "-S", "--noconfirm", "sway")
+		case "cage":
+			cmd = exec.Command("pacman", "-S", "--noconfirm", "cage")
 		}
 
 	case "apt":
@@ -1007,6 +1043,8 @@ func installCompositor(m *model) error {
 			return fmt.Errorf("hyprland not in standard apt repos - see https://hyprland.org for installation")
 		case "sway":
 			cmd = exec.Command("apt-get", "install", "-y", "sway")
+		case "cage":
+			return fmt.Errorf("cage not in standard apt repos — build from https://github.com/cage-kiosk/cage")
 		}
 
 	case "dnf":
@@ -1018,6 +1056,8 @@ func installCompositor(m *model) error {
 			return fmt.Errorf("hyprland not in standard dnf repos - see https://hyprland.org for installation")
 		case "sway":
 			cmd = exec.Command("dnf", "install", "-y", "sway")
+		case "cage":
+			return fmt.Errorf("cage not in standard dnf repos — build from https://github.com/cage-kiosk/cage")
 		}
 
 	case "yum":
@@ -1040,6 +1080,18 @@ func installCompositor(m *model) error {
 			return fmt.Errorf("%s may not be in zypper repos - install manually", m.selectedCompositor)
 		}
 
+	case "xbps":
+		switch m.selectedCompositor {
+		case "niri":
+			cmd = exec.Command("xbps-install", xbpsInstallArgs("niri")...)
+		case "sway":
+			cmd = exec.Command("xbps-install", xbpsInstallArgs("sway")...)
+		case "cage":
+			cmd = exec.Command("xbps-install", xbpsInstallArgs("cage")...)
+		case "hyprland":
+			return fmt.Errorf("hyprland not in Void repos — use cage or niri")
+		}
+
 	default:
 		return fmt.Errorf("unsupported package manager '%s' - install %s manually", m.packageManager, m.selectedCompositor)
 	}
@@ -1056,6 +1108,14 @@ func installCompositor(m *model) error {
 }
 
 func installGslapper(m *model) error {
+	// Cage lite mode has no wallpaper daemon.
+	if m.selectedCompositor == "cage" {
+		for i := 0; i < 6; i++ {
+			updateSubTaskStatus(m, i, statusSkipped)
+		}
+		return nil
+	}
+
 	// Sub-task 0: Check if already installed
 	updateSubTaskStatus(m, 0, statusRunning)
 
@@ -1140,6 +1200,17 @@ func getGStreamerDeps(packageManager string) []string {
 			"wayland-devel",
 			"wayland-protocols-devel",
 		}
+	case "xbps":
+		return []string{
+			"gstreamer1-devel",
+			"gst-plugins-base1-devel",
+			"gst-plugins-good1",
+			"gst-plugins-bad1",
+			"wayland-devel",
+			"wayland-protocols",
+			"mesa",
+			"pkg-config",
+		}
 	default:
 		return []string{}
 	}
@@ -1210,6 +1281,8 @@ func installGStreamerDeps(m *model) error {
 	case "zypper":
 		args := append([]string{"install", "-y"}, result.toInstall...)
 		cmd = exec.Command("zypper", args...)
+	case "xbps":
+		cmd = exec.Command("xbps-install", xbpsInstallArgs(result.toInstall...)...)
 	default:
 		return fmt.Errorf("unsupported package manager for GStreamer deps")
 	}
@@ -1270,6 +1343,8 @@ func buildGslapperFromSource(m *model) error {
 		case "zypper":
 			args := append([]string{"install", "-y"}, missingPackages...)
 			cmd = exec.Command("zypper", args...)
+		case "xbps":
+			cmd = exec.Command("xbps-install", xbpsInstallArgs(missingPackages...)...)
 		default:
 			updateSubTaskStatus(m, 3, statusFailed)
 			return fmt.Errorf("missing build tools: %s", strings.Join(missingBinaries, ", "))
@@ -1403,43 +1478,42 @@ func installConfigs(m *model) error {
 }
 
 func setupCache(m *model) error {
+	resolveGreeterAccount(m)
+	greeterHome := m.greeterHome
+	greeterUser := m.greeterUser
+	wallpaperDir := greeterHome + "/Pictures/wallpapers"
+
 	// Create cache directory
 	if err := exec.Command("mkdir", "-p", "/var/cache/sysc-greet").Run(); err != nil {
 		return fmt.Errorf("cache dir creation failed")
 	}
 
-	// Create greeter home
-	if err := exec.Command("mkdir", "-p", "/var/lib/greeter/Pictures/wallpapers").Run(); err != nil {
+	// Create greeter home wallpaper dir
+	if err := exec.Command("mkdir", "-p", wallpaperDir).Run(); err != nil {
 		return fmt.Errorf("greeter home creation failed")
 	}
 
-	// Create greeter user if needed
-	// FIXED 2025-10-15 - Add render group for modern Intel/AMD iGPU support
-	// Modern Linux uses 'render' group for /dev/dri/renderD* (non-privileged GPU access)
-	// Both 'video' and 'render' groups needed for laptop iGPU compatibility
-	cmd := exec.Command("id", "greeter")
-	if err := cmd.Run(); err != nil {
-		// User doesn't exist - create with video,render,input groups
-		cmd = exec.Command("useradd", "-M", "-G", "video,render,input", "-s", "/usr/bin/nologin", "greeter")
+	groups := greeterGroups()
+
+	// Create greeter user if needed (non-Void path)
+	if !userExists(greeterUser) {
+		cmd := exec.Command("useradd", "-M", "-G", groups, "-s", "/usr/bin/nologin", "-d", greeterHome, greeterUser)
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("greeter user creation failed")
 		}
 	} else {
-		// User exists - ensure they have required groups
-		// CRITICAL: This fixes laptops where greeter user exists but lacks render group
-		exec.Command("usermod", "-aG", "video,render,input", "greeter").Run()
+		exec.Command("usermod", "-aG", groups, greeterUser).Run()
 	}
 
 	// Set ownership
-	paths := []string{"/var/cache/sysc-greet", "/var/lib/greeter"}
+	paths := []string{"/var/cache/sysc-greet", greeterHome}
 	for _, path := range paths {
-		if err := exec.Command("chown", "-R", "greeter:greeter", path).Run(); err != nil {
+		if err := exec.Command("chown", "-R", greeterUser+":"+greeterUser, path).Run(); err != nil {
 			return fmt.Errorf("ownership change failed for %s", path)
 		}
 	}
 
-	// Set permissions
-	if err := exec.Command("chmod", "755", "/var/lib/greeter").Run(); err != nil {
+	if err := exec.Command("chmod", "755", greeterHome).Run(); err != nil {
 		return fmt.Errorf("permissions change failed")
 	}
 
@@ -1612,12 +1686,32 @@ exec "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=f
 		configPath = "/etc/greetd/sway-greeter-config"
 		greetdCommand = "sway --unsupported-gpu -c /etc/greetd/sway-greeter-config"
 
+	case "cage":
+		compositorConfig = `#!/bin/sh
+# SYSC-Greet Cage launcher (lite mode — no gSlapper wallpaper daemon)
+# See docs-src/compositors/cage.md
+
+set -eu
+
+export XDG_CACHE_HOME=/tmp/greeter-cache
+export HOME=/var/lib/greeter
+
+exec kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet
+`
+		configPath = "/etc/greetd/cage-greeter-session.sh"
+		greetdCommand = "cage -s -m extend -- /etc/greetd/cage-greeter-session.sh"
+
 	default:
 		return fmt.Errorf("unknown compositor: %s", m.selectedCompositor)
 	}
 
-	// Write compositor config
-	if err := os.WriteFile(configPath, []byte(compositorConfig), 0644); err != nil {
+	// Write compositor config (or cage launcher script)
+	configMode := os.FileMode(0644)
+	if m.selectedCompositor == "cage" {
+		configMode = 0755
+	}
+	compositorConfig = substituteGreeterPaths(compositorConfig, m)
+	if err := os.WriteFile(configPath, []byte(compositorConfig), configMode); err != nil {
 		return fmt.Errorf("compositor config write failed")
 	}
 
@@ -1627,12 +1721,12 @@ vt = 1
 
 [default_session]
 command = "%s"
-user = "greeter"
+user = "%s"
 
 [initial_session]
 command = "%s"
-user = "greeter"
-`, greetdCommand, greetdCommand)
+user = "%s"
+`, greetdCommand, m.greeterUser, greetdCommand, m.greeterUser)
 
 	if err := os.WriteFile("/etc/greetd/config.toml", []byte(greetdConfig), 0644); err != nil {
 		return fmt.Errorf("greetd config write failed")
@@ -1652,7 +1746,7 @@ user = "greeter"
 	if err := os.MkdirAll("/etc/polkit-1/rules.d", 0755); err != nil {
 		return fmt.Errorf("polkit rules directory creation failed")
 	}
-	if err := os.WriteFile("/etc/polkit-1/rules.d/85-greeter.rules", []byte(polkitRule), 0644); err != nil {
+	if err := os.WriteFile("/etc/polkit-1/rules.d/85-greeter.rules", []byte(substituteGreeterPaths(polkitRule, m)), 0644); err != nil {
 		return fmt.Errorf("polkit rule write failed")
 	}
 
@@ -1660,30 +1754,13 @@ user = "greeter"
 }
 
 func enableService(m *model) error {
-	// Remove existing display-manager.service symlink
-	symlinkPath := "/etc/systemd/system/display-manager.service"
-	if _, err := os.Lstat(symlinkPath); err == nil {
-		os.Remove(symlinkPath)
-	}
-
-	// Enable greetd
-	cmd := exec.Command("systemctl", "enable", "greetd.service")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("service enable failed")
-	}
-
-	return nil
+	return enableGreeterService(m)
 }
 
 // Uninstall functions
 
 func disableService(m *model) error {
-	// Disable greetd service
-	if err := exec.Command("systemctl", "disable", "greetd.service").Run(); err != nil {
-		// Not a critical error if it's already disabled
-		return nil
-	}
-	return nil
+	return disableGreeterService(m)
 }
 
 func removeBinary(m *model) error {
@@ -1702,6 +1779,7 @@ func removeConfigs(m *model) error {
 		"/etc/greetd/niri-greeter-config.kdl",
 		"/etc/greetd/hyprland-greeter-config.conf",
 		"/etc/greetd/sway-greeter-config",
+		"/etc/greetd/cage-greeter-session.sh",
 	}
 
 	for _, path := range paths {

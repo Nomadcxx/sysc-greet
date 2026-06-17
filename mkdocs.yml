@@ -46,6 +46,7 @@ nav:
   - Getting Started:
       - Installation: getting-started/installation.md
       - Quick Start: getting-started/quick-start.md
+      - Void Linux: getting-started/void-linux.md
       - Troubleshooting: getting-started/troubleshooting.md
   - Features:
       - Backgrounds & Effects: features/backgrounds-effects.md
@@ -60,6 +61,7 @@ nav:
       - Niri: compositors/niri.md
       - Hyprland: compositors/hyprland.md
       - Sway: compositors/sway.md
+      - Cage (experimental): compositors/cage.md
   - Development:
       - Architecture: development/architecture.md
       - Building: development/building.md

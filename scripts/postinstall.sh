@@ -20,27 +20,38 @@ chown -R greeter:greeter /var/cache/sysc-greet 2>/dev/null || true
 chown -R greeter:greeter /var/lib/greeter 2>/dev/null || true
 chmod 755 /var/lib/greeter
 
-# Detect installed compositor and configure greetd
-echo "==> Detecting compositor..."
+# Detect installed Wayland backend and configure greetd
+echo "==> Detecting greeter backend..."
 
 COMPOSITOR=""
-if command -v niri &>/dev/null; then
+if command -v cage &>/dev/null; then
+    COMPOSITOR="cage"
+    GREETD_COMMAND="cage -s -m extend -- /etc/greetd/cage-greeter-session.sh"
+elif command -v niri &>/dev/null; then
     COMPOSITOR="niri"
     GREETD_COMMAND="niri -c /etc/greetd/niri-greeter-config.kdl"
+elif command -v sway &>/dev/null; then
+    COMPOSITOR="sway"
+    GREETD_COMMAND="sway -c /etc/greetd/sway-greeter-config"
 elif command -v Hyprland &>/dev/null || command -v hyprland &>/dev/null; then
     COMPOSITOR="hyprland"
     # Use legacy hyprland command (not start-hyprland) for compatibility
     GREETD_COMMAND="Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
-elif command -v sway &>/dev/null; then
-    COMPOSITOR="sway"
-    GREETD_COMMAND="sway -c /etc/greetd/sway-greeter-config"
 fi
 
 if [ -z "$COMPOSITOR" ]; then
-    echo "WARNING: No supported compositor detected (niri, hyprland, sway)"
-    echo "Please install a compositor and manually configure /etc/greetd/config.toml"
+    echo "WARNING: No supported greeter backend detected (cage, niri, sway, hyprland)"
+    echo "Please install cage (recommended) and manually configure /etc/greetd/config.toml"
 else
-    echo "Detected compositor: $COMPOSITOR"
+    echo "Detected backend: $COMPOSITOR"
+
+    if [ "$COMPOSITOR" = "hyprland" ]; then
+        echo ""
+        echo "WARNING: Hyprland greeter support is deprecated and will be removed in ~3 months."
+        echo "         Migrate to cage: SYSC_COMPOSITOR=cage sudo ./install.sh"
+        echo "         See https://nomadcxx.github.io/sysc-greet/compositors/cage/"
+        echo ""
+    fi
 
     # Only create greetd config if it doesn't exist or is empty
     if [ ! -s /etc/greetd/config.toml ]; then

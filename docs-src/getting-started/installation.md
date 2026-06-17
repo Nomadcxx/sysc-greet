@@ -11,9 +11,19 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.
 ```
 
 The interactive installer will prompt you to:
-1. Choose your compositor (niri, hyprland, or sway)
-2. Configure compositor settings
+1. Choose your greeter backend (cage recommended, niri, sway, or hyprland deprecated)
+2. Configure backend settings
 3. Install dependencies automatically
+
+> **Hyprland deprecation:** Hyprland greeter support will be removed in ~3 months. Migrate to [Cage](../compositors/cage.md) or [niri](../compositors/niri.md).
+
+### Void Linux
+
+Void is supported via the Go installer (xbps + runit). See [Void Linux guide](void-linux.md).
+
+```bash
+SYSC_COMPOSITOR=cage sudo ./install.sh
+```
 
 ## Manual Build
 
@@ -21,7 +31,7 @@ The interactive installer will prompt you to:
 
 - Go 1.25+
 - greetd
-- Wayland compositor (niri, hyprland, or sway)
+- Wayland backend: cage (recommended), niri, sway, or hyprland (deprecated)
 - kitty (terminal emulator)
 - gSlapper (wallpaper daemon)
 - swww (legacy wallpaper daemon, optional fallback)
@@ -45,17 +55,21 @@ go run ./cmd/installer/
 
 ## Arch Linux (AUR)
 
-sysc-greet provides three AUR packages for different compositors:
+sysc-greet provides AUR packages for different greeter backends:
 
 ```bash
-# Recommended (niri)
+# niri (full wallpapers)
 yay -S sysc-greet
 
-# Hyprland variant
+# Hyprland variant (deprecated — use cage instead)
 yay -S sysc-greet-hyprland
 
 # Sway variant
 yay -S sysc-greet-sway
+
+# Cage (recommended): install cage from repos, then:
+sudo pacman -S cage
+SYSC_COMPOSITOR=cage curl -fsSL .../install.sh | sudo bash
 ```
 
 ## Pre-built Packages
