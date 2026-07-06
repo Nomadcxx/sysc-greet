@@ -1,5 +1,7 @@
 # Cage Compositor — Implementation Plan
 
+> **SUPERSEDED (2026-07-06):** See [2026-07-06-cagebreak-compositor-plan.md](2026-07-06-cagebreak-compositor-plan.md).
+
 > **Design:** [2026-06-18-cage-compositor-design.md](../specs/2026-06-18-cage-compositor-design.md)  
 > **Branch:** `feat/cage-compositor-investigation`  
 > **Type:** Draft PR / investigation spike

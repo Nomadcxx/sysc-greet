@@ -223,7 +223,7 @@ type model struct {
 	needsGreetd        bool
 	uninstallMode      bool
 	selectedOption     int      // 0 = Install, 1 = Uninstall
-	selectedCompositor string   // "cagebreak", "niri", "sway", or "hyprland"
+	selectedCompositor string   // "niri", "cagebreak", "sway", or "hyprland"
 	compositorIndex    int      // Current selection in compositor menu
 	debugMode          bool     // Show verbose output
 	logFile            *os.File // Installer log file
@@ -373,7 +373,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			} else if m.step == stepCompositorSelect {
 				// Set compositor based on selection
-				compositors := []string{"cagebreak", "niri", "sway", "hyprland"}
+				compositors := []string{"niri", "cagebreak", "sway", "hyprland"}
 				m.selectedCompositor = compositors[m.compositorIndex]
 
 				// Validate compositor is installed
@@ -564,9 +564,9 @@ func (m model) renderCompositorSelect() string {
 		name string
 		desc string
 	}{
-		{"cagebreak", "Recommended — minimal tiling kiosk; full gSlapper wallpapers"},
-		{"niri", "Tiling compositor with scrollable workspaces + gSlapper wallpapers"},
-		{"sway", "Stable i3-compatible tiling compositor + gSlapper wallpapers"},
+		{"niri", "Tiling compositor with scrollable workspaces (default)"},
+		{"cagebreak", "Minimal tiling kiosk; replaces hyprland for the greeter"},
+		{"sway", "Stable i3-compatible tiling compositor"},
 		{"hyprland", "Deprecated — greeter support ending in ~3 months; migrate to cagebreak"},
 	}
 
@@ -579,7 +579,7 @@ func (m model) renderCompositorSelect() string {
 		b.WriteString("    " + comp.desc + "\n\n")
 	}
 
-	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Hyprland greeter support is being phased out — cagebreak is the recommended path"))
+	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Hyprland greeter support ends in ~3 months; cagebreak replaces it"))
 	if m.compositorIndex == 3 {
 		b.WriteString("\n")
 		b.WriteString(lipgloss.NewStyle().Foreground(ErrorColor).Render("⚠ Hyprland will be removed from the greeter in ~3 months. Use cagebreak or niri instead."))

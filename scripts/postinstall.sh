@@ -24,12 +24,12 @@ chmod 755 /var/lib/greeter
 echo "==> Detecting greeter backend..."
 
 COMPOSITOR=""
-if command -v cagebreak &>/dev/null; then
-    COMPOSITOR="cagebreak"
-    GREETD_COMMAND="cagebreak -e -c /etc/greetd/cagebreak-greeter-config"
-elif command -v niri &>/dev/null; then
+if command -v niri &>/dev/null; then
     COMPOSITOR="niri"
     GREETD_COMMAND="niri -c /etc/greetd/niri-greeter-config.kdl"
+elif command -v cagebreak &>/dev/null; then
+    COMPOSITOR="cagebreak"
+    GREETD_COMMAND="cagebreak -e -c /etc/greetd/cagebreak-greeter-config"
 elif command -v sway &>/dev/null; then
     COMPOSITOR="sway"
     GREETD_COMMAND="sway -c /etc/greetd/sway-greeter-config"
@@ -40,8 +40,8 @@ elif command -v Hyprland &>/dev/null || command -v hyprland &>/dev/null; then
 fi
 
 if [ -z "$COMPOSITOR" ]; then
-    echo "WARNING: No supported greeter backend detected (cagebreak, niri, sway, hyprland)"
-    echo "Please install cagebreak (recommended) and manually configure /etc/greetd/config.toml"
+    echo "WARNING: No supported greeter backend detected (niri, cagebreak, sway, hyprland)"
+    echo "Please install niri or cagebreak and manually configure /etc/greetd/config.toml"
 else
     echo "Detected backend: $COMPOSITOR"
 

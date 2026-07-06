@@ -11,11 +11,11 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.
 ```
 
 The interactive installer will prompt you to:
-1. Choose your greeter backend (cage recommended, niri, sway, or hyprland deprecated)
+1. Choose your greeter backend (niri default, cagebreak, sway, or hyprland deprecated)
 2. Configure backend settings
 3. Install dependencies automatically
 
-> **Hyprland deprecation:** Hyprland greeter support will be removed in ~3 months. Migrate to [Cage](../compositors/cage.md) or [niri](../compositors/niri.md).
+> Hyprland greeter support ends in ~3 months. Migrate to [cagebreak](../compositors/cagebreak.md) or [niri](../compositors/niri.md).
 
 ## Manual Build
 
@@ -23,7 +23,7 @@ The interactive installer will prompt you to:
 
 - Go 1.25+
 - greetd
-- Wayland backend: cage (recommended), niri, sway, or hyprland (deprecated)
+- Wayland backend: niri (default), cagebreak, sway, or hyprland (deprecated)
 - kitty (terminal emulator)
 - gSlapper (wallpaper daemon)
 - swww (legacy wallpaper daemon, optional fallback)
@@ -50,18 +50,18 @@ go run ./cmd/installer/
 sysc-greet provides AUR packages for different greeter backends:
 
 ```bash
-# niri (full wallpapers)
+# niri (default)
 yay -S sysc-greet
 
-# Hyprland variant (deprecated — use cage instead)
+# Hyprland variant (deprecated, replaced by cagebreak)
 yay -S sysc-greet-hyprland
 
 # Sway variant
 yay -S sysc-greet-sway
 
-# Cage (recommended): install cage from repos, then:
-sudo pacman -S cage
-SYSC_COMPOSITOR=cage curl -fsSL .../install.sh | sudo bash
+# Cagebreak: install from AUR, then run the installer
+paru -S cagebreak && sudo pacman -S socat
+SYSC_COMPOSITOR=cagebreak curl -fsSL .../install.sh | sudo bash
 ```
 
 ## Pre-built Packages

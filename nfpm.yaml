@@ -7,7 +7,7 @@ priority: optional
 maintainer: Nomadcxx <noovie@gmail.com>
 description: |
   Graphical console greeter for greetd with ASCII art and themes.
-  Supports Cagebreak, Niri, and Sway compositors (Hyprland deprecated).
+  Supports Niri, Cagebreak, and Sway compositors (Hyprland deprecated).
 vendor: Nomadcxx
 homepage: https://github.com/Nomadcxx/sysc-greet
 license: GPL-3.0

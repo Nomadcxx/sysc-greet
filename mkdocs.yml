@@ -58,9 +58,9 @@ nav:
       - Keyboard Layout: configuration/keyboard-layout.md
   - Compositors:
       - Niri: compositors/niri.md
-      - Hyprland: compositors/hyprland.md
+      - Cagebreak: compositors/cagebreak.md
       - Sway: compositors/sway.md
-      - Cage (experimental): compositors/cage.md
+      - Hyprland (deprecated): compositors/hyprland.md
   - Development:
       - Architecture: development/architecture.md
       - Building: development/building.md

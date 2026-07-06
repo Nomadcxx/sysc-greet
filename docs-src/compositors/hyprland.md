@@ -1,11 +1,11 @@
 # Hyprland Setup
 
-!!! warning "Deprecated — greeter support ending in ~3 months"
-    Hyprland remains functional today, but **sysc-greet is phasing out Hyprland for the greetd greeter session**.
+!!! warning "Deprecated"
+    sysc-greet ends Hyprland greeter support in ~3 months. It remains functional until then.
 
-    **Migrate to [Cage](cage.md)** (recommended — faster, simpler) or [niri](niri.md) (full wallpaper support).
+    Migrate to [cagebreak](cagebreak.md), the Hyprland replacement, or [niri](niri.md), the default.
 
-    Your daily Hyprland desktop session is unaffected — only the boot greeter changes.
+    Your Hyprland desktop session is unaffected. Only the boot greeter changes.
 
 Configuration for running sysc-greet with the Hyprland Wayland compositor.
 

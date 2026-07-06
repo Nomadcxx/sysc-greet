@@ -169,7 +169,7 @@ EOF
             compositor = mkOption {
               type = types.enum [ "niri" "hyprland" "sway" "cagebreak" ];
               default = "niri";
-              description = "Wayland compositor to use with sysc-greet. Use cagebreak for a minimal tiling kiosk greeter with full gSlapper wallpaper support (recommended).";
+              description = "Wayland compositor to use with sysc-greet. cagebreak replaces hyprland for the greeter session.";
             };
 
             compositorCommand = mkOption {

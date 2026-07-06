@@ -20,7 +20,7 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.
 
 The installer automatically detects your package manager and works on Arch Linux, Debian/Ubuntu, Fedora, and openSUSE. It'll handle greeter backend selection, install dependencies, and set everything up for you.
 
-> **Note:** Hyprland greeter support is being phased out over the next ~3 months. New installs should choose **cage** (recommended) or **niri**.
+> Hyprland greeter support ends in ~3 months. New installs should choose niri (default) or cagebreak, its replacement.
 
 ### Build from Source
 
@@ -39,16 +39,17 @@ The installer walks you through compositor selection and configuration.
 Three AUR packages available depending on which greeter backend you're using:
 
 ```bash
-# Recommended (cage — install script, or: pacman -S cage && SYSC_COMPOSITOR=cage ./install.sh)
-# niri (full wallpapers)
+# niri (default)
 yay -S sysc-greet
 
-# Hyprland variant (deprecated — migrate to cage)
+# Hyprland variant (deprecated, replaced by cagebreak)
 yay -S sysc-greet-hyprland
 
 # Sway variant
 yay -S sysc-greet-sway
 ```
+
+For cagebreak, install it from the AUR (`paru -S cagebreak`, plus `socat`) and run the installer with `SYSC_COMPOSITOR=cagebreak`.
 
 ### NixOS (Flake)
 
@@ -82,7 +83,7 @@ If you're on NixOS, add sysc-greet to your flake:
 {
   services.sysc-greet = {
     enable = true;
-    compositor = "cage";  # recommended — or "niri", "sway", "hyprland" (deprecated)
+    compositor = "niri";  # or "cagebreak", "sway", "hyprland" (deprecated)
   };
 
   # Optional: Set initial session for auto-login
@@ -93,8 +94,8 @@ If you're on NixOS, add sysc-greet to your flake:
 }
 ```
 
-By default, the NixOS module does not install `cage`, `niri`, `hyprland`, or `sway`.
-Install your chosen backend yourself, or set `cagePackage`, `niriPackage`, `hyprlandPackage`,
+By default, the NixOS module does not install `niri`, `cagebreak`, `hyprland`, or `sway`.
+Install your chosen backend yourself, or set `niriPackage`, `cagebreakPackage`, `hyprlandPackage`,
 or `swayPackage` if you want the module to install and use a specific package.
 If your compositor is managed elsewhere, set `compositorCommand` to the exact
 command greetd should run.

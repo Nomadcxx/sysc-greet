@@ -1,6 +1,10 @@
 # Cagebreak Compositor — Design Spec
 
-> **Status:** Approved design (pending spike gate)
+> **Status:** Approved design (spike passed; hardware-validated 2026-07-06)
+> **Amended 2026-07-06:** niri remains the default compositor. Cagebreak is the
+> Hyprland replacement only — never labeled "recommended". Menu/detect order:
+> niri, cagebreak, sway, hyprland. Wallpapers serve secondary monitors; the
+> greeter TUI stays fully opaque.
 > **Issue:** [#69 Feature request: cage](https://github.com/Nomadcxx/sysc-greet/issues/69)
 > **PR:** [#78](https://github.com/Nomadcxx/sysc-greet/pull/78) — pivoted from Cage Lite to Cagebreak
 > **Supersedes:** [2026-06-18-cage-compositor-design.md](2026-06-18-cage-compositor-design.md)
@@ -142,10 +146,10 @@ user = "greeter"
 ### Installer UX
 
 ```
-cagebreak (recommended) — Minimal tiling kiosk; full gSlapper wallpapers
-niri                    — Tiling compositor with scrollable workspaces
-sway                    — Stable i3-compatible tiling compositor
-hyprland (deprecated)   — Greeter support ending in ~3 months; migrate to cagebreak
+niri                  — Tiling compositor with scrollable workspaces (default)
+cagebreak             — Minimal tiling kiosk; replaces hyprland for the greeter
+sway                  — Stable i3-compatible tiling compositor
+hyprland (deprecated) — Greeter support ending in ~3 months; migrate to cagebreak
 ```
 
 Arch install path for cagebreak: try `pacman -S cagebreak` (in case it enters

@@ -1,5 +1,7 @@
 # Cage / Cagebreak Compositor — Design Spec
 
+> **SUPERSEDED (2026-07-06):** This investigation pivoted from Cage to Cagebreak (layer-shell restores gSlapper wallpapers). See [2026-07-06-cagebreak-compositor-design.md](2026-07-06-cagebreak-compositor-design.md).
+
 > **Status:** Draft / investigation  
 > **Issue:** [#69 Feature request: cage](https://github.com/Nomadcxx/sysc-greet/issues/69)  
 > **Branch:** `feat/cage-compositor-investigation`
