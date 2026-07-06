@@ -87,12 +87,12 @@
               --replace 'kitty ' "${pkgs.kitty}/bin/kitty " \
               --replace 'swaymsg ' "${pkgs.sway}/bin/swaymsg "
 
-            # Cage lite launcher (single-client kiosk — no gSlapper)
-            cp scripts/cage-greeter-session.sh $out/etc/greetd/
-            substituteInPlace $out/etc/greetd/cage-greeter-session.sh \
+            # Cagebreak greeter config (gSlapper layer-shell wallpapers supported)
+            cp config/cagebreak-greeter-config $out/etc/greetd/
+            substituteInPlace $out/etc/greetd/cagebreak-greeter-config \
               --replace '/usr/local/bin/sysc-greet' "$out/bin/sysc-greet" \
-              --replace 'kitty ' "${pkgs.kitty}/bin/kitty "
-            chmod +x $out/etc/greetd/cage-greeter-session.sh
+              --replace 'kitty ' "${pkgs.kitty}/bin/kitty " \
+              --replace 'socat ' "${pkgs.socat}/bin/socat "
 
             # Install polkit rule
             mkdir -p $out/etc/polkit-1/rules.d
@@ -148,7 +148,7 @@ EOF
           compositorPackage =
             if cfg.compositor == "niri" then cfg.niriPackage
             else if cfg.compositor == "hyprland" then cfg.hyprlandPackage
-            else if cfg.compositor == "cage" then cfg.cagePackage
+            else if cfg.compositor == "cagebreak" then cfg.cagebreakPackage
             else cfg.swayPackage;
           compositorExecutable = pkg: executable:
             if pkg == null then executable else "${pkg}/bin/${executable}";
@@ -157,8 +157,8 @@ EOF
               "${compositorExecutable cfg.niriPackage "niri"} -c /etc/greetd/niri-greeter-config.kdl"
             else if cfg.compositor == "hyprland" then
               "${compositorExecutable cfg.hyprlandPackage "start-hyprland"} -- -c /etc/greetd/hyprland-greeter-config.conf"
-            else if cfg.compositor == "cage" then
-              "${compositorExecutable cfg.cagePackage "cage"} -s -m extend -- /etc/greetd/cage-greeter-session.sh"
+            else if cfg.compositor == "cagebreak" then
+              "${compositorExecutable cfg.cagebreakPackage "cagebreak"} -e -c /etc/greetd/cagebreak-greeter-config"
             else
               "${compositorExecutable cfg.swayPackage "sway"} -c /etc/greetd/sway-greeter-config";
         in
@@ -167,9 +167,9 @@ EOF
             enable = mkEnableOption "sysc-greet greeter for greetd";
 
             compositor = mkOption {
-              type = types.enum [ "niri" "hyprland" "sway" "cage" ];
+              type = types.enum [ "niri" "hyprland" "sway" "cagebreak" ];
               default = "niri";
-              description = "Wayland compositor to use with sysc-greet. Use cage for a minimal kiosk greeter (experimental, no boot wallpapers).";
+              description = "Wayland compositor to use with sysc-greet. Use cagebreak for a minimal tiling kiosk greeter with full gSlapper wallpaper support (recommended).";
             };
 
             compositorCommand = mkOption {
@@ -208,11 +208,11 @@ EOF
               description = "sway package to use and install for the greeter compositor. When null, the sway command is resolved from PATH.";
             };
 
-            cagePackage = mkOption {
+            cagebreakPackage = mkOption {
               type = types.nullOr types.package;
               default = null;
               defaultText = literalExpression "null";
-              description = "cage package to use and install for the greeter compositor (lite mode). When null, the cage command is resolved from PATH.";
+              description = "cagebreak package to use and install for the greeter compositor. When null, the cagebreak command is resolved from PATH.";
             };
 
             settings = mkOption {
@@ -269,7 +269,7 @@ EOF
               "greetd/niri-greeter-config.kdl".source = "${package}/etc/greetd/niri-greeter-config.kdl";
               "greetd/hyprland-greeter-config.conf".source = "${package}/etc/greetd/hyprland-greeter-config.conf";
               "greetd/sway-greeter-config".source = "${package}/etc/greetd/sway-greeter-config";
-              "greetd/cage-greeter-session.sh".source = "${package}/etc/greetd/cage-greeter-session.sh";
+              "greetd/cagebreak-greeter-config".source = "${package}/etc/greetd/cagebreak-greeter-config";
               "polkit-1/rules.d/85-greeter.rules".source = "${package}/etc/polkit-1/rules.d/85-greeter.rules";
             };
 
