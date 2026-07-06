@@ -223,7 +223,7 @@ type model struct {
 	needsGreetd        bool
 	uninstallMode      bool
 	selectedOption     int      // 0 = Install, 1 = Uninstall
-	selectedCompositor string   // "niri", "hyprland", or "sway"
+	selectedCompositor string   // "niri", "cagebreak", "sway", or "hyprland"
 	compositorIndex    int      // Current selection in compositor menu
 	debugMode          bool     // Show verbose output
 	logFile            *os.File // Installer log file
@@ -340,7 +340,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "down", "j":
 			if m.step == stepWelcome && m.selectedOption < 1 {
 				m.selectedOption++
-			} else if m.step == stepCompositorSelect && m.compositorIndex < 2 {
+			} else if m.step == stepCompositorSelect && m.compositorIndex < 3 {
 				m.compositorIndex++
 			}
 		case "enter":
@@ -373,14 +373,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			} else if m.step == stepCompositorSelect {
 				// Set compositor based on selection
-				compositors := []string{"niri", "hyprland", "sway"}
+				compositors := []string{"niri", "cagebreak", "sway", "hyprland"}
 				m.selectedCompositor = compositors[m.compositorIndex]
 
 				// Validate compositor is installed
 				compositorBinaries := map[string][]string{
-					"niri":     {"niri"},
-					"hyprland": {"Hyprland", "hyprland"},
-					"sway":     {"sway"},
+					"niri":      {"niri"},
+					"hyprland":  {"Hyprland", "hyprland"},
+					"sway":      {"sway"},
+					"cagebreak": {"cagebreak"},
 				}
 
 				compositorInstalled := false
@@ -563,9 +564,10 @@ func (m model) renderCompositorSelect() string {
 		name string
 		desc string
 	}{
-		{"niri", "Tiling compositor with scrollable workspaces"},
-		{"hyprland", "Dynamic tiling compositor with extensive features"},
+		{"niri", "Tiling compositor with scrollable workspaces (default)"},
+		{"cagebreak", "Minimal tiling kiosk; replaces hyprland for the greeter"},
 		{"sway", "Stable i3-compatible tiling compositor"},
+		{"hyprland", "Deprecated — greeter support ending in ~3 months; migrate to cagebreak"},
 	}
 
 	for i, comp := range compositors {
@@ -577,7 +579,11 @@ func (m model) renderCompositorSelect() string {
 		b.WriteString("    " + comp.desc + "\n\n")
 	}
 
-	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("The greeter will work identically on all compositors"))
+	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Hyprland greeter support ends in ~3 months; cagebreak replaces it"))
+	if m.compositorIndex == 3 {
+		b.WriteString("\n")
+		b.WriteString(lipgloss.NewStyle().Foreground(ErrorColor).Render("⚠ Hyprland will be removed from the greeter in ~3 months. Use cagebreak or niri instead."))
+	}
 
 	// Show errors if any
 	if len(m.errors) > 0 {
@@ -947,12 +953,35 @@ func installKitty(m *model) error {
 	return nil
 }
 
+// installCagebreakArch installs cagebreak on Arch: official repos first, then
+// an AUR helper run as the invoking user (AUR helpers refuse to run as root).
+func installCagebreakArch() error {
+	if err := exec.Command("pacman", "-S", "--noconfirm", "cagebreak").Run(); err == nil {
+		return nil
+	}
+	helperPath := detectAURHelper()
+	if helperPath == "" {
+		return fmt.Errorf("cagebreak is AUR-only and no AUR helper found — install it first: paru -S cagebreak (or yay -S cagebreak)")
+	}
+	var cmd *exec.Cmd
+	if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
+		cmd = exec.Command("sudo", "-u", sudoUser, helperPath, "-S", "--noconfirm", "cagebreak")
+	} else {
+		cmd = exec.Command(helperPath, "-S", "--noconfirm", "cagebreak")
+	}
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("cagebreak AUR install failed — install it manually with %s -S cagebreak", helperPath)
+	}
+	return nil
+}
+
 func installCompositor(m *model) error {
 	// Map compositor selection to binary names
 	compositorBinaries := map[string][]string{
-		"niri":     {"niri"},
-		"hyprland": {"Hyprland", "hyprland"},
-		"sway":     {"sway"},
+		"niri":      {"niri"},
+		"hyprland":  {"Hyprland", "hyprland"},
+		"sway":      {"sway"},
+		"cagebreak": {"cagebreak"},
 	}
 
 	// Check if compositor already installed
@@ -996,6 +1025,8 @@ func installCompositor(m *model) error {
 			cmd = exec.Command("pacman", "-S", "--noconfirm", "hyprland")
 		case "sway":
 			cmd = exec.Command("pacman", "-S", "--noconfirm", "sway")
+		case "cagebreak":
+			return installCagebreakArch()
 		}
 
 	case "apt":
@@ -1007,6 +1038,8 @@ func installCompositor(m *model) error {
 			return fmt.Errorf("hyprland not in standard apt repos - see https://hyprland.org for installation")
 		case "sway":
 			cmd = exec.Command("apt-get", "install", "-y", "sway")
+		case "cagebreak":
+			return fmt.Errorf("cagebreak not in standard apt repos — build from https://github.com/project-repo/cagebreak")
 		}
 
 	case "dnf":
@@ -1018,6 +1051,8 @@ func installCompositor(m *model) error {
 			return fmt.Errorf("hyprland not in standard dnf repos - see https://hyprland.org for installation")
 		case "sway":
 			cmd = exec.Command("dnf", "install", "-y", "sway")
+		case "cagebreak":
+			return fmt.Errorf("cagebreak not in standard dnf repos — build from https://github.com/project-repo/cagebreak")
 		}
 
 	case "yum":
@@ -1612,6 +1647,25 @@ exec "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=f
 		configPath = "/etc/greetd/sway-greeter-config"
 		greetdCommand = "sway --unsupported-gpu -c /etc/greetd/sway-greeter-config"
 
+	case "cagebreak":
+		compositorConfig = `# sysc-greet cagebreak greeter config — used ONLY by the greetd greeter session
+# greetd runs: cagebreak -e -c /etc/greetd/cagebreak-greeter-config
+# -e enables the IPC socket used to quit cagebreak after login (requires socat)
+# Keyboard layout: set XKB_DEFAULT_LAYOUT/XKB_DEFAULT_VARIANT in greetd's command env
+
+background 0.0 0.0 0.0
+
+# gSlapper wallpaper daemon (wlr-layer-shell client, same as niri/sway setup)
+exec HOME=/var/lib/greeter /usr/local/bin/sysc-greet --wallpaper-daemon
+
+# Greeter UI; when it exits (login or shutdown), quit cagebreak so greetd can start the session
+exec XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; echo quit | socat - UNIX-CONNECT:"$CAGEBREAK_SOCKET"
+
+# No bind/definekey lines on purpose: no compositor keybindings reachable from the greeter
+`
+		configPath = "/etc/greetd/cagebreak-greeter-config"
+		greetdCommand = "cagebreak -e -c /etc/greetd/cagebreak-greeter-config"
+
 	default:
 		return fmt.Errorf("unknown compositor: %s", m.selectedCompositor)
 	}
@@ -1702,6 +1756,7 @@ func removeConfigs(m *model) error {
 		"/etc/greetd/niri-greeter-config.kdl",
 		"/etc/greetd/hyprland-greeter-config.conf",
 		"/etc/greetd/sway-greeter-config",
+		"/etc/greetd/cagebreak-greeter-config",
 	}
 
 	for _, path := range paths {
