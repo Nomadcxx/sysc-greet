@@ -65,11 +65,6 @@ animations {
     off
 }
 
-window-rule {
-    match app-id="kitty"
-    opacity 0.90
-}
-
 // Start gslapper with the cached greeter wallpaper (forked to background with IPC socket)
 spawn-sh-at-startup "HOME=/var/lib/greeter /usr/local/bin/sysc-greet --wallpaper-daemon"
 
