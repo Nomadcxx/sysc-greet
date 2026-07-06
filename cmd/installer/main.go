@@ -1531,11 +1531,6 @@ animations {
     off
 }
 
-window-rule {
-    match app-id="kitty"
-    opacity 0.90
-}
-
 spawn-sh-at-startup "HOME=/var/lib/greeter /usr/local/bin/sysc-greet --wallpaper-daemon"
 
 spawn-sh-at-startup "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
