@@ -24,9 +24,9 @@ chmod 755 /var/lib/greeter
 echo "==> Detecting greeter backend..."
 
 COMPOSITOR=""
-if command -v cage &>/dev/null; then
-    COMPOSITOR="cage"
-    GREETD_COMMAND="cage -s -m extend -- /etc/greetd/cage-greeter-session.sh"
+if command -v cagebreak &>/dev/null; then
+    COMPOSITOR="cagebreak"
+    GREETD_COMMAND="cagebreak -e -c /etc/greetd/cagebreak-greeter-config"
 elif command -v niri &>/dev/null; then
     COMPOSITOR="niri"
     GREETD_COMMAND="niri -c /etc/greetd/niri-greeter-config.kdl"
@@ -40,16 +40,16 @@ elif command -v Hyprland &>/dev/null || command -v hyprland &>/dev/null; then
 fi
 
 if [ -z "$COMPOSITOR" ]; then
-    echo "WARNING: No supported greeter backend detected (cage, niri, sway, hyprland)"
-    echo "Please install cage (recommended) and manually configure /etc/greetd/config.toml"
+    echo "WARNING: No supported greeter backend detected (cagebreak, niri, sway, hyprland)"
+    echo "Please install cagebreak (recommended) and manually configure /etc/greetd/config.toml"
 else
     echo "Detected backend: $COMPOSITOR"
 
     if [ "$COMPOSITOR" = "hyprland" ]; then
         echo ""
         echo "WARNING: Hyprland greeter support is deprecated and will be removed in ~3 months."
-        echo "         Migrate to cage: SYSC_COMPOSITOR=cage sudo ./install.sh"
-        echo "         See https://nomadcxx.github.io/sysc-greet/compositors/cage/"
+        echo "         Migrate to cagebreak: SYSC_COMPOSITOR=cagebreak sudo ./install.sh"
+        echo "         See https://nomadcxx.github.io/sysc-greet/compositors/cagebreak/"
         echo ""
     fi
 
