@@ -49,7 +49,7 @@ yay -S sysc-greet-hyprland
 yay -S sysc-greet-sway
 ```
 
-For cagebreak, install it from the AUR (`paru -S cagebreak`, plus `socat`) and run the installer with `SYSC_COMPOSITOR=cagebreak`.
+For cagebreak, run the installer with `SYSC_COMPOSITOR=cagebreak` — it installs cagebreak and socat itself (AUR on Arch, prebuilt release packages on Debian/Ubuntu/Fedora, source build elsewhere).
 
 ### NixOS (Flake)
 

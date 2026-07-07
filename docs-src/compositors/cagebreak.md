@@ -8,13 +8,25 @@ The greeter config is ~10 lines, defines no keybindings, and quits the composito
 
 ## Install Cagebreak
 
+The installer handles all of this — including socat, which is required to quit the compositor after login. The sections below are for manual installs.
+
 === "Arch Linux"
 
-    Cagebreak is in the AUR, not the official repos. socat is required to quit the compositor after login.
+    Cagebreak is in the AUR, not the official repos. The installer uses paru or yay if present; manually:
 
     ```bash
     paru -S cagebreak   # or: yay -S cagebreak
     sudo pacman -S socat
+    ```
+
+=== "Debian / Ubuntu / Fedora"
+
+    No distro packages exist. The installer downloads a cagebreak package built against your distro's wlroots from [sysc-greet releases](https://github.com/Nomadcxx/sysc-greet/releases/latest) (Debian 13, Ubuntu 24.04/25.x, Fedora 42), and builds from source when no package matches. Manual install:
+
+    ```bash
+    # Debian 13 / Ubuntu 25.x
+    wget https://github.com/Nomadcxx/sysc-greet/releases/latest/download/cagebreak_2.4.0_debian13_amd64.deb
+    sudo apt install ./cagebreak_2.4.0_debian13_amd64.deb socat
     ```
 
 === "NixOS"
@@ -27,9 +39,17 @@ The greeter config is ~10 lines, defines no keybindings, and quits the composito
     };
     ```
 
+=== "openSUSE"
+
+    Tumbleweed packages cagebreak:
+
+    ```bash
+    sudo zypper install cagebreak socat
+    ```
+
 === "Other distros"
 
-    Check your package manager or build from [project-repo/cagebreak](https://github.com/project-repo/cagebreak).
+    Check your package manager or build from [project-repo/cagebreak](https://github.com/project-repo/cagebreak). The buildable release depends on your wlroots version: 0.17 → 2.3.1, 0.18 → 2.4.0, 0.19 → 3.1.0, 0.20 → 3.2.1.
 
 ## greetd Config
 
