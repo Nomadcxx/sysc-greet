@@ -704,6 +704,14 @@ func initialModel(config Config, screensaverMode bool) model {
 		typewriterTicker: nil,
 	}
 
+	// Test mode skips cached preferences, so SYSC_BG lets a background effect
+	// be exercised directly: SYSC_BG=fire sysc-greet --test
+	if config.TestMode {
+		if bg := os.Getenv("SYSC_BG"); bg != "" {
+			m.selectedBackground = bg
+		}
+	}
+
 	// CHANGED 2025-10-03 - Load cached preferences including session
 	// CHANGED 2025-10-03 - Skip cache in test mode
 	// FIXED 2025-10-17 - Apply Dracula as fallback if no cached theme exists
