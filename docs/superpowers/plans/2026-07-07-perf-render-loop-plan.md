@@ -1,6 +1,9 @@
 # Render Loop Performance — Plan
 
-> **Status:** In progress
+> **Status:** Implemented; awaiting visual verification on real kitty
+> **Results (240x67 pty):** idle 53% → 31% active / **5.9% after 60s idle**;
+> fire 84% → 44%; matrix 60% → 44%; plasma 77% → 69%. Fire render
+> 5.3ms/24,459 allocs → 0.13ms/3 allocs per frame.
 > **Spec:** [2026-07-07 perf audit](../audits/2026-07-07-perf-audit.md)
 > **Branch:** `perf/render-loop` (worktree-isolated; merge target `development`)
 > **Baseline (240x67 pty):** idle 53% CPU / 1.0 MiB/s output; fire 84%; plasma 77%
@@ -74,10 +77,11 @@ Effects, in order: fire, matrix, rain (shared helper), then plasma, aquarium,
 fireworks, beams, beams_text, pour, blackhole, print as applicable — audit each
 for the same pattern before converting.
 
-### 5. Palette updates on theme change only
+### 5. Palette updates on theme change only — DROPPED
 
-Move `UpdatePalette(GetXPalette(theme))` calls out of the bgTick handler into
-the theme-selection handler. (Micro, but it's free while in there.)
+The per-tick palette sync costs ~2μs/frame; moving it to the theme-selection
+handler risks missing a theme-change path and leaving an effect wrongly
+colored until restart. Self-healing beats the micro-win. Not done on purpose.
 
 ## Verification per step
 
