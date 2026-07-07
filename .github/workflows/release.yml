@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+  # Dry run: builds everything, skips release creation
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -27,9 +29,15 @@ jobs:
       - name: Get version
         id: get_version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/v}
+            TAG=${GITHUB_REF#refs/tags/}
+          else
+            VERSION=0.0.0-dev
+            TAG=v0.0.0-dev
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
 
       - name: Build static binary
         run: |
@@ -44,6 +52,128 @@ jobs:
         run: |
           nfpm package --config nfpm.yaml --packager deb --target .
           nfpm package --config nfpm.yaml --packager rpm --target .
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sysc-greet
+          path: |
+            sysc-greet
+            *.deb
+            *.rpm
+
+  # Cagebreak has no Debian/Ubuntu/Fedora packages. Build it per distro against
+  # that distro's wlroots (cagebreak pins wlroots per tag, no subproject
+  # fallback) and attach the packages to our releases for the installer.
+  # Version matrix: docs/superpowers/plans/2026-07-06-cagebreak-distro-packaging-plan.md
+  package-cagebreak:
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: "ubuntu:24.04"      # wlroots 0.17
+            cagebreak: "2.3.1"
+            pkgmgr: apt
+            packager: deb
+            pkgfile: cagebreak_2.3.1_ubuntu24.04_amd64.deb
+            # from ldd/dpkg -S inside the container (see plan doc)
+            depends: "libwlroots12t64 libwayland-server0 libxkbcommon0 libinput10 libudev1 libevdev2 libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libglib2.0-0t64 libfontconfig1"
+          - image: "debian:13"         # wlroots 0.18; also serves Ubuntu 25.x
+            cagebreak: "2.4.0"
+            pkgmgr: apt
+            packager: deb
+            pkgfile: cagebreak_2.4.0_debian13_amd64.deb
+            depends: "libwlroots-0.18 libwayland-server0 libxkbcommon0 libinput10 libudev1 libevdev2 libcairo2 libpango-1.0-0 libpangocairo-1.0-0 libglib2.0-0t64 libfontconfig1"
+          - image: "fedora:42"         # wlroots 0.19
+            cagebreak: "3.1.0"
+            pkgmgr: dnf
+            packager: rpm
+            pkgfile: cagebreak-3.1.0-1.fedora42.x86_64.rpm
+            # soname capability for wlroots so dnf refuses on Fedora 43+
+            # (wlroots 0.20) instead of installing a broken binary
+            depends: "libwlroots-0.19.so()(64bit) libwayland-server libxkbcommon libinput systemd-libs libevdev cairo pango glib2 fontconfig"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies (apt)
+        if: matrix.pkgmgr == 'apt'
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update -qq
+          # trixie ships libwlroots-0.18-dev, ubuntu 24.04 plain libwlroots-dev
+          WLROOTS_DEV=$(apt-cache search --names-only '^libwlroots(-0\.[0-9]+)?-dev$' | awk '{print $1}' | sort -rV | head -1)
+          apt-get install -y -qq --no-install-recommends \
+            git ca-certificates curl build-essential meson ninja-build pkg-config \
+            "$WLROOTS_DEV" libwayland-dev wayland-protocols libxkbcommon-dev \
+            libinput-dev libcairo2-dev libpango1.0-dev libfontconfig-dev \
+            libevdev-dev libudev-dev libpixman-1-dev
+
+      - name: Install build dependencies (dnf)
+        if: matrix.pkgmgr == 'dnf'
+        run: |
+          dnf install -y -q git curl gcc meson ninja-build pkgconf-pkg-config \
+            wlroots-devel wayland-devel wayland-protocols-devel libxkbcommon-devel \
+            libinput-devel cairo-devel pango-devel fontconfig-devel libevdev-devel \
+            systemd-devel pixman-devel
+
+      - name: Build cagebreak ${{ matrix.cagebreak }}
+        run: |
+          git clone --depth 1 --branch "${{ matrix.cagebreak }}" \
+            https://github.com/project-repo/cagebreak cagebreak
+          cd cagebreak
+          meson setup build
+          ninja -C build
+
+      - name: Smoke test against greeter config
+        run: |
+          # cagebreak refuses to run as root; containers run as root
+          useradd -m smoke
+          mkdir -p /tmp/runtime && chown smoke /tmp/runtime && chmod 700 /tmp/runtime
+          rc=0
+          su smoke -s /bin/sh -c "XDG_RUNTIME_DIR=/tmp/runtime WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 \
+            timeout 5 $PWD/cagebreak/build/cagebreak -e -c $PWD/config/cagebreak-greeter-config" || rc=$?
+          # 124 = ran until timeout (config parsed, compositor up); 0 = clean exit
+          if [ "$rc" -ne 124 ] && [ "$rc" -ne 0 ]; then
+            echo "smoke test failed with rc=$rc"
+            exit 1
+          fi
+
+      - name: Install nfpm
+        run: |
+          curl -fsSL "https://github.com/goreleaser/nfpm/releases/download/v2.47.0/nfpm_2.47.0_Linux_x86_64.tar.gz" \
+            | tar -xz -C /usr/local/bin nfpm
+
+      - name: Package
+        env:
+          CAGEBREAK_VERSION: ${{ matrix.cagebreak }}
+          CAGEBREAK_DEPENDS: ${{ matrix.depends }}
+        run: |
+          # nfpm-cagebreak.yaml ends with a bare `depends:` key; append the
+          # per-distro runtime libs as list items (rpm needs individual entries)
+          for dep in $CAGEBREAK_DEPENDS; do
+            printf '  - "%s"\n' "$dep" >> nfpm-cagebreak.yaml
+          done
+          nfpm package --config nfpm-cagebreak.yaml \
+            --packager ${{ matrix.packager }} --target "${{ matrix.pkgfile }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.pkgfile }}
+          path: ${{ matrix.pkgfile }}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, package-cagebreak]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
 
       - name: Generate checksums
         run: |

@@ -1,0 +1,24 @@
+# nfpm config for cagebreak packages built by .github/workflows/release.yml.
+# Packages the compositor binary only — sysc-greet itself ships via nfpm.yaml.
+# CAGEBREAK_VERSION is the cagebreak tag, not the sysc-greet version.
+# The release workflow appends per-distro runtime depends as list items under
+# the trailing `depends:` key, so `depends:` must stay the last key here.
+name: cagebreak
+arch: amd64
+platform: linux
+version: ${CAGEBREAK_VERSION}
+release: "1"
+section: x11
+priority: optional
+maintainer: Nomadcxx <noovie@gmail.com>
+description: |
+  Cagebreak Wayland compositor.
+  Built from https://github.com/project-repo/cagebreak against this
+  distribution's wlroots for use as the sysc-greet greeter compositor.
+vendor: project-repo
+homepage: https://github.com/project-repo/cagebreak
+license: MIT
+contents:
+  - src: ./cagebreak/build/cagebreak
+    dst: /usr/bin/cagebreak
+depends:

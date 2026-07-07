@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"time"
 
@@ -394,7 +397,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 
-				if !compositorInstalled {
+				// cagebreak is installable by the installer itself (repo/AUR on
+				// Arch, release artifact or source build elsewhere); everything
+				// else must be present up front
+				if !compositorInstalled && m.selectedCompositor != "cagebreak" {
 					m.errors = append(m.errors, fmt.Sprintf("%s is not installed - please install it first", m.selectedCompositor))
 					// Stay on compositor selection screen
 					return m, nil
@@ -975,7 +981,262 @@ func installCagebreakArch() error {
 	return nil
 }
 
+// ensureSocat installs socat, which the cagebreak greeter config needs to quit
+// the compositor after login (echo quit | socat - UNIX-CONNECT:$CAGEBREAK_SOCKET).
+func ensureSocat(m *model) error {
+	if _, err := exec.LookPath("socat"); err == nil {
+		return nil
+	}
+	var cmd *exec.Cmd
+	switch m.packageManager {
+	case "pacman":
+		cmd = exec.Command("pacman", "-S", "--noconfirm", "socat")
+	case "apt":
+		cmd = exec.Command("apt-get", "install", "-y", "socat")
+	case "dnf":
+		cmd = exec.Command("dnf", "install", "-y", "socat")
+	case "yum":
+		cmd = exec.Command("yum", "install", "-y", "socat")
+	case "zypper":
+		cmd = exec.Command("zypper", "install", "-y", "socat")
+	default:
+		return fmt.Errorf("socat is required for cagebreak — install it manually")
+	}
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to install socat (cagebreak cannot quit after login without it)")
+	}
+	return nil
+}
+
+// cagebreakArtifact returns the prebuilt cagebreak package from sysc-greet
+// releases matching this distro, or "" when none matches (source build instead).
+// Cagebreak pins wlroots per tag, so each artifact is built against one
+// distro's wlroots — matrix in docs/superpowers/plans/2026-07-06-cagebreak-distro-packaging-plan.md.
+func cagebreakArtifact() string {
+	if runtime.GOARCH != "amd64" {
+		return ""
+	}
+	data, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		return ""
+	}
+	var id, version string
+	for _, line := range strings.Split(string(data), "\n") {
+		if v := strings.TrimPrefix(line, "ID="); v != line {
+			id = strings.Trim(v, `"`)
+		}
+		if v := strings.TrimPrefix(line, "VERSION_ID="); v != line {
+			version = strings.Trim(v, `"`)
+		}
+	}
+	switch id {
+	case "ubuntu":
+		if version == "24.04" {
+			return "cagebreak_2.3.1_ubuntu24.04_amd64.deb"
+		}
+		// Ubuntu 25.x ships wlroots 0.18 under the same package names as trixie
+		if strings.HasPrefix(version, "25.") {
+			return "cagebreak_2.4.0_debian13_amd64.deb"
+		}
+	case "debian":
+		if version == "13" {
+			return "cagebreak_2.4.0_debian13_amd64.deb"
+		}
+	case "fedora":
+		if version == "42" {
+			return "cagebreak-3.1.0-1.fedora42.x86_64.rpm"
+		}
+	}
+	return ""
+}
+
+func downloadFile(url, dest string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download failed: %s", resp.Status)
+	}
+	f, err := os.Create(dest)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = io.Copy(f, resp.Body)
+	return err
+}
+
+// installCagebreakPrebuilt installs the cagebreak package attached to the
+// latest sysc-greet release; any miss falls back to building from source.
+func installCagebreakPrebuilt(m *model) error {
+	artifact := cagebreakArtifact()
+	if artifact == "" {
+		return buildCagebreakFromSource(m)
+	}
+	path := "/tmp/" + artifact
+	url := "https://github.com/Nomadcxx/sysc-greet/releases/latest/download/" + artifact
+	if err := downloadFile(url, path); err != nil {
+		return buildCagebreakFromSource(m)
+	}
+	defer os.Remove(path)
+	var cmd *exec.Cmd
+	switch m.packageManager {
+	case "apt":
+		cmd = exec.Command("apt-get", "install", "-y", path)
+	case "dnf":
+		cmd = exec.Command("dnf", "install", "-y", path)
+	default:
+		return buildCagebreakFromSource(m)
+	}
+	if err := runCommand("Install cagebreak package", cmd, m); err != nil {
+		return buildCagebreakFromSource(m)
+	}
+	return nil
+}
+
+// getCagebreakBuildDeps returns distro package names for building cagebreak.
+// The apt wlroots dev package is resolved separately (name carries the version
+// on trixie: libwlroots-0.18-dev vs plain libwlroots-dev on Ubuntu 24.04).
+func getCagebreakBuildDeps(packageManager string) []string {
+	switch packageManager {
+	case "apt":
+		return []string{
+			"git", "ca-certificates", "build-essential", "meson", "ninja-build", "pkg-config",
+			"libwayland-dev", "wayland-protocols", "libxkbcommon-dev", "libinput-dev",
+			"libcairo2-dev", "libpango1.0-dev", "libfontconfig-dev", "libevdev-dev",
+			"libudev-dev", "libpixman-1-dev",
+		}
+	case "dnf", "yum":
+		return []string{
+			"git", "gcc", "meson", "ninja-build", "pkgconf-pkg-config",
+			"wlroots-devel", "wayland-devel", "wayland-protocols-devel", "libxkbcommon-devel",
+			"libinput-devel", "cairo-devel", "pango-devel", "fontconfig-devel",
+			"libevdev-devel", "systemd-devel", "pixman-devel",
+		}
+	case "zypper":
+		return []string{
+			"git", "gcc", "meson", "ninja", "pkg-config",
+			"wlroots-devel", "wayland-devel", "wayland-protocols-devel", "libxkbcommon-devel",
+			"libinput-devel", "cairo-devel", "pango-devel", "fontconfig-devel",
+			"libevdev-devel", "systemd-devel", "pixman-devel",
+		}
+	}
+	return nil
+}
+
+// cagebreakTagForWlroots maps the installed wlroots dev headers to the newest
+// cagebreak tag that builds against them (no meson subproject fallback upstream).
+func cagebreakTagForWlroots() (string, error) {
+	probes := []struct{ module, tag string }{
+		{"wlroots-0.20", "3.2.1"},
+		{"wlroots-0.19", "3.1.0"},
+		{"wlroots-0.18", "2.4.0"},
+		{"wlroots", "2.3.1"}, // 0.17 uses the unversioned pkg-config name
+	}
+	for _, p := range probes {
+		if exec.Command("pkg-config", "--exists", p.module).Run() != nil {
+			continue
+		}
+		if p.module == "wlroots" {
+			out, err := exec.Command("pkg-config", "--modversion", "wlroots").Output()
+			if err != nil || !strings.HasPrefix(strings.TrimSpace(string(out)), "0.17") {
+				continue
+			}
+		}
+		return p.tag, nil
+	}
+	return "", fmt.Errorf("no usable wlroots headers found (cagebreak needs wlroots 0.17–0.20)")
+}
+
+// buildCagebreakFromSource mirrors buildGslapperFromSource: install build deps,
+// pick the cagebreak tag matching the system wlroots, meson build, install.
+func buildCagebreakFromSource(m *model) error {
+	deps := getCagebreakBuildDeps(m.packageManager)
+	if deps == nil {
+		return fmt.Errorf("cagebreak not packaged for this distro — build it from https://github.com/project-repo/cagebreak")
+	}
+
+	if m.packageManager == "apt" {
+		// Resolve the versioned wlroots dev package name
+		wlrootsDev := ""
+		for _, candidate := range []string{"libwlroots-0.20-dev", "libwlroots-0.19-dev", "libwlroots-0.18-dev", "libwlroots-dev"} {
+			if checkPackageExists(candidate, "apt") {
+				wlrootsDev = candidate
+				break
+			}
+		}
+		if wlrootsDev == "" {
+			return fmt.Errorf("no libwlroots dev package in apt repos — cagebreak cannot be built here")
+		}
+		deps = append(deps, wlrootsDev)
+	}
+
+	var cmd *exec.Cmd
+	switch m.packageManager {
+	case "apt":
+		cmd = exec.Command("apt-get", append([]string{"install", "-y"}, deps...)...)
+	case "dnf":
+		cmd = exec.Command("dnf", append([]string{"install", "-y"}, deps...)...)
+	case "yum":
+		cmd = exec.Command("yum", append([]string{"install", "-y"}, deps...)...)
+	case "zypper":
+		cmd = exec.Command("zypper", append([]string{"install", "-y"}, deps...)...)
+	}
+	if cmd != nil {
+		runCommand("Install cagebreak build deps", cmd, m) // Best effort; verified below
+	}
+
+	for _, tool := range []string{"meson", "ninja", "git", "pkg-config"} {
+		if _, err := exec.LookPath(tool); err != nil {
+			return fmt.Errorf("missing build tool: %s", tool)
+		}
+	}
+
+	tag, err := cagebreakTagForWlroots()
+	if err != nil {
+		return err
+	}
+
+	exec.Command("rm", "-rf", "/tmp/cagebreak-build").Run()
+	cloneCmd := exec.Command("git", "clone", "--depth", "1", "--branch", tag,
+		"https://github.com/project-repo/cagebreak", "/tmp/cagebreak-build")
+	if err := runCommand("Clone cagebreak", cloneCmd, m); err != nil {
+		return fmt.Errorf("cagebreak clone failed")
+	}
+
+	setupCmd := exec.Command("meson", "setup", "build")
+	setupCmd.Dir = "/tmp/cagebreak-build"
+	if err := runCommand("Configure cagebreak build", setupCmd, m); err != nil {
+		return fmt.Errorf("cagebreak build setup failed — check wlroots dev packages")
+	}
+
+	buildCmd := exec.Command("ninja", "-C", "build")
+	buildCmd.Dir = "/tmp/cagebreak-build"
+	if err := runCommand("Build cagebreak", buildCmd, m); err != nil {
+		return fmt.Errorf("cagebreak build failed")
+	}
+
+	installCmd := exec.Command("install", "-Dm755", "build/cagebreak", "/usr/local/bin/cagebreak")
+	installCmd.Dir = "/tmp/cagebreak-build"
+	if err := runCommand("Install cagebreak", installCmd, m); err != nil {
+		return fmt.Errorf("cagebreak install failed")
+	}
+
+	exec.Command("rm", "-rf", "/tmp/cagebreak-build").Run()
+	return nil
+}
+
 func installCompositor(m *model) error {
+	// The cagebreak greeter config quits the compositor via socat, even when
+	// cagebreak itself is already installed
+	if m.selectedCompositor == "cagebreak" {
+		if err := ensureSocat(m); err != nil {
+			return err
+		}
+	}
+
 	// Map compositor selection to binary names
 	compositorBinaries := map[string][]string{
 		"niri":      {"niri"},
@@ -1039,7 +1300,7 @@ func installCompositor(m *model) error {
 		case "sway":
 			cmd = exec.Command("apt-get", "install", "-y", "sway")
 		case "cagebreak":
-			return fmt.Errorf("cagebreak not in standard apt repos — build from https://github.com/project-repo/cagebreak")
+			return installCagebreakPrebuilt(m)
 		}
 
 	case "dnf":
@@ -1052,7 +1313,7 @@ func installCompositor(m *model) error {
 		case "sway":
 			cmd = exec.Command("dnf", "install", "-y", "sway")
 		case "cagebreak":
-			return fmt.Errorf("cagebreak not in standard dnf repos — build from https://github.com/project-repo/cagebreak")
+			return installCagebreakPrebuilt(m)
 		}
 
 	case "yum":
@@ -1071,6 +1332,12 @@ func installCompositor(m *model) error {
 			return fmt.Errorf("hyprland may require Tumbleweed or manual install")
 		case "sway":
 			cmd = exec.Command("zypper", "install", "-y", "sway")
+		case "cagebreak":
+			// Packaged in Tumbleweed; source build covers anything else
+			if err := exec.Command("zypper", "install", "-y", "cagebreak").Run(); err != nil {
+				return buildCagebreakFromSource(m)
+			}
+			return nil
 		default:
 			return fmt.Errorf("%s may not be in zypper repos - install manually", m.selectedCompositor)
 		}
