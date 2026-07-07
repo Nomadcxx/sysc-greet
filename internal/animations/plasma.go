@@ -1,7 +1,6 @@
 package animations
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"strings"
@@ -43,7 +42,7 @@ func NewPlasmaEffect(width, height int, palette []string, theme string) *PlasmaA
 		palette:      palette,
 		theme:        theme,
 		phase:        PlasmaFadeIn,
-		fadeInFrames:  40,
+		fadeInFrames: 40,
 		paletteShift: 0,
 	}
 	p.initBlobs()
@@ -133,6 +132,10 @@ func (p *PlasmaAnimation) Render() string {
 			scanlineDim = 0.85
 		}
 
+		// Run-length SGR state: only emit a color code when the pixel color
+		// changes along the row (replaces one Fprintf + reset per pixel)
+		lastR, lastG, lastB := -1, -1, -1
+
 		for cx := 0; cx < chunkyW; cx++ {
 			// Center of this chunky pixel
 			px := float64(cx*2) + 1.0
@@ -221,8 +224,16 @@ func (p *PlasmaAnimation) Render() string {
 			finalB := plasmaClamp(int(weightedB*intensity*scanlineDim*fade), 0, 255)
 
 			// Write chunky pixel (2 chars wide)
-			fmt.Fprintf(&p.builder, "\033[38;2;%d;%d;%dm%c%c\033[0m", finalR, finalG, finalB, ch, ch)
+			if finalR != lastR || finalG != lastG || finalB != lastB {
+				writeRGBSGR(&p.builder, finalR, finalG, finalB)
+				lastR, lastG, lastB = finalR, finalG, finalB
+			}
+			p.builder.WriteRune(ch)
+			p.builder.WriteRune(ch)
 		}
+
+		// Reset at row end so colors never bleed into layer padding
+		p.builder.WriteString("\x1b[0m")
 
 		// Fill remaining columns if width is odd
 		if p.width%2 != 0 {

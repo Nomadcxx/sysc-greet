@@ -2,9 +2,6 @@ package animations
 
 import (
 	"math/rand"
-	"strings"
-
-	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // FireEffect implements PSX DOOM-style fire algorithm
@@ -102,17 +99,16 @@ func (f *FireEffect) Update(frame int) {
 
 // Render converts the fire buffer to colored text output
 func (f *FireEffect) Render() string {
-	var lines []string
+	w := newSGRLineWriter(f.width * f.height * 4)
 
 	// Render across full height - low heat at top will naturally fade to black/background
 	for y := 0; y < f.height; y++ {
-		var line strings.Builder
 		for x := 0; x < f.width; x++ {
 			heat := f.buffer[y*f.width+x]
 
 			// Skip very low heat (natural fade to background)
 			if heat < 3 {
-				line.WriteString(" ")
+				w.WriteCell("", ' ')
 				continue
 			}
 
@@ -121,23 +117,17 @@ func (f *FireEffect) Render() string {
 			if charIndex >= len(f.chars) {
 				charIndex = len(f.chars) - 1
 			}
-			char := f.chars[charIndex]
 
 			// Map heat to color from palette
 			colorIndex := heat * (len(f.palette) - 1) / 36
 			if colorIndex >= len(f.palette) {
 				colorIndex = len(f.palette) - 1
 			}
-			colorHex := f.palette[colorIndex]
 
-			// Render colored character
-			styled := lipgloss.NewStyle().
-				Foreground(lipgloss.Color(colorHex)).
-				Render(string(char))
-			line.WriteString(styled)
+			w.WriteCell(f.palette[colorIndex], f.chars[charIndex])
 		}
-		lines = append(lines, line.String())
+		w.EndRow()
 	}
 
-	return strings.Join(lines, "\n")
+	return w.String()
 }

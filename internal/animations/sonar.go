@@ -365,8 +365,16 @@ func (s *SonarAnimation) Render() string {
 	scanColor := s.paletteSlot(2)
 
 	for y := 0; y < s.height; y++ {
+		// Run-length SGR state: emit a color code only when the color changes
+		// along the row, reset before default-colored cells and at row end
+		lastR, lastG, lastB := -1, -1, -1
+
 		for x := 0; x < s.width; x++ {
 			pos := [2]int{x, y}
+
+			var cr, cg, cb int
+			var ch rune
+			colored := true
 
 			if ap, ok := ashMap[pos]; ok {
 				var col string
@@ -375,31 +383,40 @@ func (s *SonarAnimation) Render() string {
 				} else {
 					col = s.paletteSlot(6)
 				}
-				r, g, b := hexToRGBSonar(col)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ap.char)
-				continue
-			}
-
-			if y == scanY {
-				r, g, b := hexToRGBSonar(scanColor)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm─\033[0m", r, g, b)
-				continue
-			}
-
-			if h, ok := ringMap[pos]; ok {
+				cr, cg, cb = hexToRGBSonar(col)
+				ch = ap.char
+			} else if y == scanY {
+				cr, cg, cb = hexToRGBSonar(scanColor)
+				ch = '─'
+			} else if h, ok := ringMap[pos]; ok {
 				col := hexLerp(s.paletteSlot(0), s.paletteSlot(1), h.intensity)
-				r, g, b := hexToRGBSonar(col)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm·\033[0m", r, g, b)
+				cr, cg, cb = hexToRGBSonar(col)
+				ch = '·'
+			} else if gch, ok := gridMap[pos]; ok {
+				cr, cg, cb = hexToRGBSonar(gridColor)
+				ch = gch
+			} else {
+				colored = false
+			}
+
+			if !colored {
+				if lastR != -1 {
+					s.builder.WriteString("\x1b[0m")
+					lastR, lastG, lastB = -1, -1, -1
+				}
+				s.builder.WriteByte(' ')
 				continue
 			}
 
-			if ch, ok := gridMap[pos]; ok {
-				r, g, b := hexToRGBSonar(gridColor)
-				fmt.Fprintf(&s.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ch)
-				continue
+			if cr != lastR || cg != lastG || cb != lastB {
+				writeRGBSGR(&s.builder, cr, cg, cb)
+				lastR, lastG, lastB = cr, cg, cb
 			}
+			s.builder.WriteRune(ch)
+		}
 
-			s.builder.WriteByte(' ')
+		if lastR != -1 {
+			s.builder.WriteString("\x1b[0m")
 		}
 		if y < s.height-1 {
 			s.builder.WriteByte('\n')

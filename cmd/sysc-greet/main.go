@@ -44,20 +44,20 @@ var debugLog *log.Logger
 func initDebugLog() {
 	// Try persistent location first ($HOME/.cache/sysc-greet/debug.log)
 	// Falls back to /tmp/ if home dir unavailable
-	logPath := "/tmp/sysc-greet-debug.log"
+	logPaths := []string{"/tmp/sysc-greet-debug.log"}
 	if home, err := os.UserHomeDir(); err == nil {
 		cacheDir := filepath.Join(home, ".cache", "sysc-greet")
 		os.MkdirAll(cacheDir, 0755)
-		logPath = filepath.Join(cacheDir, "debug.log")
+		logPaths = append([]string{filepath.Join(cacheDir, "debug.log")}, logPaths...)
 	}
 
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		// Fallback to stderr if can't open log file
-		debugLog = log.New(os.Stderr, "[DEBUG] ", log.Ldate|log.Ltime|log.Lshortfile)
-		return
+	for _, logPath := range logPaths {
+		logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err == nil {
+			debugLog = log.New(logFile, "[DEBUG] ", log.Ldate|log.Ltime|log.Lshortfile)
+			return
+		}
 	}
-	debugLog = log.New(logFile, "[DEBUG] ", log.Ldate|log.Ltime|log.Lshortfile)
 }
 
 func logDebug(format string, args ...interface{}) {
@@ -378,6 +378,8 @@ type model struct {
 	screensaverTime   time.Time               // Current time for screensaver display
 	screensaverPrint  *animations.PrintEffect // CHANGED 2025-10-11 - Print effect animation for screensaver
 	screensaverActive bool                    // CHANGED 2025-10-11 - Track if screensaver just activated
+	ssConfig          ScreensaverConfig       // Cached screensaver.conf; reading it per tick was 33 file opens/s
+	ssConfigLoaded    time.Time               // Last cache refresh (refreshed at most every 60s from the tick handler)
 
 	// ASCII navigation fields for multi-variant support
 	asciiArtIndex      int         // Current variant index (0-indexed)
@@ -412,6 +414,51 @@ func doTick() tea.Cmd {
 	})
 }
 
+// doSlowTick keeps the UI tick chain alive at 1s while nothing on screen
+// animates: enough for the screensaver idle check and clock. One chain only —
+// see doBgTickIdle for why extra chains are forbidden.
+func doSlowTick() tea.Cmd {
+	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
+}
+
+// uiAnimationsActive reports whether anything on screen needs the fast 30ms
+// UI tick right now. When false, the tick drops to 1s and the animation
+// counters freeze (a frozen banner gradient beats one stepping at 1fps).
+func (m model) uiAnimationsActive() bool {
+	// Someone is at the keyboard: keep everything smooth
+	if time.Since(m.idleTimer) < time.Minute {
+		return true
+	}
+	// Wall-clock driven animations visible on the login screens
+	if m.mode == ModeLogin || m.mode == ModePassword {
+		switch m.selectedBackground {
+		case "ticker", "print", "beams", "pour":
+			return true
+		}
+	}
+	// Screensaver print animation in progress
+	if m.mode == ModeScreensaver && m.screensaverPrint != nil && !m.screensaverPrint.IsComplete() {
+		return true
+	}
+	// Lazy inits ride this tick (0d1299c); stay fast until they have fired
+	if !m.gslapperLaunched && m.selectedWallpaper != "" {
+		return true
+	}
+	switch m.selectedBackground {
+	case "aquarium":
+		return m.aquariumEffect == nil
+	case "sonar":
+		return m.sonarEffect == nil
+	case "cracktro":
+		return m.cracktroEffect == nil
+	case "plasma":
+		return m.plasmaEffect == nil
+	}
+	return false
+}
+
 type bgTickMsg time.Time
 
 func doBgTick(speed string) tea.Cmd {
@@ -425,6 +472,32 @@ func doBgTick(speed string) tea.Cmd {
 	return tea.Tick(interval, func(t time.Time) tea.Msg {
 		return bgTickMsg(t)
 	})
+}
+
+// doBgTickIdle keeps the background tick chain alive on a slow heartbeat while
+// no effect is animating. One chain only — spawning extra chains on events
+// multiplies the frame rate (the "hyperspeed" bug class, issue #45).
+func doBgTickIdle() tea.Cmd {
+	return tea.Tick(250*time.Millisecond, func(t time.Time) tea.Msg {
+		return bgTickMsg(t)
+	})
+}
+
+// backgroundEffectActive reports whether the selected background needs
+// per-frame bgTick updates right now. Effects only display on the login and
+// password screens (see View), so other modes don't pay for animation.
+func (m model) backgroundEffectActive() bool {
+	if m.mode != ModeLogin && m.mode != ModePassword {
+		return false
+	}
+	if m.enableFire {
+		return true
+	}
+	switch m.selectedBackground {
+	case "fire", "fire+rain", "ascii-rain", "matrix", "fireworks", "sonar", "cracktro", "plasma", "aquarium":
+		return true
+	}
+	return false
 }
 
 // cycleAnimSpeed cycles to the next speed preset
@@ -476,7 +549,7 @@ func initialModel(config Config, screensaverMode bool) model {
 	if config.Debug {
 		logDebug(" Loaded %d sessions", len(sess))
 		for _, s := range sess {
-			fmt.Printf("  - %s (%s)\n", s.Name, s.Type)
+			logDebug("  - %s (%s)", s.Name, s.Type)
 		}
 	}
 
@@ -609,6 +682,8 @@ func initialModel(config Config, screensaverMode bool) model {
 		// CHANGED 2025-10-10 - Initialize screensaver timers
 		idleTimer:       time.Now(),
 		screensaverTime: time.Now(),
+		ssConfig:        loadScreensaverConfig(),
+		ssConfigLoaded:  time.Now(),
 		// Initialize fire effect with default size
 		fireEffect: animations.NewFireEffect(80, 30, animations.GetDefaultFirePalette()),
 		// CHANGED 2025-10-08 - Initialize rain effect with default size
@@ -627,6 +702,14 @@ func initialModel(config Config, screensaverMode bool) model {
 		plasmaEffect: nil,
 		// TypewriterTicker is nil by default, initialized when user enables it
 		typewriterTicker: nil,
+	}
+
+	// Test mode skips cached preferences, so SYSC_BG lets a background effect
+	// be exercised directly: SYSC_BG=fire sysc-greet --test
+	if config.TestMode {
+		if bg := os.Getenv("SYSC_BG"); bg != "" {
+			m.selectedBackground = bg
+		}
 	}
 
 	// CHANGED 2025-10-03 - Load cached preferences including session
@@ -791,7 +874,7 @@ func initialModel(config Config, screensaverMode bool) model {
 
 	// CHANGED 2025-10-11 - Initialize print effect if starting in screensaver mode
 	if screensaverMode {
-		ssConfig := loadScreensaverConfig()
+		ssConfig := m.ssConfig
 		if ssConfig.AnimateOnStart && ssConfig.AnimationType == "print" && len(ssConfig.ASCIIVariants) > 0 {
 			selectedASCII := ssConfig.ASCIIVariants[0]
 			charDelay := time.Duration(ssConfig.AnimationSpeed) * time.Millisecond
@@ -865,9 +948,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tickMsg:
-		m.animationFrame++
-		m.pulseColor = (m.pulseColor + 1) % 100
-		m.borderFrame = (m.borderFrame + 1) % 20
+		fastTick := m.uiAnimationsActive()
+		if fastTick {
+			// Counters only advance on fast ticks so idle frames are
+			// byte-identical and the renderer diffs them to nothing
+			m.animationFrame++
+			m.pulseColor = (m.pulseColor + 1) % 100
+			m.borderFrame = (m.borderFrame + 1) % 20
+		}
 
 		// Lazy init: create aquarium on first tick when we have real dimensions
 		if m.selectedBackground == "aquarium" && m.aquariumEffect == nil && m.width > 0 && m.height > 0 {
@@ -920,9 +1008,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.screensaverPrint.Tick(m.screensaverTime)
 		}
 
+		// Refresh the cached screensaver config at most once a minute so edits
+		// to screensaver.conf still apply without restarting the greeter
+		if time.Since(m.ssConfigLoaded) > time.Minute {
+			m.ssConfig = loadScreensaverConfig()
+			m.ssConfigLoaded = time.Now()
+		}
+
 		// Check for screensaver activation using configurable timeout
 		if m.mode == ModeLogin || m.mode == ModePassword {
-			ssConfig := loadScreensaverConfig()
+			ssConfig := m.ssConfig
 			idleDuration := time.Since(m.idleTimer)
 			if idleDuration >= time.Duration(ssConfig.IdleTimeout)*time.Minute && m.mode != ModeScreensaver {
 				m.mode = ModeScreensaver
@@ -953,9 +1048,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pourEffect.Update()
 		}
 
-		cmds = append(cmds, doTick())
+		if fastTick {
+			cmds = append(cmds, doTick())
+		} else {
+			cmds = append(cmds, doSlowTick())
+		}
 
 	case bgTickMsg:
+		if !m.backgroundEffectActive() {
+			cmds = append(cmds, doBgTickIdle())
+			return m, tea.Batch(cmds...)
+		}
+
 		m.bgAnimationFrame++
 
 		if (m.enableFire || m.selectedBackground == "fire" || m.selectedBackground == "fire+rain") && m.fireEffect != nil {
@@ -1176,8 +1280,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.config.Debug {
 			// Log ALL key presses to debug what modifiers are being sent
-			fmt.Fprintf(os.Stderr, "KEY: %q | Mod=%08b (%d) | CapsLock=%v\n",
-				key.Text, key.Mod, key.Mod, m.capsLockOn)
+			keyText := key.Text
+			if m.passwordInputActive() {
+				keyText = "<redacted>"
+			}
+			logDebug("KEY: %q | Mod=%08b (%d) | CapsLock=%v",
+				keyText, key.Mod, key.Mod, m.capsLockOn)
 		}
 
 		// CHANGED 2025-10-12 - Handle screensaver exit on any key press
@@ -1237,7 +1345,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 	// Updated for tea.KeyMsg v2 API
 	if m.config.Debug {
 		keyStr := msg.String()
-		fmt.Fprintf(os.Stderr, "KEY DEBUG: String='%s'\n", keyStr)
+		if m.passwordInputActive() {
+			keyStr = "<redacted>"
+		}
+		logDebug("KEY DEBUG: String='%s'", keyStr)
 	}
 
 	switch msg.String() {
@@ -1284,7 +1395,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		// Release notes popup - works from any mode
 		m.sessionDropdownOpen = false
 		if m.config.Debug {
-			fmt.Println("Debug: Opening release notes")
+			logDebug("Opening release notes")
 		}
 		m.mode = ModeReleaseNotes
 		m.usernameInput.Blur()
@@ -1297,7 +1408,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		m.sessionDropdownOpen = false
 		m.powerIndex = 0
 		if m.config.Debug {
-			fmt.Println("Debug: Opening power menu")
+			logDebug("Opening power menu")
 		}
 		m.mode = ModePower
 		m.usernameInput.Blur()
@@ -2296,7 +2407,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			} else {
 				// Enter from username goes to password
 				if m.config.Debug {
-					fmt.Println("Debug: Switching to password mode")
+					logDebug("Switching to password mode")
 				}
 				m.mode = ModePassword
 				m.focusState = FocusPassword
@@ -2341,6 +2452,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m model) passwordInputActive() bool {
+	return m.mode == ModePassword && m.focusState == FocusPassword
 }
 
 // Return tea.View with BackgroundColor set
@@ -2817,11 +2932,6 @@ func main() {
 	logDebug("GREETD_SOCK: %s", os.Getenv("GREETD_SOCK"))
 	logDebug("WAYLAND_DISPLAY: %s", os.Getenv("WAYLAND_DISPLAY"))
 	logDebug("XDG_RUNTIME_DIR: %s", os.Getenv("XDG_RUNTIME_DIR"))
-
-	if config.Debug {
-		fmt.Printf("Debug mode enabled\n")
-		fmt.Printf("Debug log: /tmp/sysc-greet-debug.log\n")
-	}
 
 	// Initialize Bubble Tea program with proper screen management
 	// CHANGED 2025-09-29 - Handle TTY access gracefully for different environments

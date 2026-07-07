@@ -8,16 +8,23 @@ echo "==> Setting up sysc-greet..."
 # Create greeter user if it doesn't exist
 if ! id greeter &>/dev/null; then
     echo "==> Creating greeter user..."
-    useradd -M -G video,render,input -s /usr/bin/nologin greeter
+    useradd -M -d /var/lib/greeter -G video,render,input -s /usr/bin/nologin greeter
 else
     echo "==> Updating greeter user groups..."
-    usermod -aG video,render,input greeter
+    usermod -d /var/lib/greeter -aG video,render,input greeter
 fi
 
 # Set permissions
 echo "==> Setting permissions..."
+mkdir -p /var/cache/sysc-greet \
+    /var/lib/greeter/Pictures/wallpapers \
+    /var/lib/greeter/.cache \
+    /var/lib/greeter/.config \
+    /var/lib/greeter/.local/state \
+    /tmp/greeter-cache
 chown -R greeter:greeter /var/cache/sysc-greet 2>/dev/null || true
 chown -R greeter:greeter /var/lib/greeter 2>/dev/null || true
+chown -R greeter:greeter /tmp/greeter-cache 2>/dev/null || true
 chmod 755 /var/lib/greeter
 
 # Detect installed Wayland backend and configure greetd

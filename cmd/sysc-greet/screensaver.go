@@ -191,7 +191,7 @@ func renderStyledClock(timeStr string, style string) []string {
 
 // renderScreensaverView renders the screensaver with ASCII art, clock, and date
 func renderScreensaverView(m model, termWidth, termHeight int) string {
-	config := loadScreensaverConfig()
+	config := m.ssConfig
 
 	// Get theme-specific color palette
 	palette := animations.GetScreensaverPalette(m.currentTheme)

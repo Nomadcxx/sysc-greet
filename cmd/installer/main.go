@@ -1705,14 +1705,24 @@ func installConfigs(m *model) error {
 }
 
 func setupCache(m *model) error {
-	// Create cache directory
-	if err := exec.Command("mkdir", "-p", "/var/cache/sysc-greet").Run(); err != nil {
-		return fmt.Errorf("cache dir creation failed")
+	// Create greeter-owned state/cache directories used by kitty, gSlapper,
+	// shader caches, and sysc-greet preferences.
+	dirs := []string{
+		"/var/cache/sysc-greet",
+		"/var/lib/greeter/Pictures/wallpapers",
+		"/var/lib/greeter/.cache",
+		"/var/lib/greeter/.config",
+		"/var/lib/greeter/.local/state",
+		"/tmp/greeter-cache",
+	}
+	for _, dir := range dirs {
+		if err := exec.Command("mkdir", "-p", dir).Run(); err != nil {
+			return fmt.Errorf("directory creation failed for %s", dir)
+		}
 	}
 
-	// Create greeter home
-	if err := exec.Command("mkdir", "-p", "/var/lib/greeter/Pictures/wallpapers").Run(); err != nil {
-		return fmt.Errorf("greeter home creation failed")
+	if err := exec.Command("chmod", "755", "/var/lib/greeter").Run(); err != nil {
+		return fmt.Errorf("permissions change failed")
 	}
 
 	// Create greeter user if needed
@@ -1722,27 +1732,24 @@ func setupCache(m *model) error {
 	cmd := exec.Command("id", "greeter")
 	if err := cmd.Run(); err != nil {
 		// User doesn't exist - create with video,render,input groups
-		cmd = exec.Command("useradd", "-M", "-G", "video,render,input", "-s", "/usr/bin/nologin", "greeter")
+		cmd = exec.Command("useradd", "-M", "-d", "/var/lib/greeter", "-G", "video,render,input", "-s", "/usr/bin/nologin", "greeter")
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("greeter user creation failed")
 		}
 	} else {
-		// User exists - ensure they have required groups
+		// User exists - ensure they have required groups and a writable home.
 		// CRITICAL: This fixes laptops where greeter user exists but lacks render group
-		exec.Command("usermod", "-aG", "video,render,input", "greeter").Run()
+		if err := exec.Command("usermod", "-d", "/var/lib/greeter", "-aG", "video,render,input", "greeter").Run(); err != nil {
+			return fmt.Errorf("greeter user update failed")
+		}
 	}
 
 	// Set ownership
-	paths := []string{"/var/cache/sysc-greet", "/var/lib/greeter"}
+	paths := []string{"/var/cache/sysc-greet", "/var/lib/greeter", "/tmp/greeter-cache"}
 	for _, path := range paths {
 		if err := exec.Command("chown", "-R", "greeter:greeter", path).Run(); err != nil {
 			return fmt.Errorf("ownership change failed for %s", path)
 		}
-	}
-
-	// Set permissions
-	if err := exec.Command("chmod", "755", "/var/lib/greeter").Run(); err != nil {
-		return fmt.Errorf("permissions change failed")
 	}
 
 	return nil
@@ -1798,9 +1805,9 @@ animations {
     off
 }
 
-spawn-sh-at-startup "HOME=/var/lib/greeter /usr/local/bin/sysc-greet --wallpaper-daemon"
+spawn-sh-at-startup "cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state /usr/local/bin/sysc-greet --wallpaper-daemon"
 
-spawn-sh-at-startup "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
+spawn-sh-at-startup "cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
 
 binds {
 }
@@ -1868,8 +1875,8 @@ windowrule = match:class ^(kitty)$, fullscreen on, opacity 1.0
 layerrule = match:namespace wallpaper, blur on
 
 # Startup applications
-exec-once = HOME=/var/lib/greeter /usr/local/bin/sysc-greet --wallpaper-daemon
-exec-once = XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
+exec-once = cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state /usr/local/bin/sysc-greet --wallpaper-daemon
+exec-once = cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
 `
 		configPath = "/etc/greetd/hyprland-greeter-config.conf"
 		greetdCommand = "start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
@@ -1903,8 +1910,8 @@ input type:touchpad {
 for_window [app_id="kitty"] fullscreen enable
 
 # Startup applications
-exec "HOME=/var/lib/greeter /usr/local/bin/sysc-greet --wallpaper-daemon"
-exec "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; swaymsg exit"
+exec "cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state /usr/local/bin/sysc-greet --wallpaper-daemon"
+exec "cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; swaymsg exit"
 `
 		configPath = "/etc/greetd/sway-greeter-config"
 		greetdCommand = "sway --unsupported-gpu -c /etc/greetd/sway-greeter-config"
@@ -1918,10 +1925,10 @@ exec "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=f
 background 0.0 0.0 0.0
 
 # gSlapper wallpaper daemon (wlr-layer-shell client, same as niri/sway setup)
-exec HOME=/var/lib/greeter /usr/local/bin/sysc-greet --wallpaper-daemon
+exec cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state /usr/local/bin/sysc-greet --wallpaper-daemon
 
 # Greeter UI; when it exits (login or shutdown), quit cagebreak so greetd can start the session
-exec XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; echo quit | socat - UNIX-CONNECT:"$CAGEBREAK_SOCKET"
+exec cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; echo quit | socat - UNIX-CONNECT:"$CAGEBREAK_SOCKET"
 
 # No bind/definekey lines on purpose: no compositor keybindings reachable from the greeter
 `

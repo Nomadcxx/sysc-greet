@@ -2,9 +2,6 @@ package animations
 
 import (
 	"math/rand"
-	"strings"
-
-	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // RainEffect implements ascii rain animation
@@ -129,10 +126,13 @@ func (r *RainEffect) Update(frame int) {
 
 // Render converts the rain drops to colored text output
 func (r *RainEffect) Render() string {
-	// Create empty canvas
+	// Create empty canvas; track colors alongside so the render loop doesn't
+	// scan the drop list for every cell
 	canvas := make([][]rune, r.height)
+	colors := make([][]string, r.height)
 	for i := range canvas {
 		canvas[i] = make([]rune, r.width)
+		colors[i] = make([]string, r.width)
 		for j := range canvas[i] {
 			canvas[i][j] = ' '
 		}
@@ -142,36 +142,27 @@ func (r *RainEffect) Render() string {
 	for _, drop := range r.drops {
 		if drop.X >= 0 && drop.X < r.width && drop.Y >= 0 && drop.Y < r.height {
 			canvas[drop.Y][drop.X] = drop.Char
+			colors[drop.Y][drop.X] = drop.Color
 		}
 	}
 
 	// Convert to colored string
-	var lines []string
+	w := newSGRLineWriter(r.width * r.height * 2)
 	for y := 0; y < r.height; y++ {
-		var line strings.Builder
 		for x := 0; x < r.width; x++ {
 			char := canvas[y][x]
 			if char != ' ' {
-				// Find the drop at this position to get its color
-				color := "#00ff00" // Default color
-				for _, drop := range r.drops {
-					if drop.X == x && drop.Y == y {
-						color = drop.Color
-						break
-					}
+				color := colors[y][x]
+				if color == "" {
+					color = "#00ff00" // Default color
 				}
-
-				// Render colored character
-				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(color)).
-					Render(string(char))
-				line.WriteString(styled)
+				w.WriteCell(color, char)
 			} else {
-				line.WriteRune(char)
+				w.WriteCell("", char)
 			}
 		}
-		lines = append(lines, line.String())
+		w.EndRow()
 	}
 
-	return strings.Join(lines, "\n")
+	return w.String()
 }

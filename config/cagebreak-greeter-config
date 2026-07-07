@@ -6,9 +6,9 @@
 background 0.0 0.0 0.0
 
 # gSlapper wallpaper daemon (wlr-layer-shell client, same as niri/sway setup)
-exec HOME=/var/lib/greeter /usr/local/bin/sysc-greet --wallpaper-daemon
+exec cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state /usr/local/bin/sysc-greet --wallpaper-daemon
 
 # Greeter UI; when it exits (login or shutdown), quit cagebreak so greetd can start the session
-exec XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; echo quit | socat - UNIX-CONNECT:"$CAGEBREAK_SOCKET"
+exec cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; echo quit | socat - UNIX-CONNECT:"$CAGEBREAK_SOCKET"
 
 # No bind/definekey lines on purpose: no compositor keybindings reachable from the greeter

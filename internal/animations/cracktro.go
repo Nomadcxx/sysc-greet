@@ -1,7 +1,6 @@
 package animations
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"strings"
@@ -180,16 +179,23 @@ func (c *CracktroAnimation) Render() string {
 	}
 
 	for y := 0; y < c.height; y++ {
+		// Run-length SGR state: emit a color code only when the color changes
+		// along the row, reset before default-colored cells and at row end
+		lastR, lastG, lastB := -1, -1, -1
+
 		for x := 0; x < c.width; x++ {
 			pos := [2]int{x, y}
+
+			var cr, cg, cb int
+			var ch rune
+			colored := true
 
 			if bh, ok := barMap[y]; ok {
 				col := c.cracktroSlot(bh.colorIdx)
 				r, g, b := hexToRGBCracktro(col)
-				r = cracktroClamp(int(float64(r)*bh.intensity), 0, 255)
-				g = cracktroClamp(int(float64(g)*bh.intensity), 0, 255)
-				b = cracktroClamp(int(float64(b)*bh.intensity), 0, 255)
-				var ch rune
+				cr = cracktroClamp(int(float64(r)*bh.intensity), 0, 255)
+				cg = cracktroClamp(int(float64(g)*bh.intensity), 0, 255)
+				cb = cracktroClamp(int(float64(b)*bh.intensity), 0, 255)
 				if bh.intensity > 0.8 {
 					ch = '\u2588'
 				} else if bh.intensity > 0.6 {
@@ -199,14 +205,9 @@ func (c *CracktroAnimation) Render() string {
 				} else {
 					ch = '\u2591'
 				}
-				fmt.Fprintf(&c.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ch)
-				continue
-			}
-
-			if layer, ok := starMap[pos]; ok {
+			} else if layer, ok := starMap[pos]; ok {
 				col := c.cracktroSlot(layer)
-				r, g, b := hexToRGBCracktro(col)
-				var ch rune
+				cr, cg, cb = hexToRGBCracktro(col)
 				switch layer {
 				case 0:
 					ch = '\u00b7'
@@ -215,11 +216,28 @@ func (c *CracktroAnimation) Render() string {
 				case 2:
 					ch = '*'
 				}
-				fmt.Fprintf(&c.builder, "\033[38;2;%d;%d;%dm%c\033[0m", r, g, b, ch)
+			} else {
+				colored = false
+			}
+
+			if !colored {
+				if lastR != -1 {
+					c.builder.WriteString("\x1b[0m")
+					lastR, lastG, lastB = -1, -1, -1
+				}
+				c.builder.WriteByte(' ')
 				continue
 			}
 
-			c.builder.WriteByte(' ')
+			if cr != lastR || cg != lastG || cb != lastB {
+				writeRGBSGR(&c.builder, cr, cg, cb)
+				lastR, lastG, lastB = cr, cg, cb
+			}
+			c.builder.WriteRune(ch)
+		}
+
+		if lastR != -1 {
+			c.builder.WriteString("\x1b[0m")
 		}
 		if y < c.height-1 {
 			c.builder.WriteByte('\n')
