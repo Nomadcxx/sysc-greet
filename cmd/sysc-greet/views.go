@@ -216,18 +216,18 @@ func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
 
 	updates := []string{
 		"New:",
-		"  • Backgrounds: Sonar, Cracktro, Plasma",
-		"  • Speed control (Slow/Normal/Fast) in F1 > Backgrounds",
-		"  • Non-US keyboard layouts",
-		"  • Community themes via themes/*.toml",
-		"  • .deb / .rpm packages on Releases",
+		"  • Cagebreak greeter compositor (replaces cage)",
+		"  • Cagebreak .deb / .rpm packages on Releases (Debian, Ubuntu, Fedora)",
+		"  • Installer fetches cagebreak from Releases or builds from source",
+		"",
+		"Performance:",
+		"  • Idle CPU cut from 53% to 6%",
+		"  • Background effects render up to 40x faster",
 		"",
 		"Fixes:",
-		"  • Cached backgrounds restore on restart",
-		"  • First-boot animation speed",
-		"  • Reboot/shutdown on systemd 260+",
-		"  • NVIDIA on Sway (--unsupported-gpu)",
-		"  • Wallpaper startup race",
+		"  • Power menu ghosting",
+		"  • Greeter home and XDG cache environment",
+		"  • Debug logging no longer draws over the UI; password keys redacted",
 		"",
 	}
 
