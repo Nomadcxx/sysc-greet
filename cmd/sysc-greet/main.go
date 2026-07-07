@@ -414,6 +414,51 @@ func doTick() tea.Cmd {
 	})
 }
 
+// doSlowTick keeps the UI tick chain alive at 1s while nothing on screen
+// animates: enough for the screensaver idle check and clock. One chain only —
+// see doBgTickIdle for why extra chains are forbidden.
+func doSlowTick() tea.Cmd {
+	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
+}
+
+// uiAnimationsActive reports whether anything on screen needs the fast 30ms
+// UI tick right now. When false, the tick drops to 1s and the animation
+// counters freeze (a frozen banner gradient beats one stepping at 1fps).
+func (m model) uiAnimationsActive() bool {
+	// Someone is at the keyboard: keep everything smooth
+	if time.Since(m.idleTimer) < time.Minute {
+		return true
+	}
+	// Wall-clock driven animations visible on the login screens
+	if m.mode == ModeLogin || m.mode == ModePassword {
+		switch m.selectedBackground {
+		case "ticker", "print", "beams", "pour":
+			return true
+		}
+	}
+	// Screensaver print animation in progress
+	if m.mode == ModeScreensaver && m.screensaverPrint != nil && !m.screensaverPrint.IsComplete() {
+		return true
+	}
+	// Lazy inits ride this tick (0d1299c); stay fast until they have fired
+	if !m.gslapperLaunched && m.selectedWallpaper != "" {
+		return true
+	}
+	switch m.selectedBackground {
+	case "aquarium":
+		return m.aquariumEffect == nil
+	case "sonar":
+		return m.sonarEffect == nil
+	case "cracktro":
+		return m.cracktroEffect == nil
+	case "plasma":
+		return m.plasmaEffect == nil
+	}
+	return false
+}
+
 type bgTickMsg time.Time
 
 func doBgTick(speed string) tea.Cmd {
@@ -895,9 +940,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tickMsg:
-		m.animationFrame++
-		m.pulseColor = (m.pulseColor + 1) % 100
-		m.borderFrame = (m.borderFrame + 1) % 20
+		fastTick := m.uiAnimationsActive()
+		if fastTick {
+			// Counters only advance on fast ticks so idle frames are
+			// byte-identical and the renderer diffs them to nothing
+			m.animationFrame++
+			m.pulseColor = (m.pulseColor + 1) % 100
+			m.borderFrame = (m.borderFrame + 1) % 20
+		}
 
 		// Lazy init: create aquarium on first tick when we have real dimensions
 		if m.selectedBackground == "aquarium" && m.aquariumEffect == nil && m.width > 0 && m.height > 0 {
@@ -990,7 +1040,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.pourEffect.Update()
 		}
 
-		cmds = append(cmds, doTick())
+		if fastTick {
+			cmds = append(cmds, doTick())
+		} else {
+			cmds = append(cmds, doSlowTick())
+		}
 
 	case bgTickMsg:
 		if !m.backgroundEffectActive() {
