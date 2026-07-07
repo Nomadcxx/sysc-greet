@@ -378,6 +378,8 @@ type model struct {
 	screensaverTime   time.Time               // Current time for screensaver display
 	screensaverPrint  *animations.PrintEffect // CHANGED 2025-10-11 - Print effect animation for screensaver
 	screensaverActive bool                    // CHANGED 2025-10-11 - Track if screensaver just activated
+	ssConfig          ScreensaverConfig       // Cached screensaver.conf; reading it per tick was 33 file opens/s
+	ssConfigLoaded    time.Time               // Last cache refresh (refreshed at most every 60s from the tick handler)
 
 	// ASCII navigation fields for multi-variant support
 	asciiArtIndex      int         // Current variant index (0-indexed)
@@ -609,6 +611,8 @@ func initialModel(config Config, screensaverMode bool) model {
 		// CHANGED 2025-10-10 - Initialize screensaver timers
 		idleTimer:       time.Now(),
 		screensaverTime: time.Now(),
+		ssConfig:        loadScreensaverConfig(),
+		ssConfigLoaded:  time.Now(),
 		// Initialize fire effect with default size
 		fireEffect: animations.NewFireEffect(80, 30, animations.GetDefaultFirePalette()),
 		// CHANGED 2025-10-08 - Initialize rain effect with default size
@@ -791,7 +795,7 @@ func initialModel(config Config, screensaverMode bool) model {
 
 	// CHANGED 2025-10-11 - Initialize print effect if starting in screensaver mode
 	if screensaverMode {
-		ssConfig := loadScreensaverConfig()
+		ssConfig := m.ssConfig
 		if ssConfig.AnimateOnStart && ssConfig.AnimationType == "print" && len(ssConfig.ASCIIVariants) > 0 {
 			selectedASCII := ssConfig.ASCIIVariants[0]
 			charDelay := time.Duration(ssConfig.AnimationSpeed) * time.Millisecond
@@ -920,9 +924,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.screensaverPrint.Tick(m.screensaverTime)
 		}
 
+		// Refresh the cached screensaver config at most once a minute so edits
+		// to screensaver.conf still apply without restarting the greeter
+		if time.Since(m.ssConfigLoaded) > time.Minute {
+			m.ssConfig = loadScreensaverConfig()
+			m.ssConfigLoaded = time.Now()
+		}
+
 		// Check for screensaver activation using configurable timeout
 		if m.mode == ModeLogin || m.mode == ModePassword {
-			ssConfig := loadScreensaverConfig()
+			ssConfig := m.ssConfig
 			idleDuration := time.Since(m.idleTimer)
 			if idleDuration >= time.Duration(ssConfig.IdleTimeout)*time.Minute && m.mode != ModeScreensaver {
 				m.mode = ModeScreensaver
