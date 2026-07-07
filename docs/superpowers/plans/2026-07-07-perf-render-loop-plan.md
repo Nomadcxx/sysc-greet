@@ -1,12 +1,29 @@
 # Render Loop Performance — Plan
 
-> **Status:** Implemented; awaiting visual verification on real kitty
+> **Status:** Implemented; verified on real greetd + cagebreak + kitty
 > **Results (240x67 pty):** idle 53% → 31% active / **5.9% after 60s idle**;
 > fire 84% → 44%; matrix 60% → 44%; plasma 77% → 69%. Fire render
 > 5.3ms/24,459 allocs → 0.13ms/3 allocs per frame.
 > **Spec:** [2026-07-07 perf audit](../audits/2026-07-07-perf-audit.md)
 > **Branch:** `perf/render-loop` (worktree-isolated; merge target `development`)
 > **Baseline (240x67 pty):** idle 53% CPU / 1.0 MiB/s output; fire 84%; plasma 77%
+
+## Real-greeter verification notes
+
+Nomadcxx tested the branch on a laptop through the real greetd + cagebreak
+path. Login succeeded after fixing cagebreak's greeter environment, and the
+sampled background effects looked visually correct. The test surfaced two
+non-render regressions that are fixed in this branch:
+
+- **Greeter home/XDG environment:** uninstall/reinstall regenerated the new
+  cagebreak config while the `greeter` account still had `/home/greeter` as
+  its passwd home. gSlapper/GLFW then tried shader/cache writes under
+  `/home/greeter`. The installer, postinstall script, and cagebreak config now
+  force `/var/lib/greeter` as home/cwd and set writable XDG cache/config/state
+  directories for greeter child processes.
+- **Debug output and TUI corruption:** `--debug` still had direct stdout/stderr
+  writes in key/menu paths, so debug mode could draw over the Bubble Tea UI in
+  production. Debug-only chatter now goes through the file logger.
 
 ## Regression constraints (from git history)
 
@@ -91,9 +108,10 @@ colored until restart. Self-healing beats the micro-win. Not done on purpose.
   record in the PR body against the baseline table
 - Effect output invariants test: every Render() row = exactly `width` cells,
   `height` rows, row-end reset — added as a real test in this PR
-- Visual check on real kitty by Nomadcxx before merge (gradients, ticker
-  smoothness, menu responsiveness, screensaver entry/exit, power menu
-  ghosting)
+- Visual check on real kitty/greetd by Nomadcxx before merge (gradients,
+  ticker smoothness, menu responsiveness, screensaver entry/exit, power menu
+  ghosting). Initial real-greeter pass succeeded for login and sampled effects;
+  rerun once after the debug-output cleanup.
 
 ## Out of scope
 

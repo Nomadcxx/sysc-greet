@@ -44,20 +44,20 @@ var debugLog *log.Logger
 func initDebugLog() {
 	// Try persistent location first ($HOME/.cache/sysc-greet/debug.log)
 	// Falls back to /tmp/ if home dir unavailable
-	logPath := "/tmp/sysc-greet-debug.log"
+	logPaths := []string{"/tmp/sysc-greet-debug.log"}
 	if home, err := os.UserHomeDir(); err == nil {
 		cacheDir := filepath.Join(home, ".cache", "sysc-greet")
 		os.MkdirAll(cacheDir, 0755)
-		logPath = filepath.Join(cacheDir, "debug.log")
+		logPaths = append([]string{filepath.Join(cacheDir, "debug.log")}, logPaths...)
 	}
 
-	logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err != nil {
-		// Fallback to stderr if can't open log file
-		debugLog = log.New(os.Stderr, "[DEBUG] ", log.Ldate|log.Ltime|log.Lshortfile)
-		return
+	for _, logPath := range logPaths {
+		logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err == nil {
+			debugLog = log.New(logFile, "[DEBUG] ", log.Ldate|log.Ltime|log.Lshortfile)
+			return
+		}
 	}
-	debugLog = log.New(logFile, "[DEBUG] ", log.Ldate|log.Ltime|log.Lshortfile)
 }
 
 func logDebug(format string, args ...interface{}) {
@@ -549,7 +549,7 @@ func initialModel(config Config, screensaverMode bool) model {
 	if config.Debug {
 		logDebug(" Loaded %d sessions", len(sess))
 		for _, s := range sess {
-			fmt.Printf("  - %s (%s)\n", s.Name, s.Type)
+			logDebug("  - %s (%s)", s.Name, s.Type)
 		}
 	}
 
@@ -1280,7 +1280,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.config.Debug {
 			// Log ALL key presses to debug what modifiers are being sent
-			fmt.Fprintf(os.Stderr, "KEY: %q | Mod=%08b (%d) | CapsLock=%v\n",
+			logDebug("KEY: %q | Mod=%08b (%d) | CapsLock=%v",
 				key.Text, key.Mod, key.Mod, m.capsLockOn)
 		}
 
@@ -1341,7 +1341,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 	// Updated for tea.KeyMsg v2 API
 	if m.config.Debug {
 		keyStr := msg.String()
-		fmt.Fprintf(os.Stderr, "KEY DEBUG: String='%s'\n", keyStr)
+		logDebug("KEY DEBUG: String='%s'", keyStr)
 	}
 
 	switch msg.String() {
@@ -1388,7 +1388,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		// Release notes popup - works from any mode
 		m.sessionDropdownOpen = false
 		if m.config.Debug {
-			fmt.Println("Debug: Opening release notes")
+			logDebug("Opening release notes")
 		}
 		m.mode = ModeReleaseNotes
 		m.usernameInput.Blur()
@@ -1401,7 +1401,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		m.sessionDropdownOpen = false
 		m.powerIndex = 0
 		if m.config.Debug {
-			fmt.Println("Debug: Opening power menu")
+			logDebug("Opening power menu")
 		}
 		m.mode = ModePower
 		m.usernameInput.Blur()
@@ -2400,7 +2400,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			} else {
 				// Enter from username goes to password
 				if m.config.Debug {
-					fmt.Println("Debug: Switching to password mode")
+					logDebug("Switching to password mode")
 				}
 				m.mode = ModePassword
 				m.focusState = FocusPassword
@@ -2921,11 +2921,6 @@ func main() {
 	logDebug("GREETD_SOCK: %s", os.Getenv("GREETD_SOCK"))
 	logDebug("WAYLAND_DISPLAY: %s", os.Getenv("WAYLAND_DISPLAY"))
 	logDebug("XDG_RUNTIME_DIR: %s", os.Getenv("XDG_RUNTIME_DIR"))
-
-	if config.Debug {
-		fmt.Printf("Debug mode enabled\n")
-		fmt.Printf("Debug log: /tmp/sysc-greet-debug.log\n")
-	}
 
 	// Initialize Bubble Tea program with proper screen management
 	// CHANGED 2025-09-29 - Handle TTY access gracefully for different environments
