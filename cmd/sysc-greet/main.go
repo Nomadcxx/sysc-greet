@@ -429,6 +429,32 @@ func doBgTick(speed string) tea.Cmd {
 	})
 }
 
+// doBgTickIdle keeps the background tick chain alive on a slow heartbeat while
+// no effect is animating. One chain only — spawning extra chains on events
+// multiplies the frame rate (the "hyperspeed" bug class, issue #45).
+func doBgTickIdle() tea.Cmd {
+	return tea.Tick(250*time.Millisecond, func(t time.Time) tea.Msg {
+		return bgTickMsg(t)
+	})
+}
+
+// backgroundEffectActive reports whether the selected background needs
+// per-frame bgTick updates right now. Effects only display on the login and
+// password screens (see View), so other modes don't pay for animation.
+func (m model) backgroundEffectActive() bool {
+	if m.mode != ModeLogin && m.mode != ModePassword {
+		return false
+	}
+	if m.enableFire {
+		return true
+	}
+	switch m.selectedBackground {
+	case "fire", "fire+rain", "ascii-rain", "matrix", "fireworks", "sonar", "cracktro", "plasma", "aquarium":
+		return true
+	}
+	return false
+}
+
 // cycleAnimSpeed cycles to the next speed preset
 func cycleAnimSpeed(current string) string {
 	switch current {
@@ -967,6 +993,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, doTick())
 
 	case bgTickMsg:
+		if !m.backgroundEffectActive() {
+			cmds = append(cmds, doBgTickIdle())
+			return m, tea.Batch(cmds...)
+		}
+
 		m.bgAnimationFrame++
 
 		if (m.enableFire || m.selectedBackground == "fire" || m.selectedBackground == "fire+rain") && m.fireEffect != nil {
