@@ -65,17 +65,25 @@ irrelevant to the greeter.
 
 Common to all tags: meson, ninja, wlroots (devel), wayland-server/client/cursor,
 wayland-protocols, xkbcommon, libinput, cairo, pango + pangocairo, fontconfig,
-libevdev, libudev, pixman-1, scdoc (man pages, optional via
-`-Dman-pages=false`).
+libevdev, libudev, pixman-1. Man pages default off and need pandoc — skipped.
 
 Debian/Ubuntu package names: `meson ninja-build libwlroots-dev libwayland-dev
 wayland-protocols libxkbcommon-dev libinput-dev libcairo2-dev libpango1.0-dev
 libfontconfig-dev libevdev-dev libudev-dev libpixman-1-dev`
-(trixie names the wlroots package `libwlroots-0.18-dev`).
+(trixie names the wlroots package `libwlroots-0.18-dev` — probe with
+`apt-cache search '^libwlroots(-0\.[0-9]+)?-dev$'`).
 
 Fedora package names: `meson ninja-build wlroots-devel wayland-devel
 wayland-protocols-devel libxkbcommon-devel libinput-devel cairo-devel
 pango-devel fontconfig-devel libevdev-devel systemd-devel pixman-devel`.
+
+Validated 2026-07-07 in local containers (debian:13/2.4.0, ubuntu:24.04/2.3.1,
+fedora:42/3.1.0): all three build and pass the headless smoke test. Two CI
+gotchas found: **cagebreak refuses to start as root**, so the smoke test must
+run as an unprivileged user (containers default to root); and nfpm expands env
+vars per-scalar only, so per-distro `depends` are appended to
+`nfpm-cagebreak.yaml` as YAML list items by the workflow (a comma-joined
+single string produces one bogus RPM Requires entry).
 
 ### wlroots detection (for the source-build fallback)
 
@@ -152,11 +160,12 @@ distro string.
 
 ### A3. Tasks
 
-- [ ] `nfpm-cagebreak.yaml` with env-driven version/depends
-- [ ] `package-cagebreak` matrix job in `release.yml` per A1
-- [ ] Headless smoke test step against `config/cagebreak-greeter-config`
-- [ ] Attach artifacts + extend SHA256SUMS in the release job
+- [x] `nfpm-cagebreak.yaml` with env-driven version/depends
+- [x] `package-cagebreak` matrix job in `release.yml` per A1
+- [x] Headless smoke test step against `config/cagebreak-greeter-config`
+- [x] Attach artifacts + extend SHA256SUMS in the release job
 - [ ] Dry-run via `workflow_dispatch` trigger before tagging a real release
+      (trigger added; run it once this lands on `development`)
 
 ## Phase B — installer integration
 
@@ -193,11 +202,16 @@ Mirror `buildGslapperFromSource` (~`cmd/installer/main.go:1093`):
 
 ### B3. Tasks
 
-- [ ] `installCagebreakDebian` / `installCagebreakFedora` artifact fetch
-- [ ] `buildCagebreakFromSource` fallback with wlroots probe
-- [ ] Replace the current manual-build error message with the above flow
-- [ ] `socat` added to the cagebreak dep set on apt/dnf (already handled on Arch)
-- [ ] Docs: per-distro install section in `docs-src/compositors/cagebreak.md`
+- [x] `installCagebreakPrebuilt` artifact fetch (os-release → artifact mapping)
+- [x] `buildCagebreakFromSource` fallback with wlroots probe
+- [x] Replace the current manual-build error message with the above flow
+- [x] `ensureSocat` on every cagebreak path (Arch included — it was missing
+      there too; runs even when cagebreak is pre-installed)
+- [x] zypper: install Tumbleweed's packaged cagebreak, source build fallback
+- [x] Selection screen no longer blocks on missing cagebreak (the installer
+      can now install it; other compositors still must be present up front)
+- [x] Docs: per-distro install section in `docs-src/compositors/cagebreak.md`;
+      README cagebreak note
 
 ## Phase C — validation
 
