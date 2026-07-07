@@ -1280,8 +1280,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.config.Debug {
 			// Log ALL key presses to debug what modifiers are being sent
+			keyText := key.Text
+			if m.passwordInputActive() {
+				keyText = "<redacted>"
+			}
 			logDebug("KEY: %q | Mod=%08b (%d) | CapsLock=%v",
-				key.Text, key.Mod, key.Mod, m.capsLockOn)
+				keyText, key.Mod, key.Mod, m.capsLockOn)
 		}
 
 		// CHANGED 2025-10-12 - Handle screensaver exit on any key press
@@ -1341,6 +1345,9 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 	// Updated for tea.KeyMsg v2 API
 	if m.config.Debug {
 		keyStr := msg.String()
+		if m.passwordInputActive() {
+			keyStr = "<redacted>"
+		}
 		logDebug("KEY DEBUG: String='%s'", keyStr)
 	}
 
@@ -2445,6 +2452,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m model) passwordInputActive() bool {
+	return m.mode == ModePassword && m.focusState == FocusPassword
 }
 
 // Return tea.View with BackgroundColor set
