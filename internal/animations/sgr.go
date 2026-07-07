@@ -85,6 +85,17 @@ func hexNibble(c byte) int {
 	return 0
 }
 
+// writeRGBSGR writes a truecolor foreground sequence for numeric r,g,b.
+func writeRGBSGR(sb *strings.Builder, r, g, b int) {
+	sb.WriteString("\x1b[38;2;")
+	writeByteDecimal(sb, r)
+	sb.WriteByte(';')
+	writeByteDecimal(sb, g)
+	sb.WriteByte(';')
+	writeByteDecimal(sb, b)
+	sb.WriteByte('m')
+}
+
 func writeByteDecimal(sb *strings.Builder, n int) {
 	if n < 0 || n > 255 {
 		n = 0

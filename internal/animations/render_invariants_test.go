@@ -63,3 +63,19 @@ func TestPlasmaRenderInvariants(t *testing.T) {
 		checkFrame(t, "plasma", p.Render(), width, 40)
 	}
 }
+
+func TestSonarRenderInvariants(t *testing.T) {
+	s := NewSonarEffect(120, 40, GetSonarPalette("default"), "default")
+	for i := 0; i < 30; i++ {
+		s.Update()
+	}
+	checkFrame(t, "sonar", s.Render(), 120, 40)
+}
+
+func TestCracktroRenderInvariants(t *testing.T) {
+	c := NewCracktroEffect(120, 40, GetCracktroPalette("default"), "default")
+	for i := 0; i < 30; i++ {
+		c.Update()
+	}
+	checkFrame(t, "cracktro", c.Render(), 120, 40)
+}

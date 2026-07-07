@@ -225,13 +225,7 @@ func (p *PlasmaAnimation) Render() string {
 
 			// Write chunky pixel (2 chars wide)
 			if finalR != lastR || finalG != lastG || finalB != lastB {
-				p.builder.WriteString("\x1b[38;2;")
-				writeByteDecimal(&p.builder, finalR)
-				p.builder.WriteByte(';')
-				writeByteDecimal(&p.builder, finalG)
-				p.builder.WriteByte(';')
-				writeByteDecimal(&p.builder, finalB)
-				p.builder.WriteByte('m')
+				writeRGBSGR(&p.builder, finalR, finalG, finalB)
 				lastR, lastG, lastB = finalR, finalG, finalB
 			}
 			p.builder.WriteRune(ch)
