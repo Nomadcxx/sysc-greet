@@ -96,11 +96,14 @@ cat /tmp/sysc-greet-wallpaper.log
 # For niri
 cat /etc/greetd/niri-greeter-config.kdl
 
-# For hyprland
-cat /etc/greetd/hyprland-greeter-config.conf
+# For cagebreak
+cat /etc/greetd/cagebreak-greeter-config
 
 # For sway
 cat /etc/greetd/sway-greeter-config
+
+# For hyprland
+cat /etc/greetd/hyprland-greeter-config.conf
 ```
 
 Look for gSlapper startup command.
@@ -158,6 +161,14 @@ niri -c /etc/greetd/niri-greeter-config.kdl --check
 # Test hyprland config (syntax check)
 Hyprland --check-config -c /etc/greetd/hyprland-greeter-config.conf
 ```
+
+Cagebreak has no syntax-check flag. Run it from a TTY to see parse errors — a bad config makes it exit immediately, so greetd relaunches the greeter in a loop:
+
+```bash
+cagebreak -e -c /etc/greetd/cagebreak-greeter-config
+```
+
+**Stuck at a black screen after login (cagebreak):** verify socat is installed. Without it the compositor never quits and greetd waits forever.
 
 ### Kitty Terminal Issues
 

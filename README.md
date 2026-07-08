@@ -36,20 +36,23 @@ The installer walks you through compositor selection and configuration.
 
 ### Arch Linux (AUR)
 
-Three AUR packages available depending on which greeter backend you're using:
+Four AUR packages available depending on which greeter backend you're using:
 
 ```bash
 # niri (default)
 yay -S sysc-greet
 
-# Hyprland variant (deprecated, replaced by cagebreak)
-yay -S sysc-greet-hyprland
+# Cagebreak variant (the Hyprland replacement)
+yay -S sysc-greet-cagebreak
 
 # Sway variant
 yay -S sysc-greet-sway
+
+# Hyprland variant (deprecated, replaced by cagebreak)
+yay -S sysc-greet-hyprland
 ```
 
-For cagebreak, run the installer with `SYSC_COMPOSITOR=cagebreak` — it installs cagebreak and socat itself (AUR on Arch, prebuilt release packages on Debian/Ubuntu/Fedora, source build elsewhere).
+The packages conflict with each other — install exactly one. `sysc-greet-cagebreak` pulls in cagebreak and socat from the AUR.
 
 ### NixOS (Flake)
 

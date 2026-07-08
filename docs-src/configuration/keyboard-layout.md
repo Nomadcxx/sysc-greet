@@ -16,6 +16,16 @@ input {
 }
 ```
 
+## cagebreak
+
+Cagebreak has no layout directive; it reads the standard XKB environment variables. Set them on the greetd command in `/etc/greetd/config.toml`:
+
+```toml
+command = "env XKB_DEFAULT_LAYOUT=de cagebreak -e -c /etc/greetd/cagebreak-greeter-config"
+```
+
+This also covers Kitty — processes launched by cagebreak inherit the environment, so no separate exec-line change is needed for non-US layouts or Dvorak (add `XKB_DEFAULT_VARIANT=...` to the same command).
+
 ## sway
 
 Edit `/etc/greetd/sway-greeter-config`:
@@ -62,6 +72,8 @@ exec "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB_DEFAULT_LAYOUT
 exec-once = XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB_DEFAULT_LAYOUT=fr XKB_DEFAULT_VARIANT=oss kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
 ```
 
+**cagebreak**: not affected — the XKB variables set on the greetd command (see [cagebreak](#cagebreak) above) are inherited by Kitty.
+
 Replace `fr` with your layout and `oss` with your variant (or omit `XKB_DEFAULT_VARIANT` if not needed).
 
 Restart greetd after changes: `sudo systemctl restart greetd`
@@ -88,6 +100,12 @@ exec "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB_DEFAULT_LAYOUT
 
 ```ini
 exec-once = XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB_DEFAULT_LAYOUT=us XKB_DEFAULT_VARIANT=dvorak kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
+```
+
+**cagebreak** (`/etc/greetd/config.toml`):
+
+```toml
+command = "env XKB_DEFAULT_LAYOUT=us XKB_DEFAULT_VARIANT=dvorak cagebreak -e -c /etc/greetd/cagebreak-greeter-config"
 ```
 
 The same pattern applies to other Dvorak-family layouts (Dvorak Programmer, etc.) — just change `XKB_DEFAULT_VARIANT` accordingly. Run `localectl list-x11-keymap-variants us` to see all available US variants.

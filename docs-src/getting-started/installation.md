@@ -47,22 +47,23 @@ go run ./cmd/installer/
 
 ## Arch Linux (AUR)
 
-sysc-greet provides AUR packages for different greeter backends:
+sysc-greet provides four AUR packages, one per greeter backend:
 
 ```bash
 # niri (default)
 yay -S sysc-greet
 
-# Hyprland variant (deprecated, replaced by cagebreak)
-yay -S sysc-greet-hyprland
+# Cagebreak variant (the Hyprland replacement)
+yay -S sysc-greet-cagebreak
 
 # Sway variant
 yay -S sysc-greet-sway
 
-# Cagebreak: install from AUR, then run the installer
-paru -S cagebreak && sudo pacman -S socat
-SYSC_COMPOSITOR=cagebreak curl -fsSL .../install.sh | sudo bash
+# Hyprland variant (deprecated, replaced by cagebreak)
+yay -S sysc-greet-hyprland
 ```
+
+The packages conflict with each other — install exactly one. Each pulls in its compositor as a dependency; `sysc-greet-cagebreak` also pulls in socat, which is required to quit the compositor after login.
 
 ## Pre-built Packages
 
@@ -92,6 +93,8 @@ sudo dnf install ./sysc-greet-1.1.8-1.x86_64.rpm
 
 After installation, **reboot** your system to see sysc-greet.
 
+The releases page also carries cagebreak `.deb`/`.rpm` packages (Debian 13, Ubuntu 24.04/25.x, Fedora 42) since no distro packages exist — see [Cagebreak Setup](../compositors/cagebreak.md).
+
 ### Switching Compositors
 
 The package auto-detects your compositor during installation. If you have multiple compositors installed or want to switch to a different one, edit `/etc/greetd/config.toml`:
@@ -109,17 +112,26 @@ command = "niri -c /etc/greetd/niri-greeter-config.kdl"
 user = "greeter"
 ```
 
-**Hyprland:**
+**Cagebreak:**
 ```toml
 [default_session]
-command = "Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
+command = "cagebreak -e -c /etc/greetd/cagebreak-greeter-config"
 user = "greeter"
 ```
+
+`-e` enables cagebreak's IPC socket, which the greeter config uses to quit the compositor after login — socat must be installed. See [Cagebreak Setup](../compositors/cagebreak.md).
 
 **Sway:**
 ```toml
 [default_session]
 command = "sway -c /etc/greetd/sway-greeter-config"
+user = "greeter"
+```
+
+**Hyprland (deprecated):**
+```toml
+[default_session]
+command = "Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
 user = "greeter"
 ```
 
@@ -157,7 +169,7 @@ All compositor configs are installed at `/etc/greetd/`. Save the file and reboot
 {
   services.sysc-greet = {
     enable = true;
-    compositor = "niri";  # or "hyprland" or "sway"
+    compositor = "niri";  # or "cagebreak", "sway", "hyprland" (deprecated)
   };
 
   # Optional: Set initial session for auto-login
@@ -168,8 +180,8 @@ All compositor configs are installed at `/etc/greetd/`. Save the file and reboot
 }
 ```
 
-By default, the NixOS module does not install `niri`, `hyprland`, or `sway`.
-Install your chosen compositor yourself, or set `niriPackage`, `hyprlandPackage`,
+By default, the NixOS module does not install `niri`, `cagebreak`, `hyprland`, or `sway`.
+Install your chosen backend yourself, or set `niriPackage`, `cagebreakPackage`, `hyprlandPackage`,
 or `swayPackage` if you want the module to install and use a specific package.
 If your compositor is managed elsewhere, set `compositorCommand` to the exact
 command greetd should run.
@@ -193,8 +205,9 @@ vt = 1
 [default_session]
 # Choose your compositor:
 command = "niri -c /etc/greetd/niri-greeter-config.kdl"
-# command = "start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
+# command = "cagebreak -e -c /etc/greetd/cagebreak-greeter-config"
 # command = "sway --unsupported-gpu -c /etc/greetd/sway-greeter-config"
+# command = "start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
 user = "greeter"
 ```
 
@@ -206,18 +219,22 @@ Copy the appropriate config to `/etc/greetd/`:
 # niri
 sudo cp config/niri-greeter-config.kdl /etc/greetd/
 
-# hyprland
-sudo cp config/hyprland-greeter-config.conf /etc/greetd/
+# cagebreak
+sudo cp config/cagebreak-greeter-config /etc/greetd/
 
 # sway
 sudo cp config/sway-greeter-config /etc/greetd/
+
+# hyprland (deprecated)
+sudo cp config/hyprland-greeter-config.conf /etc/greetd/
 ```
 
 ### Create Greeter User
 
 ```bash
-sudo useradd -M -G video -s /usr/bin/nologin greeter
-sudo mkdir -p /var/cache/sysc-greet /var/lib/greeter/Pictures/wallpapers
+sudo useradd -M -d /var/lib/greeter -G video,render,input -s /usr/bin/nologin greeter
+sudo mkdir -p /var/cache/sysc-greet /var/lib/greeter/Pictures/wallpapers \
+    /var/lib/greeter/.cache /var/lib/greeter/.config /var/lib/greeter/.local/state
 sudo chown -R greeter:greeter /var/cache/sysc-greet /var/lib/greeter
 sudo chmod 755 /var/lib/greeter
 ```
@@ -275,7 +292,7 @@ sudo dnf remove sysc-greet
 
 ```bash
 yay -R sysc-greet
-# replace with sysc-greet-hyprland or sysc-greet-sway if applicable
+# replace with sysc-greet-cagebreak, sysc-greet-sway, or sysc-greet-hyprland if applicable
 ```
 
 ### NixOS

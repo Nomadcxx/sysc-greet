@@ -36,18 +36,23 @@ go run ./cmd/installer/
 
 ### Arch Linux (AUR)
 
-sysc-greet provides three AUR packages for different compositors:
+sysc-greet provides four AUR packages for different greeter compositors:
 
 ```bash
-# Recommended (niri)
+# niri (default)
 yay -S sysc-greet
 
-# Hyprland variant
-yay -S sysc-greet-hyprland
+# Cagebreak variant (the Hyprland replacement)
+yay -S sysc-greet-cagebreak
 
 # Sway variant
 yay -S sysc-greet-sway
+
+# Hyprland variant (deprecated, replaced by cagebreak)
+yay -S sysc-greet-hyprland
 ```
+
+The packages conflict with each other — install exactly one. `sysc-greet-cagebreak` pulls in cagebreak and socat from the AUR.
 
 ### Pre-built Packages (.deb / .rpm)
 
@@ -99,7 +104,7 @@ Add sysc-greet to your NixOS configuration using the flake:
 {
   services.sysc-greet = {
     enable = true;
-    compositor = "niri";  # or "hyprland" or "sway"
+    compositor = "niri";  # or "cagebreak", "sway", "hyprland" (deprecated)
   };
 
   # Optional: Set initial session for auto-login
@@ -110,8 +115,8 @@ Add sysc-greet to your NixOS configuration using the flake:
 }
 ```
 
-By default, the NixOS module does not install `niri`, `hyprland`, or `sway`.
-Install your chosen compositor yourself, or set `niriPackage`, `hyprlandPackage`,
+By default, the NixOS module does not install `niri`, `cagebreak`, `hyprland`, or `sway`.
+Install your chosen backend yourself, or set `niriPackage`, `cagebreakPackage`, `hyprlandPackage`,
 or `swayPackage` if you want the module to install and use a specific package.
 If your compositor is managed elsewhere, set `compositorCommand` to the exact
 command greetd should run.
@@ -126,7 +131,8 @@ sudo nixos-rebuild switch --flake .#your-hostname
 **Requirements:**
 - Go 1.25+
 - greetd
-- Wayland compositor (niri, hyprland, or sway)
+- Wayland compositor: niri (default), cagebreak, sway, or hyprland (deprecated)
+- socat (cagebreak only — quits the compositor after login)
 - kitty (terminal)
 - gSlapper (wallpaper daemon)
 - swww (legacy wallpaper daemon, optional fallback)
@@ -161,8 +167,9 @@ vt = 1
 [default_session]
 # Pick one:
 command = "niri -c /etc/greetd/niri-greeter-config.kdl"
-# command = "start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
+# command = "cagebreak -e -c /etc/greetd/cagebreak-greeter-config"
 # command = "sway --unsupported-gpu -c /etc/greetd/sway-greeter-config"
+# command = "start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
 user = "greeter"
 ```
 
@@ -174,18 +181,22 @@ Copy the appropriate config file to `/etc/greetd/`:
 # For niri:
 sudo cp config/niri-greeter-config.kdl /etc/greetd/
 
-# For hyprland:
-sudo cp config/hyprland-greeter-config.conf /etc/greetd/
+# For cagebreak:
+sudo cp config/cagebreak-greeter-config /etc/greetd/
 
 # For sway:
 sudo cp config/sway-greeter-config /etc/greetd/
+
+# For hyprland (deprecated):
+sudo cp config/hyprland-greeter-config.conf /etc/greetd/
 ```
 
 **Create greeter user:**
 
 ```bash
-sudo useradd -M -G video -s /usr/bin/nologin greeter
-sudo mkdir -p /var/cache/sysc-greet /var/lib/greeter/Pictures/wallpapers
+sudo useradd -M -d /var/lib/greeter -G video,render,input -s /usr/bin/nologin greeter
+sudo mkdir -p /var/cache/sysc-greet /var/lib/greeter/Pictures/wallpapers \
+    /var/lib/greeter/.cache /var/lib/greeter/.config /var/lib/greeter/.local/state
 sudo chown -R greeter:greeter /var/cache/sysc-greet /var/lib/greeter
 sudo chmod 755 /var/lib/greeter
 ```
@@ -306,11 +317,12 @@ Screensaver configuration is in `/usr/share/sysc-greet/ascii_configs/screensaver
 
 ### Compositor Setup
 
-sysc-greet works with niri, Hyprland, and Sway compositors. For detailed setup instructions, see:
+sysc-greet runs its greeter session under niri (default), cagebreak, Sway, or Hyprland (deprecated — support ends in ~3 months, migrate to cagebreak). This only affects the boot greeter; your desktop session is unrelated. For detailed setup instructions, see:
 
-- [Niri Setup](compositors/niri.md)
-- [Hyprland Setup](compositors/hyprland.md)
+- [Niri Setup](compositors/niri.md) — default
+- [Cagebreak Setup](compositors/cagebreak.md) — the Hyprland replacement
 - [Sway Setup](compositors/sway.md)
+- [Hyprland Setup](compositors/hyprland.md) — deprecated
 
 ## Development
 
@@ -379,4 +391,4 @@ If you like ASCII animations, CLI and TUI terminal aesthetics check out these pr
 
 ## License
 
-MIT
+GPL-3.0

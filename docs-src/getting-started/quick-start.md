@@ -11,7 +11,7 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.
 ```
 
 The interactive installer will guide you through:
-1. Choosing your compositor (niri, hyprland, or sway)
+1. Choosing your greeter compositor: niri (default), cagebreak, sway, or hyprland (deprecated)
 2. Configuring compositor settings
 3. Installing dependencies automatically
 
@@ -92,7 +92,7 @@ Preferences are stored in `/var/cache/sysc-greet/` and restored on next login.
 1. Press Page Up or Page Down
 2. ASCII art changes to next/previous variant
 
-For detailed configuration options, see [Configuration](../configuration/) section.
+For detailed configuration options, see [Themes](../configuration/themes.md), [Backgrounds](../configuration/backgrounds.md), and [Keyboard Layout](../configuration/keyboard-layout.md).
 
 ## Non-US Keyboard Layouts
 

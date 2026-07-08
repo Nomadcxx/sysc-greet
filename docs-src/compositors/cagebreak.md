@@ -12,10 +12,16 @@ The installer handles all of this — including socat, which is required to quit
 
 === "Arch Linux"
 
-    Cagebreak is in the AUR, not the official repos. The installer uses paru or yay if present; manually:
+    The [sysc-greet-cagebreak](https://aur.archlinux.org/packages/sysc-greet-cagebreak) AUR package installs everything — sysc-greet, cagebreak, socat, and the greetd config:
 
     ```bash
-    paru -S cagebreak   # or: yay -S cagebreak
+    paru -S sysc-greet-cagebreak   # or: yay -S sysc-greet-cagebreak
+    ```
+
+    It conflicts with the other sysc-greet variants; remove those first. To install only the compositor (e.g. for use with the install script):
+
+    ```bash
+    paru -S cagebreak
     sudo pacman -S socat
     ```
 
@@ -52,6 +58,8 @@ The installer handles all of this — including socat, which is required to quit
     Check your package manager or build from [project-repo/cagebreak](https://github.com/project-repo/cagebreak). The buildable release depends on your wlroots version: 0.17 → 2.3.1, 0.18 → 2.4.0, 0.19 → 3.1.0, 0.20 → 3.2.1.
 
 ## greetd Config
+
+The AUR package writes this config during install (backing up any existing `/etc/greetd/config.toml`). Otherwise:
 
 === "Installer"
 
