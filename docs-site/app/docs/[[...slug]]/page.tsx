@@ -20,19 +20,29 @@ export default async function Page(props: PageProps<'/docs/[[...slug]]'>) {
 
   const MDX = page.data.body;
   const markdownUrl = getPageMarkdownUrl(page).url;
+  const isHome = page.slugs.length === 0;
 
   return (
-    <DocsPage toc={page.data.toc} full={page.data.full}>
-      <DocsTitle>{page.data.title}</DocsTitle>
-      <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
-      <div className="flex flex-row gap-2 items-center border-b pb-6">
-        <MarkdownCopyButton markdownUrl={markdownUrl} />
-        <ViewOptionsPopover
-          markdownUrl={markdownUrl}
-          githubUrl={`https://github.com/${gitConfig.user}/${gitConfig.repo}/blob/${gitConfig.branch}/docs-site/content/docs/${page.path}`}
-        />
-      </div>
-      <DocsBody>
+    <DocsPage
+      toc={page.data.toc}
+      full={page.data.full}
+      footer={{ enabled: !isHome }}
+      className={isHome ? 'docs-home-page' : undefined}
+    >
+      {!isHome && (
+        <>
+          <DocsTitle>{page.data.title}</DocsTitle>
+          <DocsDescription className="mb-0">{page.data.description}</DocsDescription>
+          <div className="flex flex-row gap-2 items-center border-b pb-6">
+            <MarkdownCopyButton markdownUrl={markdownUrl} />
+            <ViewOptionsPopover
+              markdownUrl={markdownUrl}
+              githubUrl={`https://github.com/${gitConfig.user}/${gitConfig.repo}/blob/${gitConfig.branch}/docs-site/content/docs/${page.path}`}
+            />
+          </div>
+        </>
+      )}
+      <DocsBody className={isHome ? 'docs-home-body' : undefined}>
         <MDX
           components={getMDXComponents({
             // this allows you to link to other pages with relative file paths
@@ -54,7 +64,7 @@ export async function generateMetadata(props: PageProps<'/docs/[[...slug]]'>): P
   if (!page) notFound();
 
   return {
-    title: page.data.title,
+    title: page.slugs.length === 0 ? { absolute: 'sysc-greet documentation' } : page.data.title,
     description: page.data.description,
     openGraph: {
       images: getPageImage(page).url,

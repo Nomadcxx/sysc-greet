@@ -25,6 +25,26 @@ assert.doesNotMatch(docsHtml, /Toggle Theme|light theme/i, 'dark-only export con
 assert.match(css, /#ef233c/i, 'exported theme is missing the RAMA primary red');
 assert.match(css, /IBM Plex Sans Variable/i, 'exported theme is missing IBM Plex Sans');
 assert.match(css, /Fira Code/i, 'exported theme is missing Fira Code');
+assert.match(docsHtml, /logo\.png/, 'docs home is missing the existing sysc-greet logo');
+assert.ok(
+  docsHtml.includes(`src="${basePath}/logo.png"`),
+  'docs logo is missing the deployment base path',
+);
+assert.match(
+  docsHtml,
+  /SEE YOU IN SPACE COWBOY/,
+  'docs home is missing the approved tagline',
+);
+for (const route of [
+  '/docs/getting-started/installation/',
+  '/docs/getting-started/quick-start/',
+  '/docs/getting-started/troubleshooting/',
+]) {
+  assert.ok(docsHtml.includes(`href="${basePath}${route}"`), `docs home is missing ${route}`);
+}
+for (const hint of ['Install', 'Configure', 'Compositors', 'Develop']) {
+  assert.match(docsHtml, new RegExp(`>${hint}<`), `docs home is missing the ${hint} footer hint`);
+}
 assert.match(
   docsHtml,
   /https:\/\/github\.com\/Nomadcxx\/sysc-greet/,

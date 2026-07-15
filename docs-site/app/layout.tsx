@@ -9,6 +9,7 @@ export const metadata: Metadata = {
     template: '%s | sysc-greet',
   },
   description: 'Documentation for the sysc-greet graphical console greeter.',
+  icons: { icon: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/logo.png` },
 };
 
 export default function Layout({ children }: LayoutProps<'/'>) {
