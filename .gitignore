@@ -7,6 +7,7 @@
 # Test files and binaries
 test-*
 *test*
+!*testing.md
 *debug*
 *.production-backup
 
