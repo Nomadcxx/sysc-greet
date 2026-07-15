@@ -130,7 +130,7 @@ wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.8/sysc-greet-
 sudo dnf install ./sysc-greet-1.1.8-1.x86_64.rpm
 ```
 
-See [Installation Guide](https://nomadcxx.github.io/sysc-greet/getting-started/installation/) for details.
+See [Installation Guide](https://nomadcxx.github.io/sysc-greet/docs/getting-started/installation/) for details.
 
 
 ## Documentation

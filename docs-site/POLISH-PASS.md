@@ -129,6 +129,7 @@ This policy gives the landing page one deliberate alignment change. The long doc
 | Open hybrid masthead | Complete | `e538f84` |
 | Reading axis and slash hierarchy | Complete | `3689a64` |
 | Rendered verification | Complete locally | This report commit |
+| Fumadocs CI cutover | Complete | Cutover commit |
 
 The landing page now uses the approved hybrid layout. The centered masthead contains only the tagline and block wordmark. A single rail ends the masthead. The H1, summary, slash commands, migrated content, media, section headings, lists, and code blocks continue on one left-aligned 52rem axis.
 
@@ -157,11 +158,11 @@ Rendered captures:
 
 The captures show the full wordmark, one post-masthead reading axis, slash-framed H2/H3 headings, readable mobile wrapping, and no enclosing hero box.
 
-## Preview gate
+## Cutover
 
 Local preview: `http://127.0.0.1:3002/docs/`
 
-No CI workflow, MkDocs configuration, or tracked `docs-src` file was changed. Cutover remains blocked until owner sign-off. The pre-existing untracked `docs-src/development/testing.md` remains untouched.
+The owner approved the local preview. The Pages workflow now runs `npm ci` and `npm run check` with Node 22, then uploads `docs-site/out`. The cutover removes `mkdocs.yml` and `docs-src`; Fumadocs is the documentation source.
 
 ## Approved follow-up tweak
 

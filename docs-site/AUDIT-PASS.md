@@ -70,7 +70,7 @@ Chromium checks at 1440px, 1920px, and 390px show no horizontal overflow, clippe
 - Generic Fumadocs section headings below the branded masthead
 - Operator-panel composition instead of the greeter's open central rhythm
 
-## Integrity checks
+## Integrity checks at audit time
 
 - CTA routes: HTTP 200
 - Hint routes: HTTP 200
@@ -95,8 +95,8 @@ Chromium checks at 1440px, 1920px, and 390px show no horizontal overflow, clippe
 - Wordmark base-path and export assertions: pass
 - Command-label and destination assertions: pass
 - Heading, media, hint-rail, and duplicate-search assertions: pass
-- CI workflow: untouched
-- `mkdocs.yml`: untouched
-- Tracked `docs-src`: untouched
+- CI workflow: Node 22 Fumadocs check and Pages deployment
+- `mkdocs.yml`: removed after owner sign-off
+- `docs-src`: removed after owner sign-off
 
-The only remaining repository issue in this audit is the owner-existing untracked `docs-src/development/testing.md`. It was not changed or staged. CI and MkDocs cutover remain blocked pending owner sign-off.
+The owner approved the cutover after local review. `docs-site/content/docs` now holds the documentation source, including the migrated Testing page.

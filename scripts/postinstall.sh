@@ -56,7 +56,7 @@ else
         echo ""
         echo "WARNING: Hyprland greeter support is deprecated and will be removed in ~3 months."
         echo "         Migrate to cagebreak: SYSC_COMPOSITOR=cagebreak sudo ./install.sh"
-        echo "         See https://nomadcxx.github.io/sysc-greet/compositors/cagebreak/"
+        echo "         See https://nomadcxx.github.io/sysc-greet/docs/compositors/cagebreak/"
         echo ""
     fi
 

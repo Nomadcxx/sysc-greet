@@ -4,9 +4,13 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const output = new URL('../out/', import.meta.url);
+const repositoryRoot = new URL('../../', import.meta.url);
 const basePath = process.env.GITHUB_ACTIONS === 'true' ? '/sysc-greet' : '';
 const rootHtml = readFileSync(new URL('index.html', output), 'utf8');
 const docsHtml = readFileSync(new URL('docs/index.html', output), 'utf8');
+const docsWorkflow = readFileSync(new URL('.github/workflows/docs.yml', repositoryRoot), 'utf8');
+const readme = readFileSync(new URL('README.md', repositoryRoot), 'utf8');
+const postinstall = readFileSync(new URL('scripts/postinstall.sh', repositoryRoot), 'utf8');
 const articleHtml = readFileSync(
   new URL('docs/getting-started/installation/index.html', output),
   'utf8',
@@ -149,6 +153,36 @@ assert.ok(rootHtml.includes(`href="${basePath}/docs/"`), 'site root does not lin
 assert.ok(
   rootHtml.includes(`url=${basePath}/docs/`),
   'site root does not redirect to documentation',
+);
+assert.doesNotMatch(docsWorkflow, /mkdocs|docs-src|setup-python|pip install/i, 'docs workflow still uses MkDocs');
+assert.match(docsWorkflow, /docs-site\/\*\*/, 'docs workflow does not watch the Fumadocs source');
+assert.match(docsWorkflow, /actions\/setup-node@v\d+/, 'docs workflow does not configure Node');
+assert.match(docsWorkflow, /node-version:\s*['"]?22['"]?/, 'docs workflow does not use Node 22');
+assert.match(docsWorkflow, /run:\s*npm ci/, 'docs workflow does not install locked dependencies');
+assert.match(docsWorkflow, /run:\s*npm run check/, 'docs workflow does not run the full docs check');
+assert.match(docsWorkflow, /working-directory:\s*docs-site/g, 'docs workflow commands do not run in docs-site');
+assert.match(docsWorkflow, /path:\s*\.\/docs-site\/out/, 'docs workflow does not upload the static export');
+assert.ok(!existsSync(new URL('mkdocs.yml', repositoryRoot)), 'legacy mkdocs.yml still exists');
+assert.ok(!existsSync(new URL('docs-src/', repositoryRoot)), 'legacy docs-src still exists');
+assert.doesNotMatch(
+  readme,
+  /nomadcxx\.github\.io\/sysc-greet\/getting-started\//i,
+  'README still links to the pre-Fumadocs installation route',
+);
+assert.match(
+  readme,
+  /nomadcxx\.github\.io\/sysc-greet\/docs\/getting-started\/installation\//i,
+  'README is missing the Fumadocs installation route',
+);
+assert.doesNotMatch(
+  postinstall,
+  /nomadcxx\.github\.io\/sysc-greet\/compositors\//i,
+  'postinstall still links to the pre-Fumadocs compositor route',
+);
+assert.match(
+  postinstall,
+  /nomadcxx\.github\.io\/sysc-greet\/docs\/compositors\/cagebreak\//i,
+  'postinstall is missing the Fumadocs Cagebreak route',
 );
 
 console.log('export check passed');
