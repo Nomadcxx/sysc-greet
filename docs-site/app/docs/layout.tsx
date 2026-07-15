@@ -9,6 +9,7 @@ export default function Layout({ children }: LayoutProps<'/docs'>) {
       tree={source.getPageTree()}
       {...baseOptions()}
       containerProps={{ className: 'docs-shell' }}
+      sidebar={{ defaultOpenLevel: 1 }}
       slots={{ header: GreeterHeader }}
     >
       {children}

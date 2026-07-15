@@ -22,6 +22,8 @@ const sourceCss = readFileSync(new URL('../app/global.css', import.meta.url), 'u
   /\/\*[\s\S]*?\*\//g,
   '',
 );
+const docsLayout = readFileSync(new URL('../app/docs/layout.tsx', import.meta.url), 'utf8');
+const sharedLayout = readFileSync(new URL('../lib/layout.shared.tsx', import.meta.url), 'utf8');
 const css = files(fileURLToPath(new URL('_next/static/css/', output)))
   .map((path) => readFileSync(path, 'utf8'))
   .join('\n');
@@ -69,6 +71,125 @@ assert.ok(
 );
 assert.doesNotMatch(docsHtml, /docs-home-frame/, 'docs home still contains the old greeter frame');
 assert.doesNotMatch(docsHtml, /\bslash-label\b/, 'docs home still contains the Documentation divider');
+assert.match(docsHtml, /data-home-ticker/, 'docs home is missing the compositor ticker');
+assert.doesNotMatch(
+  docsHtml,
+  /Graphical console greeter for greetd|Written in Go with the Bubble Tea framework/,
+  'docs home still contains the discarded landing intro copy',
+);
+assert.doesNotMatch(docsHtml, /docs-home-intro/, 'docs home still wraps commands in the old intro');
+assert.match(
+  docsHtml,
+  /data-home-ticker[\s\S]*?<\/div><nav class="docs-home-actions"/,
+  'docs commands do not follow the ticker directly',
+);
+assert.doesNotMatch(
+  docsHtml,
+  /docs-home-transition/,
+  'docs home still contains the plain masthead separator',
+);
+for (const roast of [
+  '[HYPRLAND] Your config worked yesterday. Fuck you, update available.',
+  '[HYPRLAND] Maintainers closed your bug. The rewrite needs a different bug report.',
+  '[NIRI] Rust made the compositor memory-safe. Your wrists are on their own.',
+  '[NIRI] Wayland found a good reason to scroll sideways.',
+  '[GNOME] Developers removed the feature and published a manifesto about your mistake.',
+  "[GNOME] Your right-click menu died for somebody's design system.",
+]) {
+  assert.ok(docsHtml.includes(roast), `docs ticker is missing: ${roast}`);
+}
+assert.match(
+  sourceCss,
+  /\.docs-home-wordmark-crop\s*\{[^}]*height:\s*clamp\([^;]*7\.25rem\)/,
+  'docs wordmark crop does not expose the descenders',
+);
+assert.match(
+  sourceCss,
+  /\.docs-home-wordmark\s*\{[^}]*object-position:\s*center\s+55%/,
+  'docs wordmark crop window is not lowered',
+);
+assert.match(
+  sourceCss,
+  /\.docs-home-actions\s+a\s*\{[^}]*border:\s*(?:0|none)[^}]*background:\s*none[^}]*color:\s*#edf2f4[^}]*text-decoration:\s*none/i,
+  'docs home commands are not plain RAMA-white text links',
+);
+assert.match(
+  sourceCss,
+  /\.docs-home-actions\s+a:hover,\s*\.docs-home-actions\s+a:focus-visible\s*\{[^}]*color:\s*#ff6678/i,
+  'docs home commands do not use RAMA red for interaction feedback',
+);
+assert.match(
+  docsLayout,
+  /sidebar=\{\{\s*defaultOpenLevel:\s*1\s*\}\}/,
+  'docs layout does not open top-level sidebar categories by default',
+);
+assert.ok(
+  sharedLayout.includes('className="sidebar-slash-mark"') &&
+    sharedLayout.includes('MENU////////////'),
+  'sidebar navigation title is missing the approved menu label',
+);
+assert.match(
+  sourceCss,
+  /\.sidebar-slash-mark\s*\{[^}]*color:\s*#ff6678[^}]*font-family:\s*['"]Fira Code['"]/i,
+  'sidebar slash motif is missing its terminal treatment',
+);
+assert.match(
+  sourceCss,
+  /#nd-sidebar\s+a:has\(>\s*\.sidebar-slash-mark\)\s*\{[^}]*margin-inline-end:\s*0\.35rem/i,
+  'sidebar slash motif is not grouped with the collapse control',
+);
+assert.match(
+  sourceCss,
+  /#nd-sidebar\s+\[data-(?:open|closed)\]\s*>\s*button\[aria-expanded\][\s\S]*?text-transform:\s*uppercase/i,
+  'sidebar category triggers are missing their uppercase red treatment',
+);
+assert.match(
+  sourceCss,
+  /#nd-sidebar\s+\[data-open\]\s*>\s*\[data-open\]\s*\{[^}]*border-inline-start:\s*1px\s+solid/i,
+  'sidebar child links are missing their guide rail',
+);
+assert.match(
+  sourceCss,
+  /#nd-sidebar\s+a\[data-active=['"]true['"]\]\s*\{[^}]*border-radius:\s*0[^}]*border-inline-start:\s*2px\s+solid\s+#ff6678[^}]*background:\s*rgb\(255\s+102\s+120/i,
+  'sidebar active link is missing its square red edge treatment',
+);
+assert.match(
+  sourceCss,
+  /@keyframes\s+docs-home-ticker-scroll/,
+  'docs ticker is missing its scrolling animation',
+);
+assert.match(
+  sourceCss,
+  /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.docs-home-ticker-track\s*\{[^}]*animation:\s*none/,
+  'docs ticker is missing its reduced-motion fallback',
+);
+assert.match(docsHtml, /▄▄▄▄▄▄▄/, 'header is missing the supplied block wordmark');
+assert.match(docsHtml, /▀██████▄/, 'header block wordmark is incomplete');
+assert.match(
+  docsHtml,
+  /img\.shields\.io\/github\/stars\/Nomadcxx\/sysc-greet/,
+  'header is missing the live GitHub stars badge',
+);
+assert.match(
+  docsHtml,
+  /img\.shields\.io\/badge\/Go-1\.25\.1-00ADD8/i,
+  'header is missing the Go version badge',
+);
+assert.match(
+  sourceCss,
+  /\.greeter-header\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(520px,\s*720px\)\s+minmax\(0,\s*1fr\)/,
+  'desktop header does not centre the doubled search track',
+);
+assert.match(
+  sourceCss,
+  /\.greeter-search-full\s*>\s*button\s*\{[^}]*border-radius:\s*999px/,
+  'desktop search control is not pill-shaped',
+);
+assert.match(
+  sourceCss,
+  /@media\s*\(max-width:\s*767px\)[\s\S]*?\.sysc-brand-ascii\s*\{[^}]*display:\s*none[\s\S]*?\.sysc-brand-compact\s*\{[^}]*display:\s*block/,
+  'mobile header does not swap the block wordmark for the compact logo',
+);
 assert.doesNotMatch(
   docsHtml,
   /sysc-greet preview|assets\/showcase\.gif/,
