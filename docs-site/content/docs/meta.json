@@ -1,0 +1,11 @@
+{
+  "title": "sysc-greet",
+  "pages": [
+    "index",
+    "getting-started",
+    "features",
+    "configuration",
+    "compositors",
+    "development"
+  ]
+}

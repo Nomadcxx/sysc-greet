@@ -7,7 +7,10 @@ const output = new URL('../out/', import.meta.url);
 const basePath = process.env.GITHUB_ACTIONS === 'true' ? '/sysc-greet' : '';
 const rootHtml = readFileSync(new URL('index.html', output), 'utf8');
 const docsHtml = readFileSync(new URL('docs/index.html', output), 'utf8');
-const articleHtml = readFileSync(new URL('docs/test/index.html', output), 'utf8');
+const articleHtml = readFileSync(
+  new URL('docs/getting-started/installation/index.html', output),
+  'utf8',
+);
 const searchPath = new URL('api/search', output);
 const chunkRoot = fileURLToPath(new URL('_next/static/chunks/', output));
 const css = files(fileURLToPath(new URL('_next/static/css/', output)))
@@ -36,6 +39,7 @@ assert.match(
   /SEE YOU IN SPACE COWBOY/,
   'docs home is missing the approved tagline',
 );
+assert.match(docsHtml, /docs-home-frame/, 'docs home is missing the greeter frame');
 for (const route of [
   '/docs/getting-started/installation/',
   '/docs/getting-started/quick-start/',
@@ -43,8 +47,8 @@ for (const route of [
 ]) {
   assert.ok(docsHtml.includes(`href="${basePath}${route}"`), `docs home is missing ${route}`);
 }
-for (const hint of ['Install', 'Configure', 'Compositors', 'Develop']) {
-  assert.match(docsHtml, new RegExp(`>${hint}<`), `docs home is missing the ${hint} footer hint`);
+for (const hint of ['Install', 'Themes', 'Compositors', 'Develop']) {
+  assert.match(docsHtml, new RegExp(`>${hint}<`), `docs home is missing the ${hint} status hint`);
 }
 assert.match(
   docsHtml,
@@ -53,7 +57,7 @@ assert.match(
 );
 assert.match(
   articleHtml,
-  /blob\/development\/docs-site\/content\/docs\/test\.mdx/,
+  /blob\/development\/docs-site\/content\/docs\/getting-started\/installation\.md/,
   'article source link does not target the docs-site content',
 );
 assert.ok(statSync(searchPath).size > 100, 'static search payload is empty');
