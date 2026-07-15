@@ -127,6 +127,8 @@ CONFIGURATION.md
 # Development scripts (not for end users)
 .dev-scripts/
 
-# Internal planning documents
+# Internal planning documents (local agent/specs only — not for end users)
 docs/plans/
+docs/superpowers/
+docs/superpower/
 .worktrees/
