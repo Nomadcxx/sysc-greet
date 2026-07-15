@@ -1,12 +1,87 @@
 @import 'tailwindcss';
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
+@import '@fontsource-variable/ibm-plex-sans';
+@import '@fontsource/fira-code/400.css';
+@import '@fontsource/fira-code/500.css';
+@import '@fontsource/fira-code/600.css';
+
+.dark {
+  --color-fd-background: #161722;
+  --color-fd-foreground: #edf2f4;
+  --color-fd-muted: #2b2d42;
+  --color-fd-muted-foreground: #8d99ae;
+  --color-fd-popover: #2b2d42;
+  --color-fd-popover-foreground: #edf2f4;
+  --color-fd-card: #2b2d42;
+  --color-fd-card-foreground: #edf2f4;
+  --color-fd-border: #3b3d52;
+  --color-fd-primary: #ef233c;
+  --color-fd-primary-foreground: #161722;
+  --color-fd-secondary: #2b2d42;
+  --color-fd-secondary-foreground: #edf2f4;
+  --color-fd-accent: #3b3d52;
+  --color-fd-accent-foreground: #edf2f4;
+  --color-fd-ring: #ef233c;
+  --color-fd-overlay: rgb(0 0 0 / 72%);
+  --color-fd-error: #d90429;
+}
 
 html {
   scrollbar-gutter: stable;
+  background: #161722;
 }
 
 html > body[data-scroll-locked] {
   margin-right: 0px !important;
   --removed-body-scroll-bar-size: 0px !important;
+}
+
+body {
+  font-family: 'IBM Plex Sans Variable', system-ui, sans-serif;
+  letter-spacing: 0;
+}
+
+code,
+kbd,
+pre,
+.font-mono,
+.slash-label,
+.operator-header,
+.docs-hint-strip {
+  font-family: 'Fira Code', ui-monospace, monospace;
+}
+
+.docs-shell,
+.prose :where(pre),
+.prose :where(blockquote) {
+  border-color: #3b3d52;
+}
+
+.slash-label {
+  color: #ef233c;
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.slash-label::before,
+.slash-label::after {
+  color: #8d99ae;
+  content: '//////////';
+}
+
+.slash-label::before {
+  margin-right: 0.65rem;
+}
+
+.slash-label::after {
+  margin-left: 0.65rem;
+}
+
+.docs-hint-strip {
+  border-top: 1px solid #3b3d52;
+  color: #8d99ae;
+  font-size: 0.75rem;
 }

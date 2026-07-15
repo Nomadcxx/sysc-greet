@@ -11,6 +11,8 @@
     "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
+    "@fontsource-variable/ibm-plex-sans": "^5.2.8",
+    "@fontsource/fira-code": "^5.2.7",
     "@orama/orama": "^3.1.18",
     "cnfast": "^0.0.8",
     "fumadocs-core": "16.11.4",
