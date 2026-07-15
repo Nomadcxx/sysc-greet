@@ -1,7 +1,7 @@
 # Fumadocs Audit Pass
 
-**Date:** 2026-07-16  
-**Commit audited:** `f36c4bc`  
+**Date:** 2026-07-16
+**Commit audited:** `f36c4bc`
 **Initial verdict:** `fail`
 **Post-polish verdict:** `pass for local preview`
 
