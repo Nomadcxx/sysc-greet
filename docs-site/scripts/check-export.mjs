@@ -14,6 +14,10 @@ const articleHtml = readFileSync(
 const searchPath = new URL('api/search', output);
 const wordmarkPath = new URL('sysc-greet-wordmark.png', output);
 const chunkRoot = fileURLToPath(new URL('_next/static/chunks/', output));
+const sourceCss = readFileSync(new URL('../app/global.css', import.meta.url), 'utf8').replace(
+  /\/\*[\s\S]*?\*\//g,
+  '',
+);
 const css = files(fileURLToPath(new URL('_next/static/css/', output)))
   .map((path) => readFileSync(path, 'utf8'))
   .join('\n');
@@ -60,6 +64,59 @@ assert.ok(
   'docs wordmark is missing the deployment base path',
 );
 assert.doesNotMatch(docsHtml, /docs-home-frame/, 'docs home still contains the old greeter frame');
+assert.match(
+  sourceCss,
+  /\.docs-home-body\s*>\s*:where\(h2,\s*h3,\s*p,\s*ul,\s*ol,\s*pre,\s*figure,\s*table,\s*blockquote,\s*div\)\s*\{[^}]*width:\s*min\([^;]*52rem\)/,
+  'home content blocks do not share the 52rem reading measure',
+);
+assert.match(
+  sourceCss,
+  /\.docs-home-body\s*>\s*:where\(img,\s*video\),\s*\.docs-home-body\s*>\s*:not\(\.docs-home-hero\)\s+:where\(img,\s*video\)\s*\{[^}]*width:\s*auto[^}]*height:\s*auto[^}]*margin-inline:\s*auto[^}]*object-fit:\s*contain/,
+  'home content media sizing does not explicitly exclude the home hero',
+);
+assert.match(
+  sourceCss,
+  /\.docs-home-body\s*>\s*:where\(img,\s*video\)\s*\{[^}]*max-width:\s*min\(calc\(100%\s*-\s*2rem\),\s*52rem\)/,
+  'direct home media does not use the centered 52rem measure',
+);
+assert.match(
+  sourceCss,
+  /\.docs-home-body\s*>\s*:not\(\.docs-home-hero\)\s+:where\(img,\s*video\)\s*\{[^}]*max-width:\s*100%/,
+  'nested home content media is not constrained to its reading block',
+);
+assert.doesNotMatch(
+  sourceCss,
+  /\.docs-home-body\s+:where\(img,\s*video\)/,
+  'a broad home media selector can override the masthead wordmark',
+);
+assert.match(
+  sourceCss,
+  /\.docs-home-body\s*>\s*h2::before,\s*\.docs-home-body\s*>\s*h2::after\s*\{[^}]*content:\s*['"]\/{10}['"]\s*\/\s*(?:''|"")/,
+  'home H2 headings are missing accessible ten-slash framing',
+);
+assert.match(
+  sourceCss,
+  /\.docs-home-body\s*>\s*h3::before,\s*\.docs-home-body\s*>\s*h3::after\s*\{[^}]*content:\s*['"]\/{4}['"]\s*\/\s*(?:''|"")/,
+  'home H3 headings are missing accessible four-slash framing',
+);
+assert.match(
+  sourceCss,
+  /\.prose:not\(\.docs-home-body\)\s*>\s*h2::before,\s*\.prose:not\(\.docs-home-body\)\s*>\s*h2::after\s*\{[^}]*content:\s*['"]\/{10}['"]\s*\/\s*(?:''|"")/,
+  'guide H2 headings are missing accessible ten-slash framing',
+);
+assert.match(
+  sourceCss,
+  /\.prose:not\(\.docs-home-body\)\s*>\s*h3::before,\s*\.prose:not\(\.docs-home-body\)\s*>\s*h3::after\s*\{[^}]*content:\s*['"]\/{4}['"]\s*\/\s*(?:''|"")/,
+  'guide H3 headings are missing accessible four-slash framing',
+);
+assert.match(
+  sourceCss,
+  /#nd-sidebar\s+\[data-search-full\]\s*\{[^}]*display:\s*none/,
+  'sidebar duplicate full search is not hidden',
+);
+const hintRule = sourceCss.match(/\.docs-hint-strip\s*\{([^}]*)\}/)?.[1] ?? '';
+assert.match(hintRule, /border-top:\s*1px\s+solid/, 'docs hint strip is missing its rail');
+assert.doesNotMatch(hintRule, /(?:^|;)\s*border\s*:/, 'docs hint strip still has an enclosing border');
 for (const route of [
   '/docs/getting-started/installation/',
   '/docs/getting-started/quick-start/',

@@ -188,6 +188,10 @@ pre,
   border-right: 1px solid #3b3d52;
 }
 
+#nd-sidebar [data-search-full] {
+  display: none;
+}
+
 a[data-active='true'],
 .prose a {
   color: var(--sysc-accent-text);
@@ -298,25 +302,92 @@ a[data-active='true'],
   outline-offset: 2px;
 }
 
-.docs-home-body > h2,
-.docs-home-body > h2 + p,
-.docs-home-body > .slash-label + *,
-.docs-home-body > p,
-.docs-home-body > ul,
-.docs-home-body > ol,
-.docs-home-body > pre,
-.docs-home-body > blockquote,
-.docs-home-body > table,
-.docs-home-body > .nd-codeblock,
-.docs-home-body > div {
-  width: min(100% - 2rem, 52rem);
+.docs-home-body > :where(h2, h3, p, ul, ol, pre, figure, table, blockquote, div) {
+  width: min(calc(100% - 2rem), 52rem);
   margin-inline: auto;
 }
 
-.docs-home-body > h2 {
-  margin-top: 3rem;
+.docs-home-body > :where(h2, h3),
+.prose:not(.docs-home-body) > :where(h2, h3) {
+  display: flex;
+  align-items: baseline;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.docs-home-body > :where(h2, h3) {
+  gap: 0.6rem;
   color: #edf2f4;
-  text-align: center;
+  font-family: 'Fira Code', ui-monospace, monospace;
+}
+
+.docs-home-body > h2 {
+  margin-top: 3.25rem;
+}
+
+.docs-home-body > h3 {
+  margin-top: 2.25rem;
+}
+
+.docs-home-body > h2::before,
+.docs-home-body > h2::after {
+  content: '//////////' / '';
+}
+
+.docs-home-body > h3::before,
+.docs-home-body > h3::after {
+  content: '////' / '';
+}
+
+.docs-home-body > :where(h2, h3)::before,
+.docs-home-body > :where(h2, h3)::after {
+  flex: none;
+  color: #8d99ae;
+  font-size: 0.55em;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.prose:not(.docs-home-body) > :where(h2, h3) {
+  gap: 0.45rem;
+}
+
+.prose:not(.docs-home-body) > h2::before,
+.prose:not(.docs-home-body) > h2::after {
+  content: '//////////' / '';
+}
+
+.prose:not(.docs-home-body) > h3::before,
+.prose:not(.docs-home-body) > h3::after {
+  content: '////' / '';
+}
+
+.prose:not(.docs-home-body) > :where(h2, h3)::before,
+.prose:not(.docs-home-body) > :where(h2, h3)::after {
+  flex: none;
+  color: rgb(141 153 174 / 65%);
+  font-family: 'Fira Code', ui-monospace, monospace;
+  font-size: 0.45em;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.docs-home-body > :where(img, video),
+.docs-home-body > :not(.docs-home-hero) :where(img, video) {
+  display: block;
+  width: auto;
+  height: auto;
+  max-height: 36rem;
+  margin-inline: auto;
+  object-fit: contain;
+}
+
+.docs-home-body > :where(img, video) {
+  max-width: min(calc(100% - 2rem), 52rem);
+}
+
+.docs-home-body > :not(.docs-home-hero) :where(img, video) {
+  max-width: 100%;
 }
 
 .docs-home-body > h2 + p,
@@ -329,11 +400,11 @@ a[data-active='true'],
   width: min(100% - 2rem, 52rem);
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.35rem 0.5rem;
   margin: 3.5rem auto 2rem;
-  border: 1px solid #3b3d52;
-  padding: 0.65rem 1rem;
+  border-top: 1px solid #3b3d52;
+  padding: 0.65rem 0;
   color: #8d99ae;
   font-size: 0.72rem;
   letter-spacing: 0.02em;
@@ -357,6 +428,11 @@ a[data-active='true'],
 .docs-hint-strip a:hover,
 .docs-hint-strip a:focus-visible {
   color: var(--sysc-accent-text);
+}
+
+.docs-hint-strip a:focus-visible {
+  outline: 2px solid #ef233c;
+  outline-offset: 2px;
 }
 
 .root-redirect {
@@ -410,6 +486,21 @@ a[data-active='true'],
 
   .docs-home-actions {
     gap: 0.6rem 1rem;
+  }
+
+  .docs-home-body > :where(h2, h3),
+  .prose:not(.docs-home-body) > :where(h2, h3) {
+    gap: 0.35rem;
+  }
+
+  .docs-home-body > :where(h2, h3)::before,
+  .docs-home-body > :where(h2, h3)::after {
+    font-size: 0.42em;
+  }
+
+  .prose:not(.docs-home-body) > :where(h2, h3)::before,
+  .prose:not(.docs-home-body) > :where(h2, h3)::after {
+    font-size: 0.38em;
   }
 
   .slash-label {
