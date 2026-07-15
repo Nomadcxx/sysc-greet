@@ -121,3 +121,44 @@ This policy gives the landing page one deliberate alignment change. The long doc
 - The approved generated wordmark has a dark raster background. CSS cropping and lighten blending must hide the rectangle at desktop and mobile sizes.
 - CI and MkDocs cutover remain blocked pending owner sign-off.
 
+## Implementation result
+
+| Task | Result | Commit |
+|---|---|---|
+| Wordmark and export contract | Complete | `00eec1b` |
+| Open hybrid masthead | Complete | `e538f84` |
+| Reading axis and slash hierarchy | Complete | `3689a64` |
+| Rendered verification | Complete locally | This report commit |
+
+The landing page now uses the approved hybrid layout. The centered masthead contains only the tagline and block wordmark. A single rail ends the masthead. The H1, summary, slash commands, migrated content, media, section headings, lists, and code blocks continue on one left-aligned 52rem axis.
+
+The media rule explicitly excludes the masthead before constraining document images. This prevents the document rule from overriding the wordmark crop while keeping direct and nested content media inside the reading measure.
+
+The heading treatment is implemented with CSS pseudo-elements. H2 uses ten slashes per side and H3 uses four. The generated strings include empty speech alternatives, so the visible decoration does not become part of the accessible heading name.
+
+## Verification result
+
+The following checks pass:
+
+- `npm run check`
+- `GITHUB_ACTIONS=true npm run check`
+- Local export restored with a final `npm run check`
+- 18 migrated content pages
+- TypeScript and static export
+- Base-path assets and links
+- Wordmark, command-link, heading, media, hint-rail, and duplicate-search assertions
+
+Rendered captures:
+
+- `/tmp/fumadocs-final-home-1440.png`
+- `/tmp/fumadocs-final-home-1920.png`
+- `/tmp/fumadocs-final-home-390.png`
+- `/tmp/fumadocs-final-guide-1440.png`
+
+The captures show the full wordmark, one post-masthead reading axis, slash-framed H2/H3 headings, readable mobile wrapping, and no enclosing hero box.
+
+## Preview gate
+
+Local preview: `http://127.0.0.1:3002/docs/`
+
+No CI workflow, MkDocs configuration, or tracked `docs-src` file was changed. Cutover remains blocked until owner sign-off. The pre-existing untracked `docs-src/development/testing.md` remains untouched.

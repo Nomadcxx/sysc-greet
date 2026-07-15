@@ -2,9 +2,25 @@
 
 **Date:** 2026-07-16  
 **Commit audited:** `f36c4bc`  
-**Verdict:** `fail`
+**Initial verdict:** `fail`
+**Post-polish verdict:** `pass for local preview`
 
 The static site works, but the desktop home page fails the readability and visual identity requirements. The current CSS gives the hero, headings, prose, media, and code different horizontal axes.
+
+## Post-polish audit
+
+The second render pass resolves the visual failures recorded below:
+
+- The boxed hero and bordered CTA controls are gone.
+- The approved block wordmark renders in open space at desktop and mobile widths.
+- The masthead is centered; the H1, summary, commands, media, headings, prose, and code use one centered 52rem reading measure below it.
+- H2 headings render with ten slashes on each side. H3 headings render with four.
+- Decorative heading slashes have empty speech alternatives and do not change the heading text or IDs.
+- The showcase image and generated code figures stay inside the reading measure without distortion.
+- The hint navigation uses one top rail instead of an enclosing rectangle.
+- Desktop shows one Search control. The mobile Search trigger remains available.
+
+Chromium checks at 1440px, 1920px, and 390px show no horizontal overflow, clipped wordmark, or return of the boxed composition. The Installation guide confirms the quieter slash hierarchy on inner pages.
 
 ## Findings
 
@@ -66,3 +82,19 @@ The static site works, but the desktop home page fails the readability and visua
 - `mkdocs.yml`: untouched
 - Tracked `docs-src`: untouched
 
+## Post-polish verification
+
+- Local content, type, static build, and export check: pass
+- GitHub Actions base-path build: pass
+- Home render at 1440px: pass
+- Home render at 1920px: pass
+- Home render at 390px: pass
+- Installation guide render at 1440px: pass
+- Wordmark base-path and export assertions: pass
+- Command-label and destination assertions: pass
+- Heading, media, hint-rail, and duplicate-search assertions: pass
+- CI workflow: untouched
+- `mkdocs.yml`: untouched
+- Tracked `docs-src`: untouched
+
+The only remaining repository issue in this audit is the owner-existing untracked `docs-src/development/testing.md`. It was not changed or staged. CI and MkDocs cutover remain blocked pending owner sign-off.
