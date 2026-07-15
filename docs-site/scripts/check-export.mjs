@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -12,6 +12,7 @@ const articleHtml = readFileSync(
   'utf8',
 );
 const searchPath = new URL('api/search', output);
+const wordmarkPath = new URL('sysc-greet-wordmark.png', output);
 const chunkRoot = fileURLToPath(new URL('_next/static/chunks/', output));
 const css = files(fileURLToPath(new URL('_next/static/css/', output)))
   .map((path) => readFileSync(path, 'utf8'))
@@ -34,12 +35,31 @@ assert.ok(
   docsHtml.includes(`src="${basePath}/logo.png"`),
   'docs logo is missing the deployment base path',
 );
+assert.ok(existsSync(wordmarkPath), 'exported sysc-greet wordmark asset is missing');
+assert.ok(statSync(wordmarkPath).size > 0, 'exported sysc-greet wordmark asset is empty');
 assert.match(
   docsHtml,
   /SEE YOU IN SPACE COWBOY/,
   'docs home is missing the approved tagline',
 );
-assert.match(docsHtml, /docs-home-frame/, 'docs home is missing the greeter frame');
+for (const [marker, label, route] of [
+  ['install', 'INSTALL', '/docs/getting-started/installation/'],
+  ['quick-start', 'QUICK START', '/docs/getting-started/quick-start/'],
+  ['troubleshoot', 'TROUBLESHOOT', '/docs/getting-started/troubleshooting/'],
+]) {
+  const commandLink = new RegExp(
+    `<a\\b(?=[^>]*\\bdata-home-command="${marker}")(?=[^>]*\\bhref="${basePath}${route}")[^>]*>\\s*/ ${label} /\\s*</a>`,
+  );
+  assert.ok(
+    commandLink.test(docsHtml),
+    `docs home is missing the ${label} command link`,
+  );
+}
+assert.ok(
+  docsHtml.includes(`src="${basePath}/sysc-greet-wordmark.png"`),
+  'docs wordmark is missing the deployment base path',
+);
+assert.doesNotMatch(docsHtml, /docs-home-frame/, 'docs home still contains the old greeter frame');
 for (const route of [
   '/docs/getting-started/installation/',
   '/docs/getting-started/quick-start/',
