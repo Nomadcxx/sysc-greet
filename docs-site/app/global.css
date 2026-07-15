@@ -47,7 +47,6 @@ code,
 kbd,
 pre,
 .font-mono,
-.slash-label,
 .greeter-header,
 .docs-hint-strip,
 .docs-tagline,
@@ -59,27 +58,6 @@ pre,
 .prose :where(pre),
 .prose :where(blockquote) {
   border-color: #3b3d52;
-}
-
-.slash-label {
-  display: flex;
-  width: min(100%, 52rem);
-  margin: 3.5rem auto 1.25rem;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  color: var(--sysc-accent-text);
-  font-size: 0.75rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  text-align: center;
-  text-transform: uppercase;
-}
-
-.slash-label::before,
-.slash-label::after {
-  color: #8d99ae;
-  content: '//////////';
 }
 
 #nd-docs-layout.docs-shell {
@@ -316,7 +294,6 @@ a[data-active='true'],
 }
 
 .docs-home-body > :where(h2, h3) {
-  gap: 0.6rem;
   color: #edf2f4;
   font-family: 'Fira Code', ui-monospace, monospace;
 }
@@ -329,47 +306,33 @@ a[data-active='true'],
   margin-top: 2.25rem;
 }
 
-.docs-home-body > h2::before,
-.docs-home-body > h2::after {
+.prose > h2 > a[data-card]::before,
+.prose > h2 > a[data-card]::after {
   content: '//////////' / '';
+  color: inherit;
+  font-size: 0.62em;
 }
 
-.docs-home-body > h3::before,
-.docs-home-body > h3::after {
+.prose > h3 > a[data-card]::before,
+.prose > h3 > a[data-card]::after {
   content: '////' / '';
+  color: inherit;
+  font-size: 0.58em;
 }
 
-.docs-home-body > :where(h2, h3)::before,
-.docs-home-body > :where(h2, h3)::after {
-  flex: none;
-  color: #8d99ae;
-  font-size: 0.55em;
-  font-weight: 500;
-  letter-spacing: 0;
-}
-
-.prose:not(.docs-home-body) > :where(h2, h3) {
-  gap: 0.45rem;
-}
-
-.prose:not(.docs-home-body) > h2::before,
-.prose:not(.docs-home-body) > h2::after {
-  content: '//////////' / '';
-}
-
-.prose:not(.docs-home-body) > h3::before,
-.prose:not(.docs-home-body) > h3::after {
-  content: '////' / '';
-}
-
-.prose:not(.docs-home-body) > :where(h2, h3)::before,
-.prose:not(.docs-home-body) > :where(h2, h3)::after {
-  flex: none;
-  color: rgb(141 153 174 / 65%);
+.prose > :where(h2, h3) > a[data-card]::before,
+.prose > :where(h2, h3) > a[data-card]::after {
   font-family: 'Fira Code', ui-monospace, monospace;
-  font-size: 0.45em;
   font-weight: 500;
   letter-spacing: 0;
+}
+
+.prose > :where(h2, h3) > a[data-card]::before {
+  margin-inline-end: 0.45em;
+}
+
+.prose > :where(h2, h3) > a[data-card]::after {
+  margin-inline-start: 0.45em;
 }
 
 .docs-home-body > :where(img, video),
@@ -488,27 +451,4 @@ a[data-active='true'],
     gap: 0.6rem 1rem;
   }
 
-  .docs-home-body > :where(h2, h3),
-  .prose:not(.docs-home-body) > :where(h2, h3) {
-    gap: 0.35rem;
-  }
-
-  .docs-home-body > :where(h2, h3)::before,
-  .docs-home-body > :where(h2, h3)::after {
-    font-size: 0.42em;
-  }
-
-  .prose:not(.docs-home-body) > :where(h2, h3)::before,
-  .prose:not(.docs-home-body) > :where(h2, h3)::after {
-    font-size: 0.38em;
-  }
-
-  .slash-label {
-    flex-wrap: wrap;
-  }
-
-  .slash-label::before,
-  .slash-label::after {
-    content: '////';
-  }
 }

@@ -16,9 +16,11 @@ The second render pass resolves the visual failures recorded below:
 - The masthead is centered; the H1, summary, commands, media, headings, prose, and code use one centered 52rem reading measure below it.
 - H2 headings render with ten slashes on each side. H3 headings render with four.
 - Decorative heading slashes have empty speech alternatives and do not change the heading text or IDs.
-- The showcase image and generated code figures stay inside the reading measure without distortion.
+- Generated code figures stay inside the reading measure without distortion.
 - The hint navigation uses one top rail instead of an enclosing rectangle.
 - Desktop shows one Search control. The mobile Search trigger remains available.
+- Features follows the hero without the former Documentation divider, duplicate introduction, or showcase GIF.
+- Heading slashes sit inside each title link, inherit its red, and scale with the heading level.
 
 Chromium checks at 1440px, 1920px, and 390px show no horizontal overflow, clipped wordmark, or return of the boxed composition. The Installation guide confirms the quieter slash hierarchy on inner pages.
 

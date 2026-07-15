@@ -162,3 +162,16 @@ The captures show the full wordmark, one post-masthead reading axis, slash-frame
 Local preview: `http://127.0.0.1:3002/docs/`
 
 No CI workflow, MkDocs configuration, or tracked `docs-src` file was changed. Cutover remains blocked until owner sign-off. The pre-existing untracked `docs-src/development/testing.md` remains untouched.
+
+## Approved follow-up tweak
+
+Fumadocs places a copy-anchor button after each heading link. Moving the slash markers onto `a[data-card]` removes that button from the space between the title and closing slashes. The markers now inherit the title red and use relative `em` sizes.
+
+The landing page now moves from the hero commands to Features. The Documentation divider, duplicate introduction, and showcase GIF have been removed.
+
+Follow-up captures:
+
+- `/tmp/fumadocs-tweak-home-1440.png`
+- `/tmp/fumadocs-tweak-home-390.png`
+- `/tmp/fumadocs-tweak-install-1440.png`
+- `/tmp/fumadocs-tweak-install-390.png`

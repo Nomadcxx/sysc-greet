@@ -64,6 +64,12 @@ assert.ok(
   'docs wordmark is missing the deployment base path',
 );
 assert.doesNotMatch(docsHtml, /docs-home-frame/, 'docs home still contains the old greeter frame');
+assert.doesNotMatch(docsHtml, /\bslash-label\b/, 'docs home still contains the Documentation divider');
+assert.doesNotMatch(
+  docsHtml,
+  /sysc-greet preview|assets\/showcase\.gif/,
+  'docs home still contains the showcase preview',
+);
 assert.match(
   sourceCss,
   /\.docs-home-body\s*>\s*:where\(h2,\s*h3,\s*p,\s*ul,\s*ol,\s*pre,\s*figure,\s*table,\s*blockquote,\s*div\)\s*\{[^}]*width:\s*min\([^;]*52rem\)/,
@@ -91,23 +97,18 @@ assert.doesNotMatch(
 );
 assert.match(
   sourceCss,
-  /\.docs-home-body\s*>\s*h2::before,\s*\.docs-home-body\s*>\s*h2::after\s*\{[^}]*content:\s*['"]\/{10}['"]\s*\/\s*(?:''|"")/,
-  'home H2 headings are missing accessible ten-slash framing',
+  /\.prose\s*>\s*h2\s*>\s*a\[data-card\]::before,\s*\.prose\s*>\s*h2\s*>\s*a\[data-card\]::after\s*\{[^}]*content:\s*['"]\/{10}['"]\s*\/\s*(?:''|"")[^}]*color:\s*inherit[^}]*font-size:\s*[\d.]+em/,
+  'H2 title links are missing accessible relative ten-slash framing',
 );
 assert.match(
   sourceCss,
-  /\.docs-home-body\s*>\s*h3::before,\s*\.docs-home-body\s*>\s*h3::after\s*\{[^}]*content:\s*['"]\/{4}['"]\s*\/\s*(?:''|"")/,
-  'home H3 headings are missing accessible four-slash framing',
+  /\.prose\s*>\s*h3\s*>\s*a\[data-card\]::before,\s*\.prose\s*>\s*h3\s*>\s*a\[data-card\]::after\s*\{[^}]*content:\s*['"]\/{4}['"]\s*\/\s*(?:''|"")[^}]*color:\s*inherit[^}]*font-size:\s*[\d.]+em/,
+  'H3 title links are missing accessible relative four-slash framing',
 );
-assert.match(
+assert.doesNotMatch(
   sourceCss,
-  /\.prose:not\(\.docs-home-body\)\s*>\s*h2::before,\s*\.prose:not\(\.docs-home-body\)\s*>\s*h2::after\s*\{[^}]*content:\s*['"]\/{10}['"]\s*\/\s*(?:''|"")/,
-  'guide H2 headings are missing accessible ten-slash framing',
-);
-assert.match(
-  sourceCss,
-  /\.prose:not\(\.docs-home-body\)\s*>\s*h3::before,\s*\.prose:not\(\.docs-home-body\)\s*>\s*h3::after\s*\{[^}]*content:\s*['"]\/{4}['"]\s*\/\s*(?:''|"")/,
-  'guide H3 headings are missing accessible four-slash framing',
+  /(?:\.docs-home-body|\.prose:not\(\.docs-home-body\))\s*>\s*h[23]::(?:before|after)/,
+  'slash framing is still attached outside the title link',
 );
 assert.match(
   sourceCss,
