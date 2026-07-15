@@ -189,7 +189,7 @@ pre,
   background: #2b2d42;
 }
 
-#nd-sidebar a[data-active='true'],
+a[data-active='true'],
 .prose a {
   color: var(--sysc-accent-text);
 }
