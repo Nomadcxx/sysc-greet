@@ -7,26 +7,26 @@ import { GitFork, PanelLeft } from 'lucide-react';
 import Link from 'next/link';
 import type { ComponentProps } from 'react';
 
-export function OperatorHeader({ className, ...props }: ComponentProps<'header'>) {
+export function GreeterHeader({ className, ...props }: ComponentProps<'header'>) {
   return (
-    <header {...props} className={`operator-header ${className ?? ''}`}>
-      <Link href="/docs" className="operator-brand" aria-label="sysc-greet documentation home">
+    <header {...props} className={`greeter-header ${className ?? ''}`}>
+      <Link href="/docs" className="greeter-brand" aria-label="sysc-greet documentation home">
         <Brand />
       </Link>
-      <div className="operator-header-actions">
-        <div className="operator-search-full">
+      <div className="greeter-header-actions">
+        <div className="greeter-search-full">
           <FullSearchTrigger hideIfDisabled />
         </div>
-        <SearchTrigger hideIfDisabled aria-label="Open search" className="operator-search-icon" />
+        <SearchTrigger hideIfDisabled aria-label="Open search" className="greeter-search-icon" />
         <a
-          className="operator-icon-link"
+          className="greeter-icon-link"
           href="https://github.com/Nomadcxx/sysc-greet"
           aria-label="sysc-greet on GitHub"
           title="GitHub repository"
         >
           <GitFork aria-hidden="true" />
         </a>
-        <SidebarTrigger className="operator-sidebar-trigger" aria-label="Open navigation">
+        <SidebarTrigger className="greeter-sidebar-trigger" aria-label="Open navigation">
           <PanelLeft aria-hidden="true" />
         </SidebarTrigger>
       </div>

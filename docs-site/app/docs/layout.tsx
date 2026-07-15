@@ -1,7 +1,7 @@
 import { source } from '@/lib/source';
 import { DocsLayout } from 'fumadocs-ui/layouts/docs';
 import { baseOptions } from '@/lib/layout.shared';
-import { OperatorHeader } from '@/components/operator-header';
+import { GreeterHeader } from '@/components/greeter-header';
 
 export default function Layout({ children }: LayoutProps<'/docs'>) {
   return (
@@ -9,7 +9,7 @@ export default function Layout({ children }: LayoutProps<'/docs'>) {
       tree={source.getPageTree()}
       {...baseOptions()}
       containerProps={{ className: 'docs-shell' }}
-      slots={{ header: OperatorHeader }}
+      slots={{ header: GreeterHeader }}
     >
       {children}
     </DocsLayout>

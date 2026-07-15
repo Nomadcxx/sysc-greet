@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build": "next build --webpack",
-    "dev": "next dev",
+    "dev": "next dev --webpack",
     "start": "serve out",
     "typecheck": "fumadocs-mdx && next typegen && tsc --noEmit",
     "check": "node scripts/check-content.mjs && npm run typecheck && npm run build && node scripts/check-export.mjs",
