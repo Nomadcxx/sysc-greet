@@ -205,29 +205,19 @@ a[data-active='true'],
   margin-top: 0;
 }
 
-/* Desktop-first greeter composition: centered column */
 .docs-home-hero {
-  display: flex;
   width: 100%;
-  min-height: min(70vh, 44rem);
-  align-items: center;
-  justify-content: center;
-  border-bottom: 1px solid #3b3d52;
-  padding: 4rem 1.5rem;
+  padding: 3.5rem 0 1rem;
 }
 
-.docs-home-frame {
-  display: flex;
-  width: min(100%, 44rem);
-  flex-direction: column;
-  align-items: center;
-  border: 1px solid #3b3d52;
-  padding: 3rem 2.5rem 2.5rem;
+.docs-home-masthead {
+  width: min(100%, 70rem);
+  margin-inline: auto;
   text-align: center;
 }
 
 .docs-tagline {
-  margin: 0 0 1.75rem;
+  margin: 0 0 1rem;
   color: var(--sysc-accent-text);
   font-size: 0.7rem;
   font-weight: 500;
@@ -235,49 +225,62 @@ a[data-active='true'],
   white-space: nowrap;
 }
 
-.docs-home-logo {
-  width: min(100%, 28rem);
-  height: auto;
-  margin: 0 auto;
+.docs-home-wordmark-crop {
+  height: clamp(5rem, 14vw, 11rem);
+  overflow: hidden;
+}
+
+.docs-home-wordmark {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  mix-blend-mode: lighten;
+}
+
+.docs-home-transition {
+  width: min(calc(100% - 2rem), 52rem);
+  height: 1px;
+  margin: 2.75rem auto;
+  border: 0;
+  background: #3b3d52;
+}
+
+.docs-home-intro {
+  width: min(calc(100% - 2rem), 52rem);
+  margin-inline: auto;
+  text-align: left;
 }
 
 .docs-home-hero h1 {
-  max-width: 36rem;
-  margin: 1.75rem 0 0;
+  max-width: 42rem;
+  margin: 0;
   color: #edf2f4;
   font-size: clamp(1.65rem, 2.4vw, 2.35rem);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.15;
-  text-align: center;
 }
 
 .docs-home-summary {
   max-width: 34rem;
-  margin: 1rem auto 0;
+  margin: 1rem 0 0;
   color: #8d99ae;
   font-family: 'IBM Plex Sans Variable', system-ui, sans-serif;
   font-size: 1.05rem;
   line-height: 1.55;
-  text-align: center;
 }
 
 .docs-home-actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.75rem;
-  margin-top: 2rem;
+  gap: 0.6rem 1.25rem;
+  margin-top: 1.75rem;
 }
 
 .docs-home-actions a {
-  display: inline-flex;
-  min-width: 8.5rem;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #3b3d52;
-  padding: 0.7rem 1.1rem;
-  color: #edf2f4;
+  color: #8d99ae;
   font-size: 0.8rem;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -287,7 +290,6 @@ a[data-active='true'],
 
 .docs-home-actions a:hover,
 .docs-home-actions a:focus-visible {
-  border-color: #ef233c;
   color: var(--sysc-accent-text);
 }
 
@@ -398,12 +400,7 @@ a[data-active='true'],
   }
 
   .docs-home-hero {
-    min-height: auto;
-    padding: 2rem 1rem;
-  }
-
-  .docs-home-frame {
-    padding: 2rem 1.25rem;
+    padding-top: 2rem;
   }
 
   .docs-tagline {
@@ -412,12 +409,7 @@ a[data-active='true'],
   }
 
   .docs-home-actions {
-    width: 100%;
-    flex-direction: column;
-  }
-
-  .docs-home-actions a {
-    width: 100%;
+    gap: 0.6rem 1rem;
   }
 
   .slash-label {
