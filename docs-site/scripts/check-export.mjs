@@ -23,6 +23,7 @@ function files(directory) {
 
 assert.doesNotMatch(docsHtml, /Toggle Theme|light theme/i, 'dark-only export contains a theme toggle');
 assert.match(css, /#ef233c/i, 'exported theme is missing the RAMA primary red');
+assert.match(css, /#ff6678/i, 'exported theme is missing the accessible red text accent');
 assert.match(css, /IBM Plex Sans Variable/i, 'exported theme is missing IBM Plex Sans');
 assert.match(css, /Fira Code/i, 'exported theme is missing Fira Code');
 assert.match(docsHtml, /logo\.png/, 'docs home is missing the existing sysc-greet logo');
@@ -63,5 +64,9 @@ assert.ok(
   'search client is missing the deployment base path',
 );
 assert.ok(rootHtml.includes(`href="${basePath}/docs/"`), 'site root does not link to documentation');
+assert.ok(
+  rootHtml.includes(`url=${basePath}/docs/`),
+  'site root does not redirect to documentation',
+);
 
 console.log('export check passed');

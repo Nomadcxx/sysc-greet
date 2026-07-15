@@ -25,6 +25,7 @@
   --color-fd-ring: #ef233c;
   --color-fd-overlay: rgb(0 0 0 / 72%);
   --color-fd-error: #d90429;
+  --sysc-accent-text: #ff6678;
 }
 
 html {
@@ -59,7 +60,7 @@ pre,
 }
 
 .slash-label {
-  color: #ef233c;
+  color: var(--sysc-accent-text);
   font-size: 0.75rem;
   font-weight: 500;
   letter-spacing: 0.03em;
@@ -165,7 +166,7 @@ pre,
 .operator-icon-link:hover,
 .operator-icon-link:focus-visible {
   background: #2b2d42;
-  color: #ef233c;
+  color: var(--sysc-accent-text);
 }
 
 .operator-icon-link:focus-visible {
@@ -186,6 +187,11 @@ pre,
 
 #nd-sidebar {
   background: #2b2d42;
+}
+
+#nd-sidebar a[data-active='true'],
+.prose a {
+  color: var(--sysc-accent-text);
 }
 
 .docs-home-page,
@@ -211,7 +217,7 @@ pre,
 
 .docs-tagline {
   margin: 0 0 2rem;
-  color: #ef233c;
+  color: var(--sysc-accent-text);
   font-family: 'Fira Code', ui-monospace, monospace;
   font-size: clamp(0.65rem, 1.4vw, 0.8rem);
   font-weight: 500;
@@ -270,7 +276,7 @@ pre,
 .docs-home-actions a:hover,
 .docs-home-actions a:focus-visible {
   background: #2b2d42;
-  color: #ef233c;
+  color: var(--sysc-accent-text);
 }
 
 .docs-home-actions a:focus-visible {
@@ -341,7 +347,7 @@ pre,
 
 .docs-hint-strip a:hover,
 .docs-hint-strip a:focus-visible {
-  color: #ef233c;
+  color: var(--sysc-accent-text);
 }
 
 .root-redirect {
@@ -350,7 +356,7 @@ pre,
 }
 
 .root-redirect a {
-  color: #ef233c;
+  color: var(--sysc-accent-text);
 }
 
 @media (max-width: 767px) {
