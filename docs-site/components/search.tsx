@@ -15,6 +15,8 @@ import { oramaStaticClient } from 'fumadocs-core/search/client/orama-static';
 import { create } from '@orama/orama';
 import { useI18n } from 'fumadocs-ui/contexts/i18n';
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+
 function initOrama() {
   return create({
     schema: { _: 'string' },
@@ -29,6 +31,7 @@ export default function DefaultSearchDialog(props: SharedProps) {
     client: oramaStaticClient({
       initOrama,
       locale,
+      from: `${basePath}/api/search`,
     }),
   });
 
