@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -81,6 +82,63 @@ func ChangeWallpaper(path string) error {
 	}
 
 	return nil
+}
+
+// CHANGED 2026-07-20 - Retry IPC with backoff - Problem: at boot the socket file appears before the
+// gSlapper IPC server accepts commands, so the first ChangeWallpaper always failed and every boot fell
+// through to the pkill+restart path (issue #83). Failed dials on a dead socket return immediately, so
+// retrying is cheap; on a live server the first attempt succeeds and adds no latency.
+// ChangeWallpaperWithRetry retries ChangeWallpaper with exponential backoff.
+func ChangeWallpaperWithRetry(path string) error {
+	var err error
+	delay := 100 * time.Millisecond
+	for i := 0; i < 5; i++ {
+		if err = ChangeWallpaper(path); err == nil {
+			return nil
+		}
+		time.Sleep(delay)
+		delay *= 2
+	}
+	return err
+}
+
+// Quit asks the greeter's gSlapper instance to exit cleanly via IPC
+func Quit() error {
+	if !IsGSlapperRunning() {
+		return fmt.Errorf("gSlapper is not running")
+	}
+
+	resp, err := SendCommand("quit")
+	if err != nil {
+		return err
+	}
+
+	if !isOKResponse(resp) {
+		return fmt.Errorf("gSlapper error: %s", resp)
+	}
+
+	return nil
+}
+
+// CHANGED 2026-07-20 - Stop via IPC quit, pkill scoped to our socket as last resort - Problem:
+// "pkill -f gslapper" SIGTERMs every gSlapper on the machine, including user-session instances,
+// and the blunt kill path is what produced orphaned greeter processes and shutdown crashes
+// (issue #83). The quit command shuts down exactly the instance holding our socket.
+// StopInstance stops the greeter's gSlapper instance, preferring a clean IPC quit.
+func StopInstance() {
+	if err := Quit(); err == nil {
+		// Wait briefly for the process to exit and remove its socket
+		for i := 0; i < 10; i++ {
+			if !IsGSlapperRunning() {
+				return
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
+
+	// Last resort: match only processes whose command line references our socket
+	exec.Command("pkill", "-f", "gslapper.*"+GSlapperSocket).Run()
+	time.Sleep(100 * time.Millisecond) // brief pause for process cleanup
 }
 
 // PauseVideo pauses video playback

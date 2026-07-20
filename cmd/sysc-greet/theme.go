@@ -260,21 +260,25 @@ func setThemeWallpaper(themeName string, testMode bool) {
 		}
 
 		// Try gSlapper IPC
+		// CHANGED 2026-07-20 - Retry with backoff and log the error - Problem: the socket file
+		// appears before the IPC server accepts commands, so a single attempt always failed at
+		// boot, and the discarded error made the failure mode invisible (issue #83)
 		if wallpaper.IsGSlapperRunning() {
-			if err := wallpaper.ChangeWallpaper(wallpaperPath); err == nil {
+			if err := wallpaper.ChangeWallpaperWithRetry(wallpaperPath); err == nil {
 				logDebug("Wallpaper set via gSlapper IPC: %s", wallpaperPath)
 				return // Success via IPC
+			} else {
+				logDebug("gSlapper IPC failed after retries (%v), falling through to restart", err)
 			}
-			logDebug("gSlapper IPC failed, falling through to restart")
 		} else {
 			logDebug("gSlapper not running after waiting 5s")
 		}
 
 		// Check if gSlapper is available
 		if _, err := exec.LookPath("gslapper"); err == nil {
-			// Kill any existing gSlapper process and restart with wallpaper
-			exec.Command("pkill", "-f", "gslapper").Run()
-			time.Sleep(100 * time.Millisecond) // Brief pause for process cleanup
+			// CHANGED 2026-07-20 - Targeted stop instead of pkill -f gslapper - Problem: the blunt
+			// pkill SIGTERMed every gSlapper including user-session instances (issue #83)
+			wallpaper.StopInstance()
 
 			// Start gSlapper with wallpaper and IPC socket
 			// Use -f to fork so the greeter doesn't wait for gslapper
