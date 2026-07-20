@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -24,7 +25,7 @@ func requireLiveEnv(t *testing.T) (gslapperPath string) {
 	}
 	runtimeDir := os.Getenv("XDG_RUNTIME_DIR")
 	if runtimeDir == "" {
-		runtimeDir = "/run/user/" + os.Getenv("UID")
+		runtimeDir = "/run/user/" + strconv.Itoa(os.Getuid())
 	}
 	display := os.Getenv("WAYLAND_DISPLAY")
 	if display == "" {

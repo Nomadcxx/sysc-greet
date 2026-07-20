@@ -96,8 +96,10 @@ func ChangeWallpaperWithRetry(path string) error {
 		if err = ChangeWallpaper(path); err == nil {
 			return nil
 		}
-		time.Sleep(delay)
-		delay *= 2
+		if i < 4 { // no point sleeping after the final attempt
+			time.Sleep(delay)
+			delay *= 2
+		}
 	}
 	return err
 }
