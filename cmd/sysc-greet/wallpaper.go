@@ -53,10 +53,12 @@ func (m model) navigateToWallpaperSubmenu() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// stopGslapper kills any running gslapper process
+// stopGslapper stops the greeter's gslapper instance
+// CHANGED 2026-07-20 - IPC quit with socket-scoped pkill fallback - Problem: pkill -f gslapper
+// killed user-session instances too and skipped clean shutdown (issue #83)
 func stopGslapper() {
 	go func() {
-		exec.Command("pkill", "-f", "gslapper").Run()
+		wallpaper.StopInstance()
 	}()
 }
 
@@ -84,14 +86,17 @@ func launchGslapperWallpaper(wallpaperFilename string) {
 
 	go func() {
 		// Try IPC first (preferred - no flicker)
+		// CHANGED 2026-07-20 - Retry IPC, stop via quit with scoped pkill fallback - Problem:
+		// single-attempt IPC raced server startup and pkill -f gslapper killed user-session
+		// instances (issue #83)
 		if wallpaper.IsGSlapperRunning() {
-			if err := wallpaper.ChangeWallpaper(wallpaperPath); err == nil {
+			if err := wallpaper.ChangeWallpaperWithRetry(wallpaperPath); err == nil {
 				return // Success via IPC
 			}
 		}
 
-		// Fallback: kill and restart gslapper with IPC socket
-		exec.Command("pkill", "-f", "gslapper").Run()
+		// Fallback: stop our instance and restart gslapper with IPC socket
+		wallpaper.StopInstance()
 
 		// Determine if video or static image
 		ext := strings.ToLower(filepath.Ext(wallpaperFilename))
@@ -182,14 +187,17 @@ func launchAssetVideo(filename string) {
 
 	go func() {
 		// Try IPC first (preferred - no flicker)
+		// CHANGED 2026-07-20 - Retry IPC, stop via quit with scoped pkill fallback - Problem:
+		// single-attempt IPC raced server startup and pkill -f gslapper killed user-session
+		// instances (issue #83)
 		if wallpaper.IsGSlapperRunning() {
-			if err := wallpaper.ChangeWallpaper(assetPath); err == nil {
+			if err := wallpaper.ChangeWallpaperWithRetry(assetPath); err == nil {
 				return // Success via IPC
 			}
 		}
 
-		// Fallback: kill and restart gslapper with IPC socket
-		exec.Command("pkill", "-f", "gslapper").Run()
+		// Fallback: stop our instance and restart gslapper with IPC socket
+		wallpaper.StopInstance()
 
 		// Start new gslapper with asset video and IPC socket
 		// Use -f to fork, -s for auto-stop when hidden, -o loop to loop the video
