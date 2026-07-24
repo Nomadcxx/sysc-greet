@@ -140,3 +140,8 @@ For detailed docs, configuration guides, troubleshooting, and usage instructions
 ## License
 
 GPL-3.0
+
+---
+
+Built by [RAMA](https://github.com/Nomadcxx) — terminal-native tooling for the linux desktop.
+[More projects →](https://github.com/Nomadcxx) · [Sponsor ♥](https://github.com/sponsors/Nomadcxx)
