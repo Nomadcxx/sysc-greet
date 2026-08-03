@@ -6,6 +6,8 @@ The sysc-greet project now offers Cagebreak as a greeter compositor. Production 
 
 Cagebreak 3.2.1 creates four layer-shell scene trees for each output under the root scene. Cagebreak configures each layer surface with output-local coordinates beginning at `(0,0)`, but it leaves every output's layer trees at the root scene origin. Wallpaper surfaces for secondary outputs therefore overlap at `(0,0)`, beneath the greeter window, while those outputs show Cagebreak's solid background.
 
+The same path is present in Cagebreak 3.1.0 with wlroots 0.19.2 and in 3.2.1 with wlroots 0.20.1. Cagebreak 2.3.1 and 2.4.0 predate the layer-shell implementation. The version boundary points to Cagebreak's scene integration rather than a wlroots 0.20 regression.
+
 ## Upstream Coordination
 
 Open a Cagebreak issue before publishing a pull request, as requested by the project's contribution guide. The issue will identify us as sysc-greet maintainers, describe the Cagebreak greeter integration that exposed the bug, provide the production evidence and code trace, and offer a patch against Cagebreak's `development` branch.
