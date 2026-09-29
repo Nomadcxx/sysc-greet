@@ -19,11 +19,12 @@ input {
     }
 
     mouse {
+        off
         // natural-scroll;
     }
 
     touchpad {
-        tap;
+        off
         // natural-scroll;
     }
 }
@@ -35,10 +36,10 @@ gestures {
 }
 
 // Uncomment to hide cursor
-// cursor {
-//     hide-when-typing
-//     hide-after-inactive-ms 1000
-// }
+cursor {
+    hide-when-typing
+    hide-after-inactive-ms 0
+}
 
 layer-rule {
     match namespace="^wallpaper$"
