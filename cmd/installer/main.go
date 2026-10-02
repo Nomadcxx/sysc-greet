@@ -226,11 +226,52 @@ type model struct {
 	needsGreetd        bool
 	uninstallMode      bool
 	selectedOption     int      // 0 = Install, 1 = Uninstall
-	selectedCompositor string   // "niri", "cagebreak", "sway", or "hyprland"
-	compositorIndex    int      // Current selection in compositor menu
+	selectedCompositor string   // a greeterCompositors name, or "hyprland" via SYSC_COMPOSITOR only
+	compositorIndex    int      // Current selection in compositor menu; -1 = SYSC_COMPOSITOR=hyprland
 	debugMode          bool     // Show verbose output
 	logFile            *os.File // Installer log file
 	beams              *BeamsTextEffect
+}
+
+// greeterCompositor is one row of the compositor picker
+type greeterCompositor struct {
+	name        string
+	label       string
+	binaries    []string
+	installable bool // installCompositor can install it when missing
+}
+
+// greeterCompositors is the picker. Hyprland is deliberately absent: it is
+// deprecated and only reachable through SYSC_COMPOSITOR=hyprland.
+var greeterCompositors = []greeterCompositor{
+	{name: "niri", label: "Tiling compositor with scrollable workspaces (default)", binaries: []string{"niri"}},
+	{name: "cagebreak", label: "Minimal tiling kiosk; replaces Hyprland for the greeter", binaries: []string{"cagebreak"}, installable: true},
+	{name: "sway", label: "Stable i3-compatible tiling compositor", binaries: []string{"sway"}},
+	{name: "mango", label: "dwl-based tiling compositor (Arch only)", binaries: []string{"mango"}, installable: true},
+}
+
+const mangoArchOnly = "mango greeter support is Arch-only until distro packages exist — use niri, cagebreak, or sway"
+
+// compositorBinaries returns the executables that indicate name is installed
+func compositorBinaries(name string) []string {
+	if name == "hyprland" {
+		return []string{"Hyprland", "hyprland"}
+	}
+	for _, c := range greeterCompositors {
+		if c.name == name {
+			return c.binaries
+		}
+	}
+	return nil
+}
+
+func compositorInstalled(name string) bool {
+	for _, bin := range compositorBinaries(name) {
+		if _, err := exec.LookPath(bin); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 type taskCompleteMsg struct {
@@ -298,9 +339,21 @@ func newModel(debugMode bool, logFile *os.File) model {
 	detectPackageManager(&m)
 
 	// Check for pre-selected compositor from environment variable
+	// Preselect its picker row so Enter confirms it rather than resetting to niri
 	if comp := os.Getenv("SYSC_COMPOSITOR"); comp != "" {
-		m.selectedCompositor = comp
-		m.step = stepCompositorSelect // Will skip to installing after compositor validation
+		m.step = stepCompositorSelect
+		m.compositorIndex = -1
+		for i, c := range greeterCompositors {
+			if c.name == comp {
+				m.compositorIndex = i
+			}
+		}
+		if comp == "hyprland" {
+			m.selectedCompositor = comp
+		} else if m.compositorIndex == -1 {
+			m.compositorIndex = 0
+			m.errors = append(m.errors, fmt.Sprintf("SYSC_COMPOSITOR=%s is not a supported greeter compositor", comp))
+		}
 	}
 
 	return m
@@ -343,7 +396,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "down", "j":
 			if m.step == stepWelcome && m.selectedOption < 1 {
 				m.selectedOption++
-			} else if m.step == stepCompositorSelect && m.compositorIndex < 3 {
+			} else if m.step == stepCompositorSelect && m.compositorIndex < len(greeterCompositors)-1 {
 				m.compositorIndex++
 			}
 		case "enter":
@@ -375,35 +428,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 			} else if m.step == stepCompositorSelect {
-				// Set compositor based on selection
-				compositors := []string{"niri", "cagebreak", "sway", "hyprland"}
-				m.selectedCompositor = compositors[m.compositorIndex]
-
-				// Validate compositor is installed
-				compositorBinaries := map[string][]string{
-					"niri":      {"niri"},
-					"hyprland":  {"Hyprland", "hyprland"},
-					"sway":      {"sway"},
-					"cagebreak": {"cagebreak"},
+				// Index -1 keeps SYSC_COMPOSITOR=hyprland, which has no picker row
+				installable := false
+				if m.compositorIndex >= 0 {
+					c := greeterCompositors[m.compositorIndex]
+					m.selectedCompositor = c.name
+					installable = c.installable
 				}
 
-				compositorInstalled := false
-				if binaries, ok := compositorBinaries[m.selectedCompositor]; ok {
-					for _, bin := range binaries {
-						if _, err := exec.LookPath(bin); err == nil {
-							compositorInstalled = true
-							break
-						}
+				// Installable compositors are installed by installCompositor;
+				// everything else must be present up front
+				if !compositorInstalled(m.selectedCompositor) {
+					if m.selectedCompositor == "mango" && m.packageManager != "pacman" {
+						m.errors = append(m.errors, mangoArchOnly)
+						return m, nil
 					}
-				}
-
-				// cagebreak is installable by the installer itself (repo/AUR on
-				// Arch, release artifact or source build elsewhere); everything
-				// else must be present up front
-				if !compositorInstalled && m.selectedCompositor != "cagebreak" {
-					m.errors = append(m.errors, fmt.Sprintf("%s is not installed - please install it first", m.selectedCompositor))
-					// Stay on compositor selection screen
-					return m, nil
+					if !installable {
+						m.errors = append(m.errors, fmt.Sprintf("%s is not installed - please install it first", m.selectedCompositor))
+						// Stay on compositor selection screen
+						return m, nil
+					}
 				}
 
 				// Start installation
@@ -566,29 +610,19 @@ func (m model) renderCompositorSelect() string {
 
 	b.WriteString("Select Wayland compositor:\n\n")
 
-	compositors := []struct {
-		name string
-		desc string
-	}{
-		{"niri", "Tiling compositor with scrollable workspaces (default)"},
-		{"cagebreak", "Minimal tiling kiosk; replaces hyprland for the greeter"},
-		{"sway", "Stable i3-compatible tiling compositor"},
-		{"hyprland", "Deprecated and unmaintained; migrate to cagebreak"},
-	}
-
-	for i, comp := range compositors {
+	for i, comp := range greeterCompositors {
 		prefix := "  "
 		if i == m.compositorIndex {
 			prefix = lipgloss.NewStyle().Foreground(Primary).Render("▸ ")
 		}
 		b.WriteString(prefix + comp.name + "\n")
-		b.WriteString("    " + comp.desc + "\n\n")
+		b.WriteString("    " + comp.label + "\n\n")
 	}
 
-	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Hyprland greeter support is deprecated; cagebreak replaces it"))
-	if m.compositorIndex == 3 {
+	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Hyprland greeter support was removed from this installer; use cagebreak or niri"))
+	if m.compositorIndex == -1 {
 		b.WriteString("\n")
-		b.WriteString(lipgloss.NewStyle().Foreground(ErrorColor).Render("⚠ Hyprland is unmaintained and will be removed in a future release. Use cagebreak or niri instead."))
+		b.WriteString(lipgloss.NewStyle().Foreground(ErrorColor).Render("⚠ SYSC_COMPOSITOR=hyprland: Hyprland is unmaintained and will be removed in a future release. Enter continues anyway; ↓ picks another compositor."))
 	}
 
 	// Show errors if any
@@ -1228,6 +1262,23 @@ func buildCagebreakFromSource(m *model) error {
 	return nil
 }
 
+// installMango installs mangowm (mango + mmsg) from Arch extra. The greeter
+// session script quits mango with mmsg, so both binaries are required.
+func installMango(m *model) error {
+	if !compositorInstalled("mango") {
+		if m.packageManager != "pacman" {
+			return fmt.Errorf("%s", mangoArchOnly)
+		}
+		if err := exec.Command("pacman", "-S", "--noconfirm", "mangowm").Run(); err != nil {
+			return fmt.Errorf("failed to install mangowm - install it manually: pacman -S mangowm")
+		}
+	}
+	if _, err := exec.LookPath("mmsg"); err != nil {
+		return fmt.Errorf("mmsg not found - the greeter cannot quit mango after login (reinstall mangowm)")
+	}
+	return nil
+}
+
 func installCompositor(m *model) error {
 	// The cagebreak greeter config quits the compositor via socat, even when
 	// cagebreak itself is already installed
@@ -1237,21 +1288,12 @@ func installCompositor(m *model) error {
 		}
 	}
 
-	// Map compositor selection to binary names
-	compositorBinaries := map[string][]string{
-		"niri":      {"niri"},
-		"hyprland":  {"Hyprland", "hyprland"},
-		"sway":      {"sway"},
-		"cagebreak": {"cagebreak"},
+	if m.selectedCompositor == "mango" {
+		return installMango(m)
 	}
 
-	// Check if compositor already installed
-	if binaries, ok := compositorBinaries[m.selectedCompositor]; ok {
-		for _, bin := range binaries {
-			if _, err := exec.LookPath(bin); err == nil {
-				return nil // Already installed
-			}
-		}
+	if compositorInstalled(m.selectedCompositor) {
+		return nil
 	}
 
 	if m.packageManager == "" {
@@ -1935,6 +1977,20 @@ exec cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/gr
 		configPath = "/etc/greetd/cagebreak-greeter-config"
 		greetdCommand = "cagebreak -e -c /etc/greetd/cagebreak-greeter-config"
 
+	case "mango":
+		// Installed from the repo checkout (cwd, as in installConfigs) so
+		// config/ stays the only copy of the greeter config and session script
+		data, err := os.ReadFile("config/mango-greeter-config.conf")
+		if err != nil {
+			return fmt.Errorf("mango greeter config missing: %v", err)
+		}
+		compositorConfig = string(data)
+		if err := exec.Command("install", "-Dm755", "config/mango-greeter-session.sh", "/etc/greetd/mango-greeter-session.sh").Run(); err != nil {
+			return fmt.Errorf("mango greeter session script install failed")
+		}
+		configPath = "/etc/greetd/mango-greeter-config.conf"
+		greetdCommand = "mango -c /etc/greetd/mango-greeter-config.conf -s /etc/greetd/mango-greeter-session.sh"
+
 	default:
 		return fmt.Errorf("unknown compositor: %s", m.selectedCompositor)
 	}
@@ -2026,6 +2082,8 @@ func removeConfigs(m *model) error {
 		"/etc/greetd/hyprland-greeter-config.conf",
 		"/etc/greetd/sway-greeter-config",
 		"/etc/greetd/cagebreak-greeter-config",
+		"/etc/greetd/mango-greeter-config.conf",
+		"/etc/greetd/mango-greeter-session.sh",
 	}
 
 	for _, path := range paths {
