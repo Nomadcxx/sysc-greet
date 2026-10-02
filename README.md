@@ -8,23 +8,8 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 
 - [Full Documentation](https://nomadcxx.github.io/sysc-greet/) - Complete guides, configuration, and usage instructions
 
-## Hyprland Deprecation
-
-Hyprland greeter support is deprecated. Hyprland config and launcher changes break the greeter too often to maintain, so the Hyprland path receives no fixes and will be removed in a future release.
-
-Supported greeter compositors: niri (default), cagebreak (the Hyprland replacement), and sway. Mango (mangowm) greeter support is in active development for Arch.
-
-To move an existing Hyprland greeter to cagebreak:
-
-```bash
-# AUR
-yay -S sysc-greet-cagebreak
-
-# Installer
-curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo SYSC_COMPOSITOR=cagebreak bash
-```
-
-Your Hyprland desktop session is unaffected; only the boot greeter changes.
+> [!WARNING]
+> Hyprland greeter support is deprecated. Supported: niri (default), cagebreak, and sway. Mango (mangowm) support is on the way.
 
 ## Installation
 
