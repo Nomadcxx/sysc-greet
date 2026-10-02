@@ -293,6 +293,7 @@ func newModel(debugMode bool, logFile *os.File) model {
 
 	tasks := []installTask{
 		{name: "Check privileges", description: "Checking root access", execute: checkPrivileges, status: statusPending},
+		{name: "Check packages", description: "Checking for a distro-managed sysc-greet", execute: checkNoDistroPackage, status: statusPending},
 		{name: "Check dependencies", description: "Checking system dependencies", execute: checkDependencies, status: statusPending},
 		{name: "Install greetd", description: "Installing greetd daemon", execute: installGreetd, optional: false, status: statusPending},
 		{name: "Install kitty", description: "Installing kitty terminal", execute: installKitty, optional: false, status: statusPending},
@@ -408,6 +409,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.uninstallMode {
 					m.tasks = []installTask{
 						{name: "Check privileges", description: "Checking root access", execute: checkPrivileges, status: statusPending},
+						{name: "Check packages", description: "Checking for a distro-managed sysc-greet", execute: checkNoDistroPackage, status: statusPending},
 						{name: "Disable service", description: "Disabling greetd service", execute: disableService, status: statusPending},
 						{name: "Remove binary", description: "Removing sysc-greet binary", execute: removeBinary, status: statusPending},
 						{name: "Remove gslapper", description: "Removing wallpaper daemon", execute: uninstallGslapper, optional: true, status: statusPending},
@@ -761,9 +763,19 @@ func executeTask(index int, m *model) tea.Cmd {
 		// Simulate work delay for visibility
 		time.Sleep(200 * time.Millisecond)
 
+		if index == 0 {
+			mode := "install"
+			if m.uninstallMode {
+				mode = "uninstall"
+			}
+			m.logf("Mode: %s, compositor: %s, package manager: %s", mode, m.selectedCompositor, m.packageManager)
+		}
+		m.logf("[%s] Started", m.tasks[index].name)
+
 		err := m.tasks[index].execute(m) // Pass pointer so model changes persist
 
 		if err != nil {
+			m.logf("[%s] Failed: %v", m.tasks[index].name, err)
 			if m.debugMode {
 				fmt.Fprintf(os.Stderr, "\n[DEBUG] Task '%s' failed: %v\n", m.tasks[index].name, err)
 			}
@@ -774,11 +786,21 @@ func executeTask(index int, m *model) tea.Cmd {
 			}
 		}
 
+		m.logf("[%s] Done", m.tasks[index].name)
 		return taskCompleteMsg{
 			index:   index,
 			success: true,
 		}
 	}
+}
+
+// logf writes a timestamped line to the installer log
+func (m *model) logf(format string, args ...any) {
+	if m.logFile == nil {
+		return
+	}
+	fmt.Fprintf(m.logFile, "[%s] %s\n", time.Now().Format("15:04:05"), fmt.Sprintf(format, args...))
+	m.logFile.Sync()
 }
 
 // updateSubTaskStatus updates the status of a sub-task for the current task
@@ -833,6 +855,42 @@ func checkPrivileges(m *model) error {
 		return fmt.Errorf("root privileges required - run with sudo")
 	}
 	return nil
+}
+
+// checkNoDistroPackage stops before any file is touched when a distro package
+// (AUR variant or release .deb/.rpm) owns sysc-greet. Installing or
+// uninstalling over it leaves the package database pointing at overwritten or
+// deleted files.
+func checkNoDistroPackage(m *model) error {
+	pkg, remove := installedDistroPackage(m.packageManager)
+	if pkg == "" {
+		return nil
+	}
+	return fmt.Errorf("%s is installed as a system package; remove it first with: sudo %s", pkg, remove)
+}
+
+// installedDistroPackage returns the installed sysc-greet package and the
+// command that removes it, or "" when sysc-greet is not package-managed
+func installedDistroPackage(packageManager string) (pkg, remove string) {
+	switch packageManager {
+	case "pacman":
+		out, _ := exec.Command("pacman", "-Qq").Output()
+		for _, name := range strings.Fields(string(out)) {
+			if (name == "sysc-greet" || strings.HasPrefix(name, "sysc-greet-")) && !strings.HasSuffix(name, "-debug") {
+				return name, "pacman -R " + name
+			}
+		}
+	case "apt":
+		out, _ := exec.Command("dpkg-query", "-W", "-f=${Status}", "sysc-greet").Output()
+		if strings.Contains(string(out), "install ok installed") {
+			return "sysc-greet", "apt remove sysc-greet"
+		}
+	case "dnf", "yum", "zypper":
+		if exec.Command("rpm", "-q", "sysc-greet").Run() == nil {
+			return "sysc-greet", packageManager + " remove sysc-greet"
+		}
+	}
+	return "", ""
 }
 
 func detectPackageManager(m *model) {
@@ -1269,7 +1327,7 @@ func installMango(m *model) error {
 		if m.packageManager != "pacman" {
 			return fmt.Errorf("%s", mangoArchOnly)
 		}
-		if err := exec.Command("pacman", "-S", "--noconfirm", "mangowm").Run(); err != nil {
+		if err := runCommand("Install mangowm", exec.Command("pacman", "-S", "--noconfirm", "mangowm"), m); err != nil {
 			return fmt.Errorf("failed to install mangowm - install it manually: pacman -S mangowm")
 		}
 	}
@@ -1675,11 +1733,34 @@ func buildGslapperFromSource(m *model) error {
 }
 
 func buildBinary(m *model) error {
-	cmd := exec.Command("go", "build", "-buildvcs=false", "-o", "sysc-greet", "./cmd/sysc-greet/")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("build failed")
+	cmd := exec.Command("go", "build", "-buildvcs=false", "-ldflags", versionLDFlags(), "-o", "sysc-greet", "./cmd/sysc-greet/")
+	if err := runCommand("Build binary", cmd, m); err != nil {
+		return fmt.Errorf("build failed - see /tmp/sysc-greet-installer.log")
 	}
 	return nil
+}
+
+// versionLDFlags stamps the binary the same way the Makefile does. The
+// installer runs as root on a user-owned checkout, so git needs
+// safe.directory or it refuses to read the repo.
+func versionLDFlags() string {
+	git := func(args ...string) string {
+		out, err := exec.Command("git", append([]string{"-c", "safe.directory=*"}, args...)...).Output()
+		if err != nil {
+			return ""
+		}
+		return strings.TrimSpace(string(out))
+	}
+	version := git("describe", "--tags", "--always", "--dirty")
+	if version == "" {
+		version = "dev"
+	}
+	commit := git("rev-parse", "--short", "HEAD")
+	if commit == "" {
+		commit = "unknown"
+	}
+	date := time.Now().UTC().Format("2006-01-02 15:04:05 UTC")
+	return fmt.Sprintf("-X 'main.Version=%s' -X 'main.GitCommit=%s' -X 'main.BuildDate=%s'", version, commit, date)
 }
 
 func installBinary(m *model) error {
@@ -2013,6 +2094,14 @@ command = "%s"
 user = "greeter"
 `, greetdCommand, greetdCommand)
 
+	// Keep the previous config when it differs, as the AUR .install scripts do
+	if old, err := os.ReadFile("/etc/greetd/config.toml"); err == nil && string(old) != greetdConfig {
+		if err := os.WriteFile("/etc/greetd/config.toml.bak", old, 0644); err != nil {
+			return fmt.Errorf("greetd config backup failed")
+		}
+		m.logf("Backed up /etc/greetd/config.toml to /etc/greetd/config.toml.bak")
+	}
+
 	if err := os.WriteFile("/etc/greetd/config.toml", []byte(greetdConfig), 0644); err != nil {
 		return fmt.Errorf("greetd config write failed")
 	}
@@ -2152,8 +2241,8 @@ func main() {
 		}
 	}
 
-	// Create log file
-	logFile, err := os.Create("/tmp/sysc-greet-installer.log")
+	// Append so consecutive runs (e.g. uninstall then install) keep their logs
+	logFile, err := os.OpenFile("/tmp/sysc-greet-installer.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Printf("Warning: Could not create log file: %v\n", err)
 		logFile = nil
@@ -2161,7 +2250,7 @@ func main() {
 	if logFile != nil {
 		defer logFile.Close()
 		// Write startup info
-		logFile.WriteString(fmt.Sprintf("=== sysc-greet Installer Log ===\n"))
+		logFile.WriteString(fmt.Sprintf("\n=== sysc-greet Installer Log ===\n"))
 		logFile.WriteString(fmt.Sprintf("Started: %s\n", time.Now().Format("2006-01-02 15:04:05")))
 		logFile.WriteString(fmt.Sprintf("Debug Mode: %v\n\n", debugMode))
 	}
