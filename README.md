@@ -9,7 +9,7 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 - [Full Documentation](https://nomadcxx.github.io/sysc-greet/) - Complete guides, configuration, and usage instructions
 
 > [!WARNING]
-> Hyprland greeter support is deprecated. Supported: niri (default), cagebreak, and sway. Mango (mangowm) support is on the way.
+> Hyprland greeter support is deprecated. Supported: niri (default), cagebreak, sway, and mango.
 
 ## Installation
 
@@ -49,6 +49,9 @@ yay -S sysc-greet-cagebreak
 # Sway variant
 yay -S sysc-greet-sway
 
+# Mango variant
+yay -S sysc-greet-mango
+
 # Hyprland variant (deprecated, replaced by cagebreak)
 yay -S sysc-greet-hyprland
 ```
@@ -87,7 +90,7 @@ If you're on NixOS, add sysc-greet to your flake:
 {
   services.sysc-greet = {
     enable = true;
-    compositor = "niri";  # or "cagebreak", "sway", "hyprland" (deprecated)
+    compositor = "niri";  # or "cagebreak", "sway", "mango", "hyprland" (deprecated)
   };
 
   # Optional: Set initial session for auto-login
@@ -98,9 +101,10 @@ If you're on NixOS, add sysc-greet to your flake:
 }
 ```
 
-By default, the NixOS module does not install `niri`, `cagebreak`, `hyprland`, or `sway`.
+By default, the NixOS module does not install `niri`, `cagebreak`, `hyprland`, `sway`, or `mango`.
 Install your chosen backend yourself, or set `niriPackage`, `cagebreakPackage`, `hyprlandPackage`,
-or `swayPackage` if you want the module to install and use a specific package.
+`swayPackage`, or `mangoPackage` if you want the module to install and use a specific package.
+Mango is not in nixpkgs; `mangoPackage` must come from your own flake.
 If your compositor is managed elsewhere, set `compositorCommand` to the exact
 command greetd should run.
 

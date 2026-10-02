@@ -226,11 +226,57 @@ type model struct {
 	needsGreetd        bool
 	uninstallMode      bool
 	selectedOption     int      // 0 = Install, 1 = Uninstall
-	selectedCompositor string   // "niri", "cagebreak", "sway", or "hyprland"
-	compositorIndex    int      // Current selection in compositor menu
+	selectedCompositor string   // a greeterCompositors name, or "hyprland" via SYSC_COMPOSITOR only
+	compositorIndex    int      // Current selection in compositor menu; -1 = SYSC_COMPOSITOR=hyprland
 	debugMode          bool     // Show verbose output
 	logFile            *os.File // Installer log file
 	beams              *BeamsTextEffect
+}
+
+// greeterCompositor is one row of the compositor picker
+type greeterCompositor struct {
+	name        string
+	label       string
+	binaries    []string
+	installable bool // installCompositor can install it when missing
+}
+
+// greeterCompositors is the picker. Hyprland is deliberately absent: it is
+// deprecated and only reachable through SYSC_COMPOSITOR=hyprland.
+var greeterCompositors = []greeterCompositor{
+	{name: "niri", label: "Tiling compositor with scrollable workspaces (default)", binaries: []string{"niri"}},
+	{name: "cagebreak", label: "Minimal tiling kiosk; replaces Hyprland for the greeter", binaries: []string{"cagebreak"}, installable: true},
+	{name: "sway", label: "Stable i3-compatible tiling compositor", binaries: []string{"sway"}},
+	{name: "mango", label: "dwl-based tiling compositor (Arch, Debian 13, Ubuntu 26.04, Fedora 43/44)", binaries: []string{"mango"}, installable: true},
+}
+
+const mangoUnsupported = "no mango package for this distro (Arch, Debian 13, Ubuntu 26.04, Fedora 43/44 only) — use niri, cagebreak, or sway"
+
+// mangoAvailable reports whether installMango can install mango here
+func mangoAvailable(packageManager string) bool {
+	return packageManager == "pacman" || mangoArtifact() != ""
+}
+
+// compositorBinaries returns the executables that indicate name is installed
+func compositorBinaries(name string) []string {
+	if name == "hyprland" {
+		return []string{"Hyprland", "hyprland"}
+	}
+	for _, c := range greeterCompositors {
+		if c.name == name {
+			return c.binaries
+		}
+	}
+	return nil
+}
+
+func compositorInstalled(name string) bool {
+	for _, bin := range compositorBinaries(name) {
+		if _, err := exec.LookPath(bin); err == nil {
+			return true
+		}
+	}
+	return false
 }
 
 type taskCompleteMsg struct {
@@ -252,6 +298,7 @@ func newModel(debugMode bool, logFile *os.File) model {
 
 	tasks := []installTask{
 		{name: "Check privileges", description: "Checking root access", execute: checkPrivileges, status: statusPending},
+		{name: "Check packages", description: "Checking for a distro-managed sysc-greet", execute: checkNoDistroPackage, status: statusPending},
 		{name: "Check dependencies", description: "Checking system dependencies", execute: checkDependencies, status: statusPending},
 		{name: "Install greetd", description: "Installing greetd daemon", execute: installGreetd, optional: false, status: statusPending},
 		{name: "Install kitty", description: "Installing kitty terminal", execute: installKitty, optional: false, status: statusPending},
@@ -298,9 +345,21 @@ func newModel(debugMode bool, logFile *os.File) model {
 	detectPackageManager(&m)
 
 	// Check for pre-selected compositor from environment variable
+	// Preselect its picker row so Enter confirms it rather than resetting to niri
 	if comp := os.Getenv("SYSC_COMPOSITOR"); comp != "" {
-		m.selectedCompositor = comp
-		m.step = stepCompositorSelect // Will skip to installing after compositor validation
+		m.step = stepCompositorSelect
+		m.compositorIndex = -1
+		for i, c := range greeterCompositors {
+			if c.name == comp {
+				m.compositorIndex = i
+			}
+		}
+		if comp == "hyprland" {
+			m.selectedCompositor = comp
+		} else if m.compositorIndex == -1 {
+			m.compositorIndex = 0
+			m.errors = append(m.errors, fmt.Sprintf("SYSC_COMPOSITOR=%s is not a supported greeter compositor", comp))
+		}
 	}
 
 	return m
@@ -343,7 +402,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "down", "j":
 			if m.step == stepWelcome && m.selectedOption < 1 {
 				m.selectedOption++
-			} else if m.step == stepCompositorSelect && m.compositorIndex < 3 {
+			} else if m.step == stepCompositorSelect && m.compositorIndex < len(greeterCompositors)-1 {
 				m.compositorIndex++
 			}
 		case "enter":
@@ -355,6 +414,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.uninstallMode {
 					m.tasks = []installTask{
 						{name: "Check privileges", description: "Checking root access", execute: checkPrivileges, status: statusPending},
+						{name: "Check packages", description: "Checking for a distro-managed sysc-greet", execute: checkNoDistroPackage, status: statusPending},
 						{name: "Disable service", description: "Disabling greetd service", execute: disableService, status: statusPending},
 						{name: "Remove binary", description: "Removing sysc-greet binary", execute: removeBinary, status: statusPending},
 						{name: "Remove gslapper", description: "Removing wallpaper daemon", execute: uninstallGslapper, optional: true, status: statusPending},
@@ -375,35 +435,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 			} else if m.step == stepCompositorSelect {
-				// Set compositor based on selection
-				compositors := []string{"niri", "cagebreak", "sway", "hyprland"}
-				m.selectedCompositor = compositors[m.compositorIndex]
-
-				// Validate compositor is installed
-				compositorBinaries := map[string][]string{
-					"niri":      {"niri"},
-					"hyprland":  {"Hyprland", "hyprland"},
-					"sway":      {"sway"},
-					"cagebreak": {"cagebreak"},
+				// Index -1 keeps SYSC_COMPOSITOR=hyprland, which has no picker row
+				installable := false
+				if m.compositorIndex >= 0 {
+					c := greeterCompositors[m.compositorIndex]
+					m.selectedCompositor = c.name
+					installable = c.installable
 				}
 
-				compositorInstalled := false
-				if binaries, ok := compositorBinaries[m.selectedCompositor]; ok {
-					for _, bin := range binaries {
-						if _, err := exec.LookPath(bin); err == nil {
-							compositorInstalled = true
-							break
-						}
+				// Installable compositors are installed by installCompositor;
+				// everything else must be present up front
+				if !compositorInstalled(m.selectedCompositor) {
+					if m.selectedCompositor == "mango" && !mangoAvailable(m.packageManager) {
+						m.errors = append(m.errors, mangoUnsupported)
+						return m, nil
 					}
-				}
-
-				// cagebreak is installable by the installer itself (repo/AUR on
-				// Arch, release artifact or source build elsewhere); everything
-				// else must be present up front
-				if !compositorInstalled && m.selectedCompositor != "cagebreak" {
-					m.errors = append(m.errors, fmt.Sprintf("%s is not installed - please install it first", m.selectedCompositor))
-					// Stay on compositor selection screen
-					return m, nil
+					if !installable {
+						m.errors = append(m.errors, fmt.Sprintf("%s is not installed - please install it first", m.selectedCompositor))
+						// Stay on compositor selection screen
+						return m, nil
+					}
 				}
 
 				// Start installation
@@ -566,29 +617,19 @@ func (m model) renderCompositorSelect() string {
 
 	b.WriteString("Select Wayland compositor:\n\n")
 
-	compositors := []struct {
-		name string
-		desc string
-	}{
-		{"niri", "Tiling compositor with scrollable workspaces (default)"},
-		{"cagebreak", "Minimal tiling kiosk; replaces hyprland for the greeter"},
-		{"sway", "Stable i3-compatible tiling compositor"},
-		{"hyprland", "Deprecated and unmaintained; migrate to cagebreak"},
-	}
-
-	for i, comp := range compositors {
+	for i, comp := range greeterCompositors {
 		prefix := "  "
 		if i == m.compositorIndex {
 			prefix = lipgloss.NewStyle().Foreground(Primary).Render("▸ ")
 		}
 		b.WriteString(prefix + comp.name + "\n")
-		b.WriteString("    " + comp.desc + "\n\n")
+		b.WriteString("    " + comp.label + "\n\n")
 	}
 
-	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Hyprland greeter support is deprecated; cagebreak replaces it"))
-	if m.compositorIndex == 3 {
+	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Hyprland greeter support was removed from this installer; use cagebreak or niri"))
+	if m.compositorIndex == -1 {
 		b.WriteString("\n")
-		b.WriteString(lipgloss.NewStyle().Foreground(ErrorColor).Render("⚠ Hyprland is unmaintained and will be removed in a future release. Use cagebreak or niri instead."))
+		b.WriteString(lipgloss.NewStyle().Foreground(ErrorColor).Render("⚠ SYSC_COMPOSITOR=hyprland: Hyprland is unmaintained and will be removed in a future release. Enter continues anyway; ↓ picks another compositor."))
 	}
 
 	// Show errors if any
@@ -665,7 +706,14 @@ func (m model) renderInstalling() string {
 		}
 	}
 
-	// Show errors at bottom if any
+	b.WriteString(m.renderErrors())
+
+	return b.String()
+}
+
+// renderErrors lists task errors and skipped-task warnings
+func (m model) renderErrors() string {
+	var b strings.Builder
 	if len(m.errors) > 0 {
 		b.WriteString("\n")
 		for _, err := range m.errors {
@@ -673,7 +721,6 @@ func (m model) renderInstalling() string {
 			b.WriteString("\n")
 		}
 	}
-
 	return b.String()
 }
 
@@ -687,23 +734,29 @@ func (m model) renderComplete() string {
 		}
 	}
 
+	// The task list (with its errors) is only drawn while installing, so
+	// repeat it here or a failure shows no reason
 	if hasCriticalFailure {
-		return lipgloss.NewStyle().Foreground(ErrorColor).Render(
-			"Installation failed.\nCheck errors above.\n\nPress Enter to exit")
+		failed := "Installation failed."
+		if m.uninstallMode {
+			failed = "Uninstall failed."
+		}
+		return m.renderInstalling() + "\n" + lipgloss.NewStyle().Foreground(ErrorColor).Render(
+			failed+"\nFull log: /tmp/sysc-greet-installer.log\n\nPress Enter to exit")
 	}
 
 	// Success
 	if m.uninstallMode {
 		return `Uninstall complete.
 sysc-greet has been removed.
-
+` + m.renderErrors() + `
 ` + lipgloss.NewStyle().Foreground(FgMuted).Render(">see you space cowboy") + `
 
 Press Enter to exit`
 	}
 	return `Installation complete.
 Reboot to see sysc-greet.
-
+` + m.renderErrors() + `
 ` + lipgloss.NewStyle().Foreground(FgMuted).Render(">see you space cowboy") + `
 
 Press Enter to exit`
@@ -727,9 +780,19 @@ func executeTask(index int, m *model) tea.Cmd {
 		// Simulate work delay for visibility
 		time.Sleep(200 * time.Millisecond)
 
+		if index == 0 {
+			mode := "install"
+			if m.uninstallMode {
+				mode = "uninstall"
+			}
+			m.logf("Mode: %s, compositor: %s, package manager: %s", mode, m.selectedCompositor, m.packageManager)
+		}
+		m.logf("[%s] Started", m.tasks[index].name)
+
 		err := m.tasks[index].execute(m) // Pass pointer so model changes persist
 
 		if err != nil {
+			m.logf("[%s] Failed: %v", m.tasks[index].name, err)
 			if m.debugMode {
 				fmt.Fprintf(os.Stderr, "\n[DEBUG] Task '%s' failed: %v\n", m.tasks[index].name, err)
 			}
@@ -740,11 +803,21 @@ func executeTask(index int, m *model) tea.Cmd {
 			}
 		}
 
+		m.logf("[%s] Done", m.tasks[index].name)
 		return taskCompleteMsg{
 			index:   index,
 			success: true,
 		}
 	}
+}
+
+// logf writes a timestamped line to the installer log
+func (m *model) logf(format string, args ...any) {
+	if m.logFile == nil {
+		return
+	}
+	fmt.Fprintf(m.logFile, "[%s] %s\n", time.Now().Format("15:04:05"), fmt.Sprintf(format, args...))
+	m.logFile.Sync()
 }
 
 // updateSubTaskStatus updates the status of a sub-task for the current task
@@ -799,6 +872,42 @@ func checkPrivileges(m *model) error {
 		return fmt.Errorf("root privileges required - run with sudo")
 	}
 	return nil
+}
+
+// checkNoDistroPackage stops before any file is touched when a distro package
+// (AUR variant or release .deb/.rpm) owns sysc-greet. Installing or
+// uninstalling over it leaves the package database pointing at overwritten or
+// deleted files.
+func checkNoDistroPackage(m *model) error {
+	pkg, remove := installedDistroPackage(m.packageManager)
+	if pkg == "" {
+		return nil
+	}
+	return fmt.Errorf("%s is installed as a system package; remove it first with: sudo %s", pkg, remove)
+}
+
+// installedDistroPackage returns the installed sysc-greet package and the
+// command that removes it, or "" when sysc-greet is not package-managed
+func installedDistroPackage(packageManager string) (pkg, remove string) {
+	switch packageManager {
+	case "pacman":
+		out, _ := exec.Command("pacman", "-Qq").Output()
+		for _, name := range strings.Fields(string(out)) {
+			if (name == "sysc-greet" || strings.HasPrefix(name, "sysc-greet-")) && !strings.HasSuffix(name, "-debug") {
+				return name, "pacman -R " + name
+			}
+		}
+	case "apt":
+		out, _ := exec.Command("dpkg-query", "-W", "-f=${Status}", "sysc-greet").Output()
+		if strings.Contains(string(out), "install ok installed") {
+			return "sysc-greet", "apt remove sysc-greet"
+		}
+	case "dnf", "yum", "zypper":
+		if exec.Command("rpm", "-q", "sysc-greet").Run() == nil {
+			return "sysc-greet", packageManager + " remove sysc-greet"
+		}
+	}
+	return "", ""
 }
 
 func detectPackageManager(m *model) {
@@ -1016,19 +1125,7 @@ func cagebreakArtifact() string {
 	if runtime.GOARCH != "amd64" {
 		return ""
 	}
-	data, err := os.ReadFile("/etc/os-release")
-	if err != nil {
-		return ""
-	}
-	var id, version string
-	for _, line := range strings.Split(string(data), "\n") {
-		if v := strings.TrimPrefix(line, "ID="); v != line {
-			id = strings.Trim(v, `"`)
-		}
-		if v := strings.TrimPrefix(line, "VERSION_ID="); v != line {
-			version = strings.Trim(v, `"`)
-		}
-	}
+	id, version := osRelease()
 	switch id {
 	case "ubuntu":
 		if version == "24.04" {
@@ -1048,6 +1145,64 @@ func cagebreakArtifact() string {
 		}
 	}
 	return ""
+}
+
+// mangoPackageVersion must match MANGO_VERSION in scripts/build-mango.sh
+const mangoPackageVersion = "0.17.4"
+
+// mangoArtifact returns the mangowm package attached to sysc-greet releases
+// for this distro (built by scripts/build-mango.sh in CI), or "" when none
+// exists. Arch uses extra/mangowm instead.
+func mangoArtifact() string {
+	if runtime.GOARCH != "amd64" {
+		return ""
+	}
+	id, version := osRelease()
+	switch {
+	case id == "debian" && version == "13", id == "ubuntu" && version == "26.04":
+		return fmt.Sprintf("mangowm_%s_%s%s_amd64.deb", mangoPackageVersion, id, version)
+	case id == "fedora" && (version == "43" || version == "44"):
+		return fmt.Sprintf("mangowm-%s-1.fedora%s.x86_64.rpm", mangoPackageVersion, version)
+	}
+	return ""
+}
+
+// osRelease returns ID and VERSION_ID from /etc/os-release
+func osRelease() (id, version string) {
+	data, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		return "", ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if v := strings.TrimPrefix(line, "ID="); v != line {
+			id = strings.Trim(v, `"`)
+		}
+		if v := strings.TrimPrefix(line, "VERSION_ID="); v != line {
+			version = strings.Trim(v, `"`)
+		}
+	}
+	return id, version
+}
+
+// installReleasePackage downloads a package attached to the latest
+// sysc-greet release and installs it with apt or dnf
+func installReleasePackage(m *model, artifact string) error {
+	var cmd *exec.Cmd
+	path := "/tmp/" + artifact
+	switch m.packageManager {
+	case "apt":
+		cmd = exec.Command("apt-get", "install", "-y", path)
+	case "dnf":
+		cmd = exec.Command("dnf", "install", "-y", path)
+	default:
+		return fmt.Errorf("release packages need apt or dnf, not %s", m.packageManager)
+	}
+	url := "https://github.com/Nomadcxx/sysc-greet/releases/latest/download/" + artifact
+	if err := downloadFile(url, path); err != nil {
+		return fmt.Errorf("download %s: %v", artifact, err)
+	}
+	defer os.Remove(path)
+	return runCommand("Install "+artifact, cmd, m)
 }
 
 func downloadFile(url, dest string) error {
@@ -1075,22 +1230,7 @@ func installCagebreakPrebuilt(m *model) error {
 	if artifact == "" {
 		return buildCagebreakFromSource(m)
 	}
-	path := "/tmp/" + artifact
-	url := "https://github.com/Nomadcxx/sysc-greet/releases/latest/download/" + artifact
-	if err := downloadFile(url, path); err != nil {
-		return buildCagebreakFromSource(m)
-	}
-	defer os.Remove(path)
-	var cmd *exec.Cmd
-	switch m.packageManager {
-	case "apt":
-		cmd = exec.Command("apt-get", "install", "-y", path)
-	case "dnf":
-		cmd = exec.Command("dnf", "install", "-y", path)
-	default:
-		return buildCagebreakFromSource(m)
-	}
-	if err := runCommand("Install cagebreak package", cmd, m); err != nil {
+	if err := installReleasePackage(m, artifact); err != nil {
 		return buildCagebreakFromSource(m)
 	}
 	return nil
@@ -1228,6 +1368,30 @@ func buildCagebreakFromSource(m *model) error {
 	return nil
 }
 
+// installMango installs mangowm (mango + mmsg): Arch extra, or the package
+// attached to sysc-greet releases. The greeter session script quits mango
+// with mmsg, so both binaries are required.
+func installMango(m *model) error {
+	if !compositorInstalled("mango") {
+		switch {
+		case m.packageManager == "pacman":
+			if err := runCommand("Install mangowm", exec.Command("pacman", "-S", "--noconfirm", "mangowm"), m); err != nil {
+				return fmt.Errorf("failed to install mangowm - install it manually: pacman -S mangowm")
+			}
+		case mangoArtifact() != "":
+			if err := installReleasePackage(m, mangoArtifact()); err != nil {
+				return fmt.Errorf("mangowm package install failed: %v", err)
+			}
+		default:
+			return fmt.Errorf("%s", mangoUnsupported)
+		}
+	}
+	if _, err := exec.LookPath("mmsg"); err != nil {
+		return fmt.Errorf("mmsg not found - the greeter cannot quit mango after login (reinstall mangowm)")
+	}
+	return nil
+}
+
 func installCompositor(m *model) error {
 	// The cagebreak greeter config quits the compositor via socat, even when
 	// cagebreak itself is already installed
@@ -1237,21 +1401,12 @@ func installCompositor(m *model) error {
 		}
 	}
 
-	// Map compositor selection to binary names
-	compositorBinaries := map[string][]string{
-		"niri":      {"niri"},
-		"hyprland":  {"Hyprland", "hyprland"},
-		"sway":      {"sway"},
-		"cagebreak": {"cagebreak"},
+	if m.selectedCompositor == "mango" {
+		return installMango(m)
 	}
 
-	// Check if compositor already installed
-	if binaries, ok := compositorBinaries[m.selectedCompositor]; ok {
-		for _, bin := range binaries {
-			if _, err := exec.LookPath(bin); err == nil {
-				return nil // Already installed
-			}
-		}
+	if compositorInstalled(m.selectedCompositor) {
+		return nil
 	}
 
 	if m.packageManager == "" {
@@ -1633,11 +1788,34 @@ func buildGslapperFromSource(m *model) error {
 }
 
 func buildBinary(m *model) error {
-	cmd := exec.Command("go", "build", "-buildvcs=false", "-o", "sysc-greet", "./cmd/sysc-greet/")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("build failed")
+	cmd := exec.Command("go", "build", "-buildvcs=false", "-ldflags", versionLDFlags(), "-o", "sysc-greet", "./cmd/sysc-greet/")
+	if err := runCommand("Build binary", cmd, m); err != nil {
+		return fmt.Errorf("build failed - see /tmp/sysc-greet-installer.log")
 	}
 	return nil
+}
+
+// versionLDFlags stamps the binary the same way the Makefile does. The
+// installer runs as root on a user-owned checkout, so git needs
+// safe.directory or it refuses to read the repo.
+func versionLDFlags() string {
+	git := func(args ...string) string {
+		out, err := exec.Command("git", append([]string{"-c", "safe.directory=*"}, args...)...).Output()
+		if err != nil {
+			return ""
+		}
+		return strings.TrimSpace(string(out))
+	}
+	version := git("describe", "--tags", "--always", "--dirty")
+	if version == "" {
+		version = "dev"
+	}
+	commit := git("rev-parse", "--short", "HEAD")
+	if commit == "" {
+		commit = "unknown"
+	}
+	date := time.Now().UTC().Format("2006-01-02 15:04:05 UTC")
+	return fmt.Sprintf("-X 'main.Version=%s' -X 'main.GitCommit=%s' -X 'main.BuildDate=%s'", version, commit, date)
 }
 
 func installBinary(m *model) error {
@@ -1935,6 +2113,20 @@ exec cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/gr
 		configPath = "/etc/greetd/cagebreak-greeter-config"
 		greetdCommand = "cagebreak -e -c /etc/greetd/cagebreak-greeter-config"
 
+	case "mango":
+		// Installed from the repo checkout (cwd, as in installConfigs) so
+		// config/ stays the only copy of the greeter config and session script
+		data, err := os.ReadFile("config/mango-greeter-config.conf")
+		if err != nil {
+			return fmt.Errorf("mango greeter config missing: %v", err)
+		}
+		compositorConfig = string(data)
+		if err := exec.Command("install", "-Dm755", "config/mango-greeter-session.sh", "/etc/greetd/mango-greeter-session.sh").Run(); err != nil {
+			return fmt.Errorf("mango greeter session script install failed")
+		}
+		configPath = "/etc/greetd/mango-greeter-config.conf"
+		greetdCommand = "mango -c /etc/greetd/mango-greeter-config.conf -s /etc/greetd/mango-greeter-session.sh"
+
 	default:
 		return fmt.Errorf("unknown compositor: %s", m.selectedCompositor)
 	}
@@ -1956,6 +2148,14 @@ user = "greeter"
 command = "%s"
 user = "greeter"
 `, greetdCommand, greetdCommand)
+
+	// Keep the previous config when it differs, as the AUR .install scripts do
+	if old, err := os.ReadFile("/etc/greetd/config.toml"); err == nil && string(old) != greetdConfig {
+		if err := os.WriteFile("/etc/greetd/config.toml.bak", old, 0644); err != nil {
+			return fmt.Errorf("greetd config backup failed")
+		}
+		m.logf("Backed up /etc/greetd/config.toml to /etc/greetd/config.toml.bak")
+	}
 
 	if err := os.WriteFile("/etc/greetd/config.toml", []byte(greetdConfig), 0644); err != nil {
 		return fmt.Errorf("greetd config write failed")
@@ -2026,6 +2226,8 @@ func removeConfigs(m *model) error {
 		"/etc/greetd/hyprland-greeter-config.conf",
 		"/etc/greetd/sway-greeter-config",
 		"/etc/greetd/cagebreak-greeter-config",
+		"/etc/greetd/mango-greeter-config.conf",
+		"/etc/greetd/mango-greeter-session.sh",
 	}
 
 	for _, path := range paths {
@@ -2094,8 +2296,8 @@ func main() {
 		}
 	}
 
-	// Create log file
-	logFile, err := os.Create("/tmp/sysc-greet-installer.log")
+	// Append so consecutive runs (e.g. uninstall then install) keep their logs
+	logFile, err := os.OpenFile("/tmp/sysc-greet-installer.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
 		fmt.Printf("Warning: Could not create log file: %v\n", err)
 		logFile = nil
@@ -2103,7 +2305,7 @@ func main() {
 	if logFile != nil {
 		defer logFile.Close()
 		// Write startup info
-		logFile.WriteString(fmt.Sprintf("=== sysc-greet Installer Log ===\n"))
+		logFile.WriteString(fmt.Sprintf("\n=== sysc-greet Installer Log ===\n"))
 		logFile.WriteString(fmt.Sprintf("Started: %s\n", time.Now().Format("2006-01-02 15:04:05")))
 		logFile.WriteString(fmt.Sprintf("Debug Mode: %v\n\n", debugMode))
 	}
