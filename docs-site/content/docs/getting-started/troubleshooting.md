@@ -105,6 +105,9 @@ cat /etc/greetd/cagebreak-greeter-config
 # For sway
 cat /etc/greetd/sway-greeter-config
 
+# For mango
+cat /etc/greetd/mango-greeter-config.conf
+
 # For hyprland
 cat /etc/greetd/hyprland-greeter-config.conf
 ```
@@ -172,6 +175,14 @@ cagebreak -e -c /etc/greetd/cagebreak-greeter-config
 ```
 
 **Stuck at a black screen after login (cagebreak):** verify socat is installed. Without it the compositor never quits and greetd waits forever.
+
+Check the mango greeter config (unknown keys fail the parse):
+
+```bash
+mango -c /etc/greetd/mango-greeter-config.conf -p
+```
+
+**Stuck at a black screen after login (mango):** verify `mmsg` is installed (it ships with `mangowm`) and `/etc/greetd/mango-greeter-session.sh` is executable.
 
 ### Kitty Terminal Issues
 

@@ -130,5 +130,6 @@ sysc-greet maps session names from XDG session files to config filenames:
 | IceWM | icewm.conf |
 | Qtile | qtile.conf |
 | Weston | weston.conf |
+| Mango | mango.conf |
 
 For sessions not listed, the lowercase first word of the session name is used as the config filename.

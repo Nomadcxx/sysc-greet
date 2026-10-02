@@ -39,6 +39,16 @@ input * {
 }
 ```
 
+## mango
+
+Edit `/etc/greetd/mango-greeter-config.conf`:
+
+```ini
+xkb_rules_layout=de
+```
+
+`xkb_rules_variant` and `xkb_rules_options` set the variant and options.
+
 ## hyprland
 
 Edit `/etc/greetd/hyprland-greeter-config.conf`:
@@ -75,6 +85,12 @@ exec "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB_DEFAULT_LAYOUT
 exec-once = XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB_DEFAULT_LAYOUT=fr XKB_DEFAULT_VARIANT=oss kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
 ```
 
+**mango** (`/etc/greetd/mango-greeter-session.sh`, before the `kitty` line):
+
+```sh
+export XKB_DEFAULT_LAYOUT=fr XKB_DEFAULT_VARIANT=oss
+```
+
 **cagebreak**: not affected — the XKB variables set on the greetd command (see [cagebreak](#cagebreak) above) are inherited by Kitty.
 
 Replace `fr` with your layout and `oss` with your variant (or omit `XKB_DEFAULT_VARIANT` if not needed).
@@ -103,6 +119,12 @@ exec "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB_DEFAULT_LAYOUT
 
 ```ini
 exec-once = XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB_DEFAULT_LAYOUT=us XKB_DEFAULT_VARIANT=dvorak kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
+```
+
+**mango** (`/etc/greetd/mango-greeter-session.sh`, before the `kitty` line):
+
+```sh
+export XKB_DEFAULT_LAYOUT=us XKB_DEFAULT_VARIANT=dvorak
 ```
 
 **cagebreak** (`/etc/greetd/config.toml`):

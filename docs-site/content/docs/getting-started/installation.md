@@ -14,11 +14,11 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.
 ```
 
 The interactive installer will prompt you to:
-1. Choose your greeter backend (niri default, cagebreak, sway, or hyprland deprecated)
+1. Choose your greeter backend: niri (default), cagebreak, sway, or mango (Arch only)
 2. Configure backend settings
 3. Install dependencies automatically
 
-> Hyprland greeter support is deprecated and unmaintained. Migrate to [cagebreak](../compositors/cagebreak) or [niri](../compositors/niri).
+> The installer no longer offers Hyprland, which is deprecated and unmaintained. Migrate to [cagebreak](../compositors/cagebreak) or [niri](../compositors/niri).
 
 ## Manual Build
 
@@ -26,7 +26,7 @@ The interactive installer will prompt you to:
 
 - Go 1.25+
 - greetd
-- Wayland backend: niri (default), cagebreak, sway, or hyprland (deprecated)
+- Wayland backend: niri (default), cagebreak, sway, mango (Arch only), or hyprland (deprecated)
 - kitty (terminal emulator)
 - gSlapper (wallpaper daemon)
 - swww (legacy wallpaper daemon, optional fallback)
@@ -50,7 +50,7 @@ go run ./cmd/installer/
 
 ## Arch Linux (AUR)
 
-sysc-greet provides four AUR packages, one per greeter backend:
+sysc-greet provides five AUR packages, one per greeter backend:
 
 ```bash
 # niri (default)
@@ -61,6 +61,9 @@ yay -S sysc-greet-cagebreak
 
 # Sway variant
 yay -S sysc-greet-sway
+
+# Mango variant
+yay -S sysc-greet-mango
 
 # Hyprland variant (deprecated, replaced by cagebreak)
 yay -S sysc-greet-hyprland
@@ -131,6 +134,15 @@ command = "sway -c /etc/greetd/sway-greeter-config"
 user = "greeter"
 ```
 
+**Mango (Arch only):**
+```toml
+[default_session]
+command = "mango -c /etc/greetd/mango-greeter-config.conf -s /etc/greetd/mango-greeter-session.sh"
+user = "greeter"
+```
+
+The session script starts the greeter and quits mango with `mmsg` after login. See [Mango Setup](../compositors/mango).
+
 **Hyprland (deprecated):**
 ```toml
 [default_session]
@@ -172,7 +184,7 @@ All compositor configs are installed at `/etc/greetd/`. Save the file and reboot
 {
   services.sysc-greet = {
     enable = true;
-    compositor = "niri";  # or "cagebreak", "sway", "hyprland" (deprecated)
+    compositor = "niri";  # or "cagebreak", "sway", "mango", "hyprland" (deprecated)
   };
 
   # Optional: Set initial session for auto-login
@@ -183,9 +195,10 @@ All compositor configs are installed at `/etc/greetd/`. Save the file and reboot
 }
 ```
 
-By default, the NixOS module does not install `niri`, `cagebreak`, `hyprland`, or `sway`.
+By default, the NixOS module does not install `niri`, `cagebreak`, `hyprland`, `sway`, or `mango`.
 Install your chosen backend yourself, or set `niriPackage`, `cagebreakPackage`, `hyprlandPackage`,
-or `swayPackage` if you want the module to install and use a specific package.
+`swayPackage`, or `mangoPackage` if you want the module to install and use a specific package.
+Mango is not in nixpkgs; `mangoPackage` must come from your own flake.
 If your compositor is managed elsewhere, set `compositorCommand` to the exact
 command greetd should run.
 
@@ -210,6 +223,7 @@ vt = 1
 command = "niri -c /etc/greetd/niri-greeter-config.kdl"
 # command = "cagebreak -e -c /etc/greetd/cagebreak-greeter-config"
 # command = "sway --unsupported-gpu -c /etc/greetd/sway-greeter-config"
+# command = "mango -c /etc/greetd/mango-greeter-config.conf -s /etc/greetd/mango-greeter-session.sh"
 # command = "start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
 user = "greeter"
 ```
@@ -227,6 +241,10 @@ sudo cp config/cagebreak-greeter-config /etc/greetd/
 
 # sway
 sudo cp config/sway-greeter-config /etc/greetd/
+
+# mango
+sudo cp config/mango-greeter-config.conf /etc/greetd/
+sudo install -m755 config/mango-greeter-session.sh /etc/greetd/
 
 # hyprland (deprecated)
 sudo cp config/hyprland-greeter-config.conf /etc/greetd/
