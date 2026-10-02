@@ -1,0 +1,30 @@
+# nfpm config for mangowm packages built by .github/workflows/release.yml.
+# Packages the payload from scripts/build-mango.sh — sysc-greet itself ships via nfpm.yaml.
+# MANGO_VERSION is the mango tag, not the sysc-greet version.
+# The release workflow appends runtime depends (from <payload>.depends) as list
+# items under the trailing `depends:` key, so `depends:` must stay the last key here.
+name: mangowm
+arch: amd64
+platform: linux
+version: ${MANGO_VERSION}
+release: "1"
+section: x11
+priority: optional
+maintainer: Nomadcxx <noovie@gmail.com>
+description: |
+  Mango Wayland compositor (mango + mmsg).
+  Built from https://github.com/mangowm/mango for use as the sysc-greet
+  greeter compositor. Where the distribution lacks wlroots 0.20 or scenefx 0.5,
+  those (and on Debian 13 libwayland, libdrm, pixman, xkbcommon) are bundled
+  privately in /usr/lib/sysc-greet-mango and used only by mango.
+vendor: mangowm
+homepage: https://github.com/mangowm/mango
+license: GPL-3.0
+contents:
+  - src: ./mango-payload/usr/
+    dst: /usr/
+    type: tree
+  - src: ./mango-payload/etc/mango/config.conf
+    dst: /etc/mango/config.conf
+    type: config|noreplace
+depends:
