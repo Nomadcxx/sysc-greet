@@ -35,7 +35,7 @@ gestures {
     }
 }
 
-// Uncomment to hide cursor
+// Mouse and touchpad are off; keep the cursor hidden
 cursor {
     hide-when-typing
     hide-after-inactive-ms 0
