@@ -573,7 +573,7 @@ func (m model) renderCompositorSelect() string {
 		{"niri", "Tiling compositor with scrollable workspaces (default)"},
 		{"cagebreak", "Minimal tiling kiosk; replaces hyprland for the greeter"},
 		{"sway", "Stable i3-compatible tiling compositor"},
-		{"hyprland", "Deprecated — greeter support ending in ~3 months; migrate to cagebreak"},
+		{"hyprland", "Deprecated and unmaintained; migrate to cagebreak"},
 	}
 
 	for i, comp := range compositors {
@@ -585,10 +585,10 @@ func (m model) renderCompositorSelect() string {
 		b.WriteString("    " + comp.desc + "\n\n")
 	}
 
-	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Hyprland greeter support ends in ~3 months; cagebreak replaces it"))
+	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Hyprland greeter support is deprecated; cagebreak replaces it"))
 	if m.compositorIndex == 3 {
 		b.WriteString("\n")
-		b.WriteString(lipgloss.NewStyle().Foreground(ErrorColor).Render("⚠ Hyprland will be removed from the greeter in ~3 months. Use cagebreak or niri instead."))
+		b.WriteString(lipgloss.NewStyle().Foreground(ErrorColor).Render("⚠ Hyprland is unmaintained and will be removed in a future release. Use cagebreak or niri instead."))
 	}
 
 	// Show errors if any

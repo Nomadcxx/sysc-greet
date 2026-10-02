@@ -18,7 +18,7 @@ The interactive installer will prompt you to:
 2. Configure backend settings
 3. Install dependencies automatically
 
-> Hyprland greeter support ends in ~3 months. Migrate to [cagebreak](../compositors/cagebreak) or [niri](../compositors/niri).
+> Hyprland greeter support is deprecated and unmaintained. Migrate to [cagebreak](../compositors/cagebreak) or [niri](../compositors/niri).
 
 ## Manual Build
 

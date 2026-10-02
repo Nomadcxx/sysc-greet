@@ -54,8 +54,8 @@ else
 
     if [ "$COMPOSITOR" = "hyprland" ]; then
         echo ""
-        echo "WARNING: Hyprland greeter support is deprecated and will be removed in ~3 months."
-        echo "         Migrate to cagebreak: SYSC_COMPOSITOR=cagebreak sudo ./install.sh"
+        echo "WARNING: Hyprland greeter support is deprecated, unmaintained, and will be removed in a future release."
+        echo "         Migrate to cagebreak: sudo SYSC_COMPOSITOR=cagebreak ./install.sh"
         echo "         See https://nomadcxx.github.io/sysc-greet/docs/compositors/cagebreak/"
         echo ""
     fi
