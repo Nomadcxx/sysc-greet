@@ -247,10 +247,15 @@ var greeterCompositors = []greeterCompositor{
 	{name: "niri", label: "Tiling compositor with scrollable workspaces (default)", binaries: []string{"niri"}},
 	{name: "cagebreak", label: "Minimal tiling kiosk; replaces Hyprland for the greeter", binaries: []string{"cagebreak"}, installable: true},
 	{name: "sway", label: "Stable i3-compatible tiling compositor", binaries: []string{"sway"}},
-	{name: "mango", label: "dwl-based tiling compositor (Arch only)", binaries: []string{"mango"}, installable: true},
+	{name: "mango", label: "dwl-based tiling compositor (Arch, Debian 13, Ubuntu 26.04, Fedora 43/44)", binaries: []string{"mango"}, installable: true},
 }
 
-const mangoArchOnly = "mango greeter support is Arch-only until distro packages exist — use niri, cagebreak, or sway"
+const mangoUnsupported = "no mango package for this distro (Arch, Debian 13, Ubuntu 26.04, Fedora 43/44 only) — use niri, cagebreak, or sway"
+
+// mangoAvailable reports whether installMango can install mango here
+func mangoAvailable(packageManager string) bool {
+	return packageManager == "pacman" || mangoArtifact() != ""
+}
 
 // compositorBinaries returns the executables that indicate name is installed
 func compositorBinaries(name string) []string {
@@ -441,8 +446,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Installable compositors are installed by installCompositor;
 				// everything else must be present up front
 				if !compositorInstalled(m.selectedCompositor) {
-					if m.selectedCompositor == "mango" && m.packageManager != "pacman" {
-						m.errors = append(m.errors, mangoArchOnly)
+					if m.selectedCompositor == "mango" && !mangoAvailable(m.packageManager) {
+						m.errors = append(m.errors, mangoUnsupported)
 						return m, nil
 					}
 					if !installable {
@@ -1120,19 +1125,7 @@ func cagebreakArtifact() string {
 	if runtime.GOARCH != "amd64" {
 		return ""
 	}
-	data, err := os.ReadFile("/etc/os-release")
-	if err != nil {
-		return ""
-	}
-	var id, version string
-	for _, line := range strings.Split(string(data), "\n") {
-		if v := strings.TrimPrefix(line, "ID="); v != line {
-			id = strings.Trim(v, `"`)
-		}
-		if v := strings.TrimPrefix(line, "VERSION_ID="); v != line {
-			version = strings.Trim(v, `"`)
-		}
-	}
+	id, version := osRelease()
 	switch id {
 	case "ubuntu":
 		if version == "24.04" {
@@ -1152,6 +1145,64 @@ func cagebreakArtifact() string {
 		}
 	}
 	return ""
+}
+
+// mangoPackageVersion must match MANGO_VERSION in scripts/build-mango.sh
+const mangoPackageVersion = "0.17.4"
+
+// mangoArtifact returns the mangowm package attached to sysc-greet releases
+// for this distro (built by scripts/build-mango.sh in CI), or "" when none
+// exists. Arch uses extra/mangowm instead.
+func mangoArtifact() string {
+	if runtime.GOARCH != "amd64" {
+		return ""
+	}
+	id, version := osRelease()
+	switch {
+	case id == "debian" && version == "13", id == "ubuntu" && version == "26.04":
+		return fmt.Sprintf("mangowm_%s_%s%s_amd64.deb", mangoPackageVersion, id, version)
+	case id == "fedora" && (version == "43" || version == "44"):
+		return fmt.Sprintf("mangowm-%s-1.fedora%s.x86_64.rpm", mangoPackageVersion, version)
+	}
+	return ""
+}
+
+// osRelease returns ID and VERSION_ID from /etc/os-release
+func osRelease() (id, version string) {
+	data, err := os.ReadFile("/etc/os-release")
+	if err != nil {
+		return "", ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if v := strings.TrimPrefix(line, "ID="); v != line {
+			id = strings.Trim(v, `"`)
+		}
+		if v := strings.TrimPrefix(line, "VERSION_ID="); v != line {
+			version = strings.Trim(v, `"`)
+		}
+	}
+	return id, version
+}
+
+// installReleasePackage downloads a package attached to the latest
+// sysc-greet release and installs it with apt or dnf
+func installReleasePackage(m *model, artifact string) error {
+	var cmd *exec.Cmd
+	path := "/tmp/" + artifact
+	switch m.packageManager {
+	case "apt":
+		cmd = exec.Command("apt-get", "install", "-y", path)
+	case "dnf":
+		cmd = exec.Command("dnf", "install", "-y", path)
+	default:
+		return fmt.Errorf("release packages need apt or dnf, not %s", m.packageManager)
+	}
+	url := "https://github.com/Nomadcxx/sysc-greet/releases/latest/download/" + artifact
+	if err := downloadFile(url, path); err != nil {
+		return fmt.Errorf("download %s: %v", artifact, err)
+	}
+	defer os.Remove(path)
+	return runCommand("Install "+artifact, cmd, m)
 }
 
 func downloadFile(url, dest string) error {
@@ -1179,22 +1230,7 @@ func installCagebreakPrebuilt(m *model) error {
 	if artifact == "" {
 		return buildCagebreakFromSource(m)
 	}
-	path := "/tmp/" + artifact
-	url := "https://github.com/Nomadcxx/sysc-greet/releases/latest/download/" + artifact
-	if err := downloadFile(url, path); err != nil {
-		return buildCagebreakFromSource(m)
-	}
-	defer os.Remove(path)
-	var cmd *exec.Cmd
-	switch m.packageManager {
-	case "apt":
-		cmd = exec.Command("apt-get", "install", "-y", path)
-	case "dnf":
-		cmd = exec.Command("dnf", "install", "-y", path)
-	default:
-		return buildCagebreakFromSource(m)
-	}
-	if err := runCommand("Install cagebreak package", cmd, m); err != nil {
+	if err := installReleasePackage(m, artifact); err != nil {
 		return buildCagebreakFromSource(m)
 	}
 	return nil
@@ -1332,15 +1368,22 @@ func buildCagebreakFromSource(m *model) error {
 	return nil
 }
 
-// installMango installs mangowm (mango + mmsg) from Arch extra. The greeter
-// session script quits mango with mmsg, so both binaries are required.
+// installMango installs mangowm (mango + mmsg): Arch extra, or the package
+// attached to sysc-greet releases. The greeter session script quits mango
+// with mmsg, so both binaries are required.
 func installMango(m *model) error {
 	if !compositorInstalled("mango") {
-		if m.packageManager != "pacman" {
-			return fmt.Errorf("%s", mangoArchOnly)
-		}
-		if err := runCommand("Install mangowm", exec.Command("pacman", "-S", "--noconfirm", "mangowm"), m); err != nil {
-			return fmt.Errorf("failed to install mangowm - install it manually: pacman -S mangowm")
+		switch {
+		case m.packageManager == "pacman":
+			if err := runCommand("Install mangowm", exec.Command("pacman", "-S", "--noconfirm", "mangowm"), m); err != nil {
+				return fmt.Errorf("failed to install mangowm - install it manually: pacman -S mangowm")
+			}
+		case mangoArtifact() != "":
+			if err := installReleasePackage(m, mangoArtifact()); err != nil {
+				return fmt.Errorf("mangowm package install failed: %v", err)
+			}
+		default:
+			return fmt.Errorf("%s", mangoUnsupported)
 		}
 	}
 	if _, err := exec.LookPath("mmsg"); err != nil {

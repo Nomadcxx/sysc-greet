@@ -62,6 +62,14 @@ else
   fail "installer does not reference mango"
 fi
 
+script_version=$(sed -n 's/^MANGO_VERSION=//p' "${ROOT}/scripts/build-mango.sh")
+installer_version=$(sed -n 's/^const mangoPackageVersion = "\(.*\)"/\1/p' "${ROOT}/cmd/installer/main.go")
+if [[ -n "${script_version}" && "${script_version}" == "${installer_version}" ]]; then
+  pass "installer expects the mango packages build-mango.sh builds (${script_version})"
+else
+  fail "mango version mismatch: build-mango.sh=${script_version} installer=${installer_version}"
+fi
+
 if [[ -f "${ROOT}/docs-site/content/docs/compositors/mango.md" ]]; then
   pass "mango docs present"
 else
