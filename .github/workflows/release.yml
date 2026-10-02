@@ -7,6 +7,12 @@ on:
   # Dry run: builds everything, skips release creation
   workflow_dispatch:
 
+# Releases must not be cancelled mid-flight, so superseded runs queue
+# rather than cancel.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -24,7 +30,7 @@ jobs:
 
       - name: Install nfpm
         run: |
-          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
 
       - name: Get version
         id: get_version
@@ -38,6 +44,11 @@ jobs:
           fi
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "TAG=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Vet and test
+        run: |
+          go vet -p 2 ./...
+          go test -count=1 -p 2 ./...
 
       - name: Build static binary
         run: |

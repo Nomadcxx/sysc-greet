@@ -67,7 +67,7 @@ The AUR package writes this config during install (backing up any existing `/etc
 === "Installer"
 
     ```bash
-    SYSC_COMPOSITOR=cagebreak sudo ./install.sh
+    sudo SYSC_COMPOSITOR=cagebreak ./install.sh
     ```
 
 === "Manual"
@@ -98,7 +98,7 @@ command = "env XKB_DEFAULT_LAYOUT=de XKB_DEFAULT_VARIANT=nodeadkeys cagebreak -e
 ## Migrating from Hyprland
 
 1. Install cagebreak and socat (see above)
-2. Re-run the installer: `SYSC_COMPOSITOR=cagebreak sudo ./install.sh`
+2. Re-run the installer: `sudo SYSC_COMPOSITOR=cagebreak ./install.sh`
 3. Reboot, or `sudo systemctl restart greetd` from a TTY
 
 Your Hyprland desktop session is unaffected. Only the boot greeter changes.

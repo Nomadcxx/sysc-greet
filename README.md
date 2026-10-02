@@ -8,6 +8,24 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 
 - [Full Documentation](https://nomadcxx.github.io/sysc-greet/) - Complete guides, configuration, and usage instructions
 
+## Hyprland Deprecation
+
+Hyprland greeter support is deprecated. Hyprland config and launcher changes break the greeter too often to maintain, so the Hyprland path receives no fixes and will be removed in a future release.
+
+Supported greeter compositors: niri (default), cagebreak (the Hyprland replacement), and sway. Mango (mangowm) greeter support is in active development for Arch.
+
+To move an existing Hyprland greeter to cagebreak:
+
+```bash
+# AUR
+yay -S sysc-greet-cagebreak
+
+# Installer
+curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo SYSC_COMPOSITOR=cagebreak bash
+```
+
+Your Hyprland desktop session is unaffected; only the boot greeter changes.
+
 ## Installation
 
 ### Quick Install
@@ -19,8 +37,6 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.
 ```
 
 The installer automatically detects your package manager and works on Arch Linux, Debian/Ubuntu, Fedora, and openSUSE. It'll handle greeter backend selection, install dependencies, and set everything up for you.
-
-> Hyprland greeter support ends in ~3 months. New installs should choose niri (default) or cagebreak, its replacement.
 
 ### Build from Source
 
@@ -116,18 +132,18 @@ sudo nixos-rebuild switch --flake .#your-hostname
 
 Download pre-built packages from [GitHub Releases](https://github.com/Nomadcxx/sysc-greet/releases/latest):
 
-**Latest: v1.1.9**
+**Latest: v1.1.10**
 
 **Debian/Ubuntu:**
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.9/sysc-greet_1.1.9_amd64.deb
-sudo apt install ./sysc-greet_1.1.9_amd64.deb
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.10/sysc-greet_1.1.10_amd64.deb
+sudo apt install ./sysc-greet_1.1.10_amd64.deb
 ```
 
 **Fedora:**
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.9/sysc-greet-1.1.9-1.x86_64.rpm
-sudo dnf install ./sysc-greet-1.1.9-1.x86_64.rpm
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.10/sysc-greet-1.1.10-1.x86_64.rpm
+sudo dnf install ./sysc-greet-1.1.10-1.x86_64.rpm
 ```
 
 See [Installation Guide](https://nomadcxx.github.io/sysc-greet/docs/getting-started/installation/) for details.

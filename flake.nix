@@ -19,7 +19,7 @@
       {
         packages.default = pkgs.buildGoModule rec {
           pname = "sysc-greet";
-          version = "1.1.9";
+          version = "1.1.10";
 
           src = ./.;
 

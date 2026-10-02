@@ -18,7 +18,7 @@ The interactive installer will prompt you to:
 2. Configure backend settings
 3. Install dependencies automatically
 
-> Hyprland greeter support ends in ~3 months. Migrate to [cagebreak](../compositors/cagebreak) or [niri](../compositors/niri).
+> Hyprland greeter support is deprecated and unmaintained. Migrate to [cagebreak](../compositors/cagebreak) or [niri](../compositors/niri).
 
 ## Manual Build
 
@@ -75,8 +75,8 @@ Download pre-built packages from [GitHub Releases](https://github.com/Nomadcxx/s
 ### Debian/Ubuntu (.deb)
 
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.9/sysc-greet_1.1.9_amd64.deb
-sudo apt install ./sysc-greet_1.1.9_amd64.deb
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.10/sysc-greet_1.1.10_amd64.deb
+sudo apt install ./sysc-greet_1.1.10_amd64.deb
 ```
 
 The package will:
@@ -90,8 +90,8 @@ The package will:
 ### Fedora (.rpm)
 
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.9/sysc-greet-1.1.9-1.x86_64.rpm
-sudo dnf install ./sysc-greet-1.1.9-1.x86_64.rpm
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.10/sysc-greet-1.1.10-1.x86_64.rpm
+sudo dnf install ./sysc-greet-1.1.10-1.x86_64.rpm
 ```
 
 After installation, **reboot** your system to see sysc-greet.

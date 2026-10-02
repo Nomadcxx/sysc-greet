@@ -51,7 +51,7 @@ fi
 echo
 if [[ "${FAIL}" -eq 0 ]]; then
   echo "All static checks passed."
-  echo "Manual: SYSC_COMPOSITOR=cagebreak sudo ./install.sh → systemctl restart greetd → test login"
+  echo "Manual: sudo SYSC_COMPOSITOR=cagebreak ./install.sh → systemctl restart greetd → test login"
 else
   echo "Some checks failed."
   exit 1
