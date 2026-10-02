@@ -14,7 +14,7 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.
 ```
 
 The interactive installer will prompt you to:
-1. Choose your greeter backend: niri (default), cagebreak, sway, or mango (Arch only)
+1. Choose your greeter backend: niri (default), cagebreak, sway, or mango
 2. Configure backend settings
 3. Install dependencies automatically
 
@@ -26,7 +26,7 @@ The interactive installer will prompt you to:
 
 - Go 1.25+
 - greetd
-- Wayland backend: niri (default), cagebreak, sway, mango (Arch only), or hyprland (deprecated)
+- Wayland backend: niri (default), cagebreak, sway, mango, or hyprland (deprecated)
 - kitty (terminal emulator)
 - gSlapper (wallpaper daemon)
 - swww (legacy wallpaper daemon, optional fallback)
@@ -134,7 +134,7 @@ command = "sway -c /etc/greetd/sway-greeter-config"
 user = "greeter"
 ```
 
-**Mango (Arch only):**
+**Mango:**
 ```toml
 [default_session]
 command = "mango -c /etc/greetd/mango-greeter-config.conf -s /etc/greetd/mango-greeter-session.sh"

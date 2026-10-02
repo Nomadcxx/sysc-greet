@@ -9,7 +9,7 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 - [Full Documentation](https://nomadcxx.github.io/sysc-greet/) - Complete guides, configuration, and usage instructions
 
 > [!WARNING]
-> Hyprland greeter support is deprecated. Supported: niri (default), cagebreak, sway, and mango (Arch only).
+> Hyprland greeter support is deprecated. Supported: niri (default), cagebreak, sway, and mango.
 
 ## Installation
 

@@ -7,7 +7,7 @@ priority: optional
 maintainer: Nomadcxx <noovie@gmail.com>
 description: |
   Graphical console greeter for greetd with ASCII art and themes.
-  Supports Niri, Cagebreak, Sway, and Mango (Arch only) compositors.
+  Supports Niri, Cagebreak, Sway, and Mango compositors.
 vendor: Nomadcxx
 homepage: https://github.com/Nomadcxx/sysc-greet
 license: GPL-3.0
@@ -64,7 +64,7 @@ contents:
     file_info:
       mode: 0644
 
-  # Mango greeter config + session script (mango itself is Arch-only)
+  # Mango greeter config + session script (mango itself: mangowm package)
   - src: ./config/mango-greeter-config.conf
     dst: /etc/greetd/mango-greeter-config.conf
     file_info:

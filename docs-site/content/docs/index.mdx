@@ -139,7 +139,7 @@ sudo nixos-rebuild switch --flake .#your-hostname
 **Requirements:**
 - Go 1.25+
 - greetd
-- Wayland compositor: niri (default), cagebreak, sway, mango (Arch only), or hyprland (deprecated)
+- Wayland compositor: niri (default), cagebreak, sway, mango, or hyprland (deprecated)
 - socat (cagebreak only — quits the compositor after login)
 - kitty (terminal)
 - gSlapper (wallpaper daemon)
@@ -330,12 +330,12 @@ Screensaver configuration is in `/usr/share/sysc-greet/ascii_configs/screensaver
 
 ### Compositor Setup
 
-sysc-greet runs its greeter session under niri (default), cagebreak, Sway, Mango (Arch only), or Hyprland (deprecated and unmaintained, migrate to cagebreak). This only affects the boot greeter; your desktop session is unrelated. For detailed setup instructions, see:
+sysc-greet runs its greeter session under niri (default), cagebreak, Sway, Mango, or Hyprland (deprecated and unmaintained, migrate to cagebreak). This only affects the boot greeter; your desktop session is unrelated. For detailed setup instructions, see:
 
 - [Niri Setup](compositors/niri) — default
 - [Cagebreak Setup](compositors/cagebreak) — the Hyprland replacement
 - [Sway Setup](compositors/sway)
-- [Mango Setup](compositors/mango) — Arch only
+- [Mango Setup](compositors/mango) — Arch, Debian 13, Ubuntu 26.04, Fedora 43/44
 - [Hyprland Setup](compositors/hyprland) — deprecated
 
 ## Development
