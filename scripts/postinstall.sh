@@ -40,6 +40,9 @@ elif command -v cagebreak &>/dev/null; then
 elif command -v sway &>/dev/null; then
     COMPOSITOR="sway"
     GREETD_COMMAND="sway -c /etc/greetd/sway-greeter-config"
+elif command -v mango &>/dev/null; then
+    COMPOSITOR="mango"
+    GREETD_COMMAND="mango -c /etc/greetd/mango-greeter-config.conf -s /etc/greetd/mango-greeter-session.sh"
 elif command -v Hyprland &>/dev/null || command -v hyprland &>/dev/null; then
     COMPOSITOR="hyprland"
     # Use legacy hyprland command (not start-hyprland) for compatibility
@@ -47,7 +50,7 @@ elif command -v Hyprland &>/dev/null || command -v hyprland &>/dev/null; then
 fi
 
 if [ -z "$COMPOSITOR" ]; then
-    echo "WARNING: No supported greeter backend detected (niri, cagebreak, sway, hyprland)"
+    echo "WARNING: No supported greeter backend detected (niri, cagebreak, sway, mango)"
     echo "Please install niri or cagebreak and manually configure /etc/greetd/config.toml"
 else
     echo "Detected backend: $COMPOSITOR"
