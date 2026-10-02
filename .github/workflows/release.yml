@@ -176,9 +176,72 @@ jobs:
           name: ${{ matrix.pkgfile }}
           path: ${{ matrix.pkgfile }}
 
+  # mango needs wlroots 0.20 + scenefx 0.5 and only Arch packages it. Build it
+  # per distro with scripts/build-mango.sh (system libs where the distro has
+  # them, privately bundled libs otherwise) and attach the packages to our
+  # releases for the installer. Versions are pinned in the script.
+  package-mango:
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: "fedora:44"         # wlroots 0.20 + scenefx 0.5 in repos
+            mode: system
+            distro: fedora44
+            packager: rpm
+          - image: "fedora:43"         # wlroots 0.19
+            mode: bundle
+            distro: fedora43
+            packager: rpm
+          - image: "ubuntu:26.04"      # wlroots 0.19
+            mode: bundle
+            distro: ubuntu26.04
+            packager: deb
+          - image: "debian:13"         # wlroots 0.18, libdrm/pixman/xkbcommon/wayland too old
+            mode: bundle-full
+            distro: debian13
+            packager: deb
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build mango
+        # installs build deps, checks libs resolve and the greeter config parses
+        run: ./scripts/build-mango.sh ${{ matrix.mode }} mango-payload
+
+      - name: Install nfpm
+        run: |
+          command -v curl >/dev/null || { apt-get update -qq && apt-get install -y -qq curl ca-certificates; }
+          curl -fsSL "https://github.com/goreleaser/nfpm/releases/download/v2.47.0/nfpm_2.47.0_Linux_x86_64.tar.gz" \
+            | tar -xz -C /usr/local/bin nfpm
+
+      - name: Package
+        id: package
+        run: |
+          MANGO_VERSION=$(sed -n 's/^MANGO_VERSION=//p' scripts/build-mango.sh)
+          case "${{ matrix.packager }}" in
+            deb) pkgfile="mangowm_${MANGO_VERSION}_${{ matrix.distro }}_amd64.deb" ;;
+            rpm) pkgfile="mangowm-${MANGO_VERSION}-1.${{ matrix.distro }}.x86_64.rpm" ;;
+          esac
+          # nfpm-mango.yaml ends with a bare `depends:` key
+          while read -r dep; do
+            printf '  - "%s"\n' "$dep" >> nfpm-mango.yaml
+          done < mango-payload.depends
+          MANGO_VERSION="$MANGO_VERSION" nfpm package --config nfpm-mango.yaml \
+            --packager ${{ matrix.packager }} --target "$pkgfile"
+          echo "pkgfile=$pkgfile" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.package.outputs.pkgfile }}
+          path: ${{ steps.package.outputs.pkgfile }}
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build, package-cagebreak]
+    needs: [build, package-cagebreak, package-mango]
     runs-on: ubuntu-latest
     steps:
       - name: Download artifacts
