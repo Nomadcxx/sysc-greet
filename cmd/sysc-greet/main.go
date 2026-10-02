@@ -514,25 +514,27 @@ func cycleAnimSpeed(current string) string {
 	}
 }
 
+// applyInputTheme styles the username and password inputs with the current
+// theme colors. Call after applyTheme.
+func (m *model) applyInputTheme() {
+	for _, in := range []*textinput.Model{&m.usernameInput, &m.passwordInput} {
+		in.Styles.Focused.Prompt = lipgloss.NewStyle().Foreground(Primary).Bold(true)
+		in.Styles.Focused.Text = lipgloss.NewStyle().Foreground(FgPrimary)
+		in.Styles.Focused.Placeholder = lipgloss.NewStyle().Foreground(FgMuted).Italic(true)
+	}
+}
+
 func initialModel(config Config, screensaverMode bool) model {
 	// Setup username input with proper styling
 	ti := textinput.New()
 	ti.Prompt = ""      // Remove prompt, will be added by layout
 	ti.Placeholder = "" // Remove placeholder
-	// Updated for textinput v2 API
-	ti.Styles.Focused.Prompt = lipgloss.NewStyle().Foreground(Primary).Bold(true)
-	ti.Styles.Focused.Text = lipgloss.NewStyle().Foreground(FgPrimary)
-	ti.Styles.Focused.Placeholder = lipgloss.NewStyle().Foreground(FgMuted).Italic(true)
 
 	// Setup password input
 	pi := textinput.New()
 	pi.Prompt = ""      // Remove prompt, will be added by layout
 	pi.Placeholder = "" // Remove placeholder
 	pi.EchoMode = textinput.EchoPassword
-	// Updated for textinput v2 API
-	pi.Styles.Focused.Prompt = lipgloss.NewStyle().Foreground(Primary).Bold(true)
-	pi.Styles.Focused.Text = lipgloss.NewStyle().Foreground(FgPrimary)
-	pi.Styles.Focused.Placeholder = lipgloss.NewStyle().Foreground(FgMuted).Italic(true)
 
 	// Load sessions
 	sess, _ := sessions.LoadSessions()
@@ -872,13 +874,8 @@ func initialModel(config Config, screensaverMode bool) model {
 		logDebug("No cached theme found - applied Dracula as default")
 	}
 
-	// CHANGED 2026-09-09 Apply theme colors to text and password inputs
-	m.passwordInput.Styles.Focused.Prompt = lipgloss.NewStyle().Foreground(Primary).Bold(true)
-	m.passwordInput.Styles.Focused.Text = lipgloss.NewStyle().Foreground(FgPrimary)
-	m.passwordInput.Styles.Focused.Placeholder = lipgloss.NewStyle().Foreground(FgMuted).Italic(true)
-	m.usernameInput.Styles.Focused.Prompt = lipgloss.NewStyle().Foreground(Primary).Bold(true)
-	m.usernameInput.Styles.Focused.Text = lipgloss.NewStyle().Foreground(FgPrimary)
-	m.usernameInput.Styles.Focused.Placeholder = lipgloss.NewStyle().Foreground(FgMuted).Italic(true)
+	// Inputs are built before the theme loads; restyle with theme colors
+	m.applyInputTheme()
 
 	// CHANGED 2025-10-11 - Initialize print effect if starting in screensaver mode
 	if screensaverMode {
@@ -2073,15 +2070,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.currentTheme = themeName
 					// Apply theme immediately
 					applyTheme(themeName, m.config.TestMode)
-
-					// CHANGED 2026-09-09 Apply theme colors to text and password inputs
-					m.passwordInput.Styles.Focused.Prompt = lipgloss.NewStyle().Foreground(Primary).Bold(true)
-					m.passwordInput.Styles.Focused.Text = lipgloss.NewStyle().Foreground(FgPrimary)
-					m.passwordInput.Styles.Focused.Placeholder = lipgloss.NewStyle().Foreground(FgMuted).Italic(true)
-					m.usernameInput.Styles.Focused.Prompt = lipgloss.NewStyle().Foreground(Primary).Bold(true)
-					m.usernameInput.Styles.Focused.Text = lipgloss.NewStyle().Foreground(FgPrimary)
-					m.usernameInput.Styles.Focused.Placeholder = lipgloss.NewStyle().Foreground(FgMuted).Italic(true)
-
+					m.applyInputTheme()
 					// CHANGED 2025-10-03 - Save theme preference
 					// CHANGED 2025-10-03 - Skip saving in test mode
 					if !m.config.TestMode {
