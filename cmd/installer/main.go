@@ -701,7 +701,14 @@ func (m model) renderInstalling() string {
 		}
 	}
 
-	// Show errors at bottom if any
+	b.WriteString(m.renderErrors())
+
+	return b.String()
+}
+
+// renderErrors lists task errors and skipped-task warnings
+func (m model) renderErrors() string {
+	var b strings.Builder
 	if len(m.errors) > 0 {
 		b.WriteString("\n")
 		for _, err := range m.errors {
@@ -709,7 +716,6 @@ func (m model) renderInstalling() string {
 			b.WriteString("\n")
 		}
 	}
-
 	return b.String()
 }
 
@@ -723,23 +729,29 @@ func (m model) renderComplete() string {
 		}
 	}
 
+	// The task list (with its errors) is only drawn while installing, so
+	// repeat it here or a failure shows no reason
 	if hasCriticalFailure {
-		return lipgloss.NewStyle().Foreground(ErrorColor).Render(
-			"Installation failed.\nCheck errors above.\n\nPress Enter to exit")
+		failed := "Installation failed."
+		if m.uninstallMode {
+			failed = "Uninstall failed."
+		}
+		return m.renderInstalling() + "\n" + lipgloss.NewStyle().Foreground(ErrorColor).Render(
+			failed+"\nFull log: /tmp/sysc-greet-installer.log\n\nPress Enter to exit")
 	}
 
 	// Success
 	if m.uninstallMode {
 		return `Uninstall complete.
 sysc-greet has been removed.
-
+` + m.renderErrors() + `
 ` + lipgloss.NewStyle().Foreground(FgMuted).Render(">see you space cowboy") + `
 
 Press Enter to exit`
 	}
 	return `Installation complete.
 Reboot to see sysc-greet.
-
+` + m.renderErrors() + `
 ` + lipgloss.NewStyle().Foreground(FgMuted).Render(">see you space cowboy") + `
 
 Press Enter to exit`
