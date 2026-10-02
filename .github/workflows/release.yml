@@ -7,6 +7,12 @@ on:
   # Dry run: builds everything, skips release creation
   workflow_dispatch:
 
+# Releases must not be cancelled mid-flight, so superseded runs queue
+# rather than cancel.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
