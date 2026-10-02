@@ -94,6 +94,13 @@
               --replace 'kitty ' "${pkgs.kitty}/bin/kitty " \
               --replace 'socat ' "${pkgs.socat}/bin/socat "
 
+            # Mango greeter config + session script. mango is not in nixpkgs, so
+            # mmsg resolves from PATH (services.sysc-greet.mangoPackage installs it)
+            cp config/mango-greeter-config.conf config/mango-greeter-session.sh $out/etc/greetd/
+            substituteInPlace $out/etc/greetd/mango-greeter-config.conf $out/etc/greetd/mango-greeter-session.sh \
+              --replace '/usr/local/bin/sysc-greet' "$out/bin/sysc-greet" \
+              --replace 'kitty ' "${pkgs.kitty}/bin/kitty "
+
             # Install polkit rule
             mkdir -p $out/etc/polkit-1/rules.d
             cat > $out/etc/polkit-1/rules.d/85-greeter.rules <<'EOF'
@@ -149,6 +156,7 @@ EOF
             if cfg.compositor == "niri" then cfg.niriPackage
             else if cfg.compositor == "hyprland" then cfg.hyprlandPackage
             else if cfg.compositor == "cagebreak" then cfg.cagebreakPackage
+            else if cfg.compositor == "mango" then cfg.mangoPackage
             else cfg.swayPackage;
           compositorExecutable = pkg: executable:
             if pkg == null then executable else "${pkg}/bin/${executable}";
@@ -159,6 +167,8 @@ EOF
               "${compositorExecutable cfg.hyprlandPackage "start-hyprland"} -- -c /etc/greetd/hyprland-greeter-config.conf"
             else if cfg.compositor == "cagebreak" then
               "${compositorExecutable cfg.cagebreakPackage "cagebreak"} -e -c /etc/greetd/cagebreak-greeter-config"
+            else if cfg.compositor == "mango" then
+              "${compositorExecutable cfg.mangoPackage "mango"} -c /etc/greetd/mango-greeter-config.conf -s /etc/greetd/mango-greeter-session.sh"
             else
               "${compositorExecutable cfg.swayPackage "sway"} -c /etc/greetd/sway-greeter-config";
         in
@@ -167,7 +177,7 @@ EOF
             enable = mkEnableOption "sysc-greet greeter for greetd";
 
             compositor = mkOption {
-              type = types.enum [ "niri" "hyprland" "sway" "cagebreak" ];
+              type = types.enum [ "niri" "hyprland" "sway" "cagebreak" "mango" ];
               default = "niri";
               description = "Wayland compositor to use with sysc-greet. cagebreak replaces hyprland for the greeter session.";
             };
@@ -213,6 +223,13 @@ EOF
               default = null;
               defaultText = literalExpression "null";
               description = "cagebreak package to use and install for the greeter compositor. When null, the cagebreak command is resolved from PATH.";
+            };
+
+            mangoPackage = mkOption {
+              type = types.nullOr types.package;
+              default = null;
+              defaultText = literalExpression "null";
+              description = "mango package (must provide mango and mmsg) to use and install for the greeter compositor. Not in nixpkgs; pass one from your own flake. When null, mango and mmsg are resolved from PATH.";
             };
 
             settings = mkOption {
@@ -270,6 +287,11 @@ EOF
               "greetd/hyprland-greeter-config.conf".source = "${package}/etc/greetd/hyprland-greeter-config.conf";
               "greetd/sway-greeter-config".source = "${package}/etc/greetd/sway-greeter-config";
               "greetd/cagebreak-greeter-config".source = "${package}/etc/greetd/cagebreak-greeter-config";
+              "greetd/mango-greeter-config.conf".source = "${package}/etc/greetd/mango-greeter-config.conf";
+              "greetd/mango-greeter-session.sh" = {
+                source = "${package}/etc/greetd/mango-greeter-session.sh";
+                mode = "0755";
+              };
               "polkit-1/rules.d/85-greeter.rules".source = "${package}/etc/polkit-1/rules.d/85-greeter.rules";
             };
 
