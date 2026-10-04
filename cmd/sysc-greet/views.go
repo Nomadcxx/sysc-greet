@@ -200,7 +200,6 @@ func (m model) renderMenuView(termWidth, termHeight int) string {
 }
 
 // renderReleaseNotesView renders the F3 release notes popup
-// Added F5 release notes view rendering function
 // Updated with NOTES_POPUP.txt format
 func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
 	// Rewrite to match NOTES popup format
@@ -216,6 +215,9 @@ func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
 
 	updates := []string{
 		"New:",
+		"  • Mango greeter compositor and .deb / .rpm release packages",
+		"  • Supported greeter backends: niri (default), cagebreak, sway, mango",
+		"  • Hyprland greeter support deprecated (login sessions unaffected)",
 		"  • Cagebreak greeter compositor (replaces cage)",
 		"  • Cagebreak .deb / .rpm packages on Releases (Debian, Ubuntu, Fedora)",
 		"  • Installer fetches cagebreak from Releases or builds from source",

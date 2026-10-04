@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"strings"
 	"testing"
 )
 
@@ -25,5 +26,19 @@ func TestPowerViewLayerCoversFullTerminal(t *testing.T) {
 	bounds := bounded.Bounds()
 	if bounds.Min.X != 0 || bounds.Min.Y != 0 || bounds.Dx() != m.width || bounds.Dy() != m.height {
 		t.Fatalf("expected power view to cover %dx%d terminal from origin, got %v", m.width, m.height, bounds)
+	}
+}
+
+func TestReleaseNotesDescribeGreeterSupport(t *testing.T) {
+	applyTheme("dracula", true)
+	notes := stripAnsi((model{}).renderReleaseNotesView(213, 54))
+	for _, text := range []string{
+		"Mango greeter compositor",
+		"Supported greeter backends: niri (default), cagebreak, sway, mango",
+		"Hyprland greeter support deprecated (login sessions unaffected)",
+	} {
+		if !strings.Contains(notes, text) {
+			t.Errorf("release notes omit %q", text)
+		}
 	}
 }
