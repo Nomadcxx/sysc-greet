@@ -2485,7 +2485,6 @@ func (m model) View() tea.View {
 		// Removed ModeVideoWallpapersSubmenu from rendering
 		content = m.renderMenuView(termWidth, termHeight)
 	case ModeReleaseNotes:
-		// Added F5 release notes view rendering
 		content = m.renderReleaseNotesView(termWidth, termHeight)
 	case ModeScreensaver:
 		// CHANGED 2025-10-10 - Added screensaver rendering
@@ -2895,7 +2894,9 @@ func main() {
 		fmt.Fprintf(os.Stderr, "\nKey Bindings:\n")
 		fmt.Fprintf(os.Stderr, "  Tab       Cycle focus between elements\n")
 		fmt.Fprintf(os.Stderr, "  ↑↓       Navigate sessions when focused\n")
-		fmt.Fprintf(os.Stderr, "  F3        Toggle session dropdown\n")
+		fmt.Fprintf(os.Stderr, "  F1        Settings menu\n")
+		fmt.Fprintf(os.Stderr, "  F2        Toggle session dropdown\n")
+		fmt.Fprintf(os.Stderr, "  F3        Release notes\n")
 		fmt.Fprintf(os.Stderr, "  F4        Power menu\n")
 		fmt.Fprintf(os.Stderr, "  Enter     Continue to next step\n")
 		fmt.Fprintf(os.Stderr, "  Esc       Cancel/go back\n")
