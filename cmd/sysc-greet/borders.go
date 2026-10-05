@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"image/color"
 	"strings"
 	"time"
@@ -73,7 +72,7 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 
 	// TypewriterTicker replaces SESSIONS title when enabled
 	var titleLine string
-	
+
 	// Show typewriter text if ticker is enabled as background
 	if m.selectedBackground == "ticker" && m.typewriterTicker != nil {
 		tickerText := m.typewriterTicker.GetTypewriterText(innerWidth - 6)
@@ -92,7 +91,7 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 			dashCount = 4
 		}
 		dashes := strings.Repeat("─", dashCount)
-		
+
 		titleLine = lipgloss.NewStyle().
 			Foreground(innerBorderColor).
 			Bold(true).
@@ -254,21 +253,13 @@ func (m model) renderASCII1BorderLayout(termWidth, termHeight int) string {
 			// sections = append(sections, "") // Remove old spacing
 		}
 	}
-	
+
 	// Ensure exactly 2 lines of spacing after ASCII art
 	sections = append(sections, "", "")
 
 	// Session selector - use theme colors
 	if len(m.sessions) > 0 && m.selectedSession != nil {
-		sessionStyle := lipgloss.NewStyle().
-			Foreground(Primary). // Theme primary color
-			Background(BgBase).
-			Bold(true).
-			Width(goodsWidth - 8).
-			Align(lipgloss.Center)
-
-		sessionText := fmt.Sprintf("[ %s (%s) ]", m.selectedSession.Name, m.selectedSession.Type)
-		sections = append(sections, sessionStyle.Render(sessionText))
+		sections = append(sections, lipgloss.PlaceHorizontal(goodsWidth-8, lipgloss.Center, m.renderSessionSelector(goodsWidth-8)))
 		sections = append(sections, "")
 	}
 
@@ -305,7 +296,7 @@ func (m model) renderASCII1BorderLayout(termWidth, termHeight int) string {
 
 	// Help text
 	// CHANGED 2025-10-06 - Removed Width(termWidth)
-	helpText := "F2=Menu | F3=Sessions | F4=Power | F5=Release Notes | Enter=Login | ESC=Back"
+	helpText := m.renderMainHelp()
 	helpStyle := lipgloss.NewStyle().
 		Foreground(FgMuted) // Theme muted color
 
@@ -466,12 +457,7 @@ func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
 
 	// Session display
 	if len(m.sessions) > 0 && m.selectedSession != nil {
-		sessionText := fmt.Sprintf("[ %s (%s) ]", m.selectedSession.Name, m.selectedSession.Type)
-		sessionLine := lipgloss.NewStyle().
-			Foreground(Primary).
-			Bold(true).
-			Render(sessionText)
-		contentLines = append(contentLines, sessionLine)
+		contentLines = append(contentLines, strings.Split(m.renderSessionSelector(termWidth-20), "\n")...)
 		contentLines = append(contentLines, "")
 	}
 
@@ -604,12 +590,7 @@ func (m model) renderASCII3BorderLayout(termWidth, termHeight int) string {
 
 	// Session display
 	if len(m.sessions) > 0 && m.selectedSession != nil {
-		sessionText := fmt.Sprintf("[ %s (%s) ]", m.selectedSession.Name, m.selectedSession.Type)
-		sessionLine := lipgloss.NewStyle().
-			Foreground(Primary).
-			Bold(true).
-			Render(sessionText)
-		contentLines = append(contentLines, sessionLine)
+		contentLines = append(contentLines, strings.Split(m.renderSessionSelector(termWidth-20), "\n")...)
 		contentLines = append(contentLines, "")
 	}
 
@@ -779,12 +760,7 @@ func (m model) renderASCII4BorderLayout(termWidth, termHeight int) string {
 
 	// Session display
 	if len(m.sessions) > 0 && m.selectedSession != nil {
-		sessionText := fmt.Sprintf("[ %s (%s) ]", m.selectedSession.Name, m.selectedSession.Type)
-		sessionLine := lipgloss.NewStyle().
-			Foreground(Primary).
-			Bold(true).
-			Render(sessionText)
-		contentLines = append(contentLines, sessionLine)
+		contentLines = append(contentLines, strings.Split(m.renderSessionSelector(termWidth-20), "\n")...)
 		contentLines = append(contentLines, "")
 	}
 
