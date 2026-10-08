@@ -61,14 +61,14 @@ var spinnerFrames = []string{
 
 // RoastingTicker provides scrolling text with WM-specific roasts
 type RoastingTicker struct {
-	offset      int
-	lastUpdate  time.Time
-	frameDur    time.Duration
-	roasts      []string      // Array of individual roast phrases
-	currentWM   string
-	roastIndex  int           // Which roast we're currently showing
-	paused      bool
-	pauseUntil  time.Time
+	offset     int
+	lastUpdate time.Time
+	frameDur   time.Duration
+	roasts     []string // Array of individual roast phrases
+	currentWM  string
+	roastIndex int // Which roast we're currently showing
+	paused     bool
+	pauseUntil time.Time
 }
 
 // NewRoastingTicker creates a scrolling roast ticker
@@ -287,14 +287,14 @@ func getRoastForWM(wmName string) string {
 			"Doesn't remove features you love │ Doesn't consume 4GB RAM │ " +
 			"XFCE: Quietly being perfect while GNOME implodes │ GTK's last stand │ ",
 
-		"Sway":      "Sway: i3 but we pretend X11 never existed │ Minimalism with Wayland pain │ ",
-		"i3":        "i3: Tiling before it was cool (and bloated) │ The last WM that just works │ X11 gang represent │ " +
+		"Sway": "Sway: i3 but we pretend X11 never existed │ Minimalism with Wayland pain │ ",
+		"i3": "i3: Tiling before it was cool (and bloated) │ The last WM that just works │ X11 gang represent │ " +
 			"Status bars? Slap on i3bar.. │ ",
 		"AwesomeWM": "AwesomeWM: Lua configs because sanity is overrated │ ",
 		"awesome":   "Awesome: Lua configs because XML wasn't painful enough │ ",
 
 		// The Memes
-		"dwm":   "dwm: Recompile to change wallpaper │ Suckless: Because git patches are a lifestyle │ " +
+		"dwm": "dwm: Recompile to change wallpaper │ Suckless: Because git patches are a lifestyle │ " +
 			"Actually pretty based │ ",
 		"bspwm": "bspwm: For when you want to write more shell scripts │ Binary space partitioning your sanity │ " +
 			"Wayland? Over our dead keyboard shortcuts │ ",
@@ -310,8 +310,8 @@ func getRoastForWM(wmName string) string {
 		// GNOME Forks (GNOME 2 refugees)
 		"Cinnamon": "Cinnamon: GNOME 2 cosplay │ Mint's apology for GNOME 3 │ " +
 			"The number one voted desktop for Windows users │ ",
-		"MATE":     "MATE: GNOME 2 but we actually mean it │ Keeping the dream alive │ ",
-		"Budgie":   "Budgie: Solus says 'we can fix GNOME' │ Narrator: They couldn't │ ",
+		"MATE":   "MATE: GNOME 2 but we actually mean it │ Keeping the dream alive │ ",
+		"Budgie": "Budgie: Solus says 'we can fix GNOME' │ Narrator: They couldn't │ ",
 
 		// The Lightweights
 		"LXQt": "LXQt: LXDE but now with more Q's │ Qt's lightweight cousin │ ",
@@ -322,7 +322,7 @@ func getRoastForWM(wmName string) string {
 		"River":   "River: Minimalism meets Zig │ For people who think Sway has too many features │ ",
 
 		// The Tilers
-		"leftwm":   "LeftWM: Rust btw │ Tiling for people who read r/unixporn │ " +
+		"leftwm": "LeftWM: Rust btw │ Tiling for people who read r/unixporn │ " +
 			"A rust tiling manager......................... │ ",
 		"Herbstluftwm": "Herbstluftwm: German engineering applied to window management │ ",
 
@@ -362,15 +362,15 @@ func getRoastForWM(wmName string) string {
 // TypewriterTicker types out text one character at a time with a block cursor
 // This provides a "typewriter" effect for the roast messages
 type TypewriterTicker struct {
-roasts       []string        // All roast messages
-currentWM    string          // Current WM name
-roastIndex   int             // Current message index
-charIndex    int             // Current character being typed
-lastUpdate   time.Time       // Last update time
-charDelay    time.Duration   // Delay between characters (typing speed)
-messageDelay time.Duration   // Delay after complete message
-paused       bool            // Are we paused after message?
-pauseUntil   time.Time       // When to unpause
+	roasts       []string      // All roast messages
+	currentWM    string        // Current WM name
+	roastIndex   int           // Current message index
+	charIndex    int           // Current character being typed
+	lastUpdate   time.Time     // Last update time
+	charDelay    time.Duration // Delay between characters (typing speed)
+	messageDelay time.Duration // Delay after complete message
+	paused       bool          // Are we paused after message?
+	pauseUntil   time.Time     // When to unpause
 }
 
 // NewTypewriterTicker creates a new typewriter ticker
@@ -388,7 +388,7 @@ func NewTypewriterTicker(wmName string, customRoasts string) *TypewriterTicker {
 		charIndex:    0,
 		lastUpdate:   time.Now(),
 		charDelay:    time.Millisecond * 50, // 50ms per character (adjustable typing speed)
-		messageDelay: time.Second * 2,        // 2 second pause after complete message
+		messageDelay: time.Second * 2,       // 2 second pause after complete message
 		paused:       false,
 		pauseUntil:   time.Now(),
 	}
@@ -413,78 +413,78 @@ func (t *TypewriterTicker) UpdateWM(wmName string, customRoasts string) {
 
 // GetTypewriterText returns the current typewriter text with block cursor
 func (t *TypewriterTicker) GetTypewriterText(width int) string {
-now := time.Now()
+	now := time.Now()
 
-// Handle paused state (after complete message)
-if t.paused {
-if now.Before(t.pauseUntil) {
-// Still paused - show complete message
-if len(t.roasts) > 0 {
-message := t.roasts[t.roastIndex]
-if len(message) <= width {
-// Center the message
-padding := (width - len(message)) / 2
-return strings.Repeat(" ", padding) + message + strings.Repeat(" ", width-len(message)-padding)
-}
-// Truncate if too long
-return message[:width]
-}
-return strings.Repeat(" ", width)
-}
-// Pause over - move to next message
-t.roastIndex = (t.roastIndex + 1) % len(t.roasts)
-t.charIndex = 0
-t.paused = false
-t.lastUpdate = now
-}
+	// Handle paused state (after complete message)
+	if t.paused {
+		if now.Before(t.pauseUntil) {
+			// Still paused - show complete message
+			if len(t.roasts) > 0 {
+				message := t.roasts[t.roastIndex]
+				if len(message) <= width {
+					// Center the message
+					padding := (width - len(message)) / 2
+					return strings.Repeat(" ", padding) + message + strings.Repeat(" ", width-len(message)-padding)
+				}
+				// Truncate if too long
+				return message[:width]
+			}
+			return strings.Repeat(" ", width)
+		}
+		// Pause over - move to next message
+		t.roastIndex = (t.roastIndex + 1) % len(t.roasts)
+		t.charIndex = 0
+		t.paused = false
+		t.lastUpdate = now
+	}
 
-// Check if we need to type next character
-if now.Sub(t.lastUpdate) >= t.charDelay {
-if len(t.roasts) == 0 {
-return strings.Repeat(" ", width)
-}
+	// Check if we need to type next character
+	if now.Sub(t.lastUpdate) >= t.charDelay {
+		if len(t.roasts) == 0 {
+			return strings.Repeat(" ", width)
+		}
 
-currentMessage := t.roasts[t.roastIndex]
+		currentMessage := t.roasts[t.roastIndex]
 
-// Check if message is complete
-if t.charIndex >= len(currentMessage) {
-// Message complete - start pause
-t.paused = true
-t.pauseUntil = now.Add(t.messageDelay)
-// Return complete message (will be displayed during pause)
-if len(currentMessage) <= width {
-padding := (width - len(currentMessage)) / 2
-return strings.Repeat(" ", padding) + currentMessage + strings.Repeat(" ", width-len(currentMessage)-padding)
-}
-return currentMessage[:width]
-}
+		// Check if message is complete
+		if t.charIndex >= len(currentMessage) {
+			// Message complete - start pause
+			t.paused = true
+			t.pauseUntil = now.Add(t.messageDelay)
+			// Return complete message (will be displayed during pause)
+			if len(currentMessage) <= width {
+				padding := (width - len(currentMessage)) / 2
+				return strings.Repeat(" ", padding) + currentMessage + strings.Repeat(" ", width-len(currentMessage)-padding)
+			}
+			return currentMessage[:width]
+		}
 
-// Type next character
-t.charIndex++
-t.lastUpdate = now
-}
+		// Type next character
+		t.charIndex++
+		t.lastUpdate = now
+	}
 
-// Build current typed text with cursor
-if len(t.roasts) == 0 {
-return strings.Repeat(" ", width)
-}
+	// Build current typed text with cursor
+	if len(t.roasts) == 0 {
+		return strings.Repeat(" ", width)
+	}
 
-currentMessage := t.roasts[t.roastIndex]
-typedText := currentMessage[:t.charIndex]
+	currentMessage := t.roasts[t.roastIndex]
+	typedText := currentMessage[:t.charIndex]
 
-// Add block cursor (█)
-result := typedText + "█"
+	// Add block cursor (█)
+	result := typedText + "█"
 
-// Center it if it fits
-if len(result) <= width {
-padding := (width - len(result)) / 2
-return strings.Repeat(" ", padding) + result + strings.Repeat(" ", width-len(result)-padding)
-}
+	// Center it if it fits
+	if len(result) <= width {
+		padding := (width - len(result)) / 2
+		return strings.Repeat(" ", padding) + result + strings.Repeat(" ", width-len(result)-padding)
+	}
 
-// If too long, truncate (shouldn't happen with proper width)
-if len(result) > width {
-return result[:width]
-}
+	// If too long, truncate (shouldn't happen with proper width)
+	if len(result) > width {
+		return result[:width]
+	}
 
-return result
+	return result
 }

@@ -92,14 +92,14 @@ func (fw *FireworksEffect) Resize(width, height int) {
 	if fw.width == width && fw.height == height {
 		return
 	}
-	
+
 	fw.width = width
 	fw.height = height
-	
+
 	// Reset animation state but don't call init() to avoid resetting all particles
 	fw.activeShells = 0
 	fw.launchDelay = 0
-	
+
 	// Only reinit if this is a significant size change or first init
 	// (Check if we have particles - if not, this is first init)
 	if len(fw.particles) == 0 {
@@ -123,8 +123,8 @@ func (fw *FireworksEffect) launchShell(shellIndex int) {
 	}
 
 	indices := fw.shells[shellIndex]
-	centerX := float64(rand.Intn(fw.width-20) + 10)              // Keep away from edges
-	centerY := float64(fw.height - 1)                            // Start from bottom
+	centerX := float64(rand.Intn(fw.width-20) + 10)           // Keep away from edges
+	centerY := float64(fw.height - 1)                         // Start from bottom
 	explodeY := float64(rand.Intn(fw.height/3) + fw.height/5) // Explosion in upper third
 
 	for _, idx := range indices {
@@ -180,7 +180,7 @@ func (fw *FireworksEffect) explodeShell(shellIndex int) {
 		p.p1 = r2.Vec{X: centerX + (targetX-centerX)*0.3, Y: centerY - 8} // Stronger upward curve
 		p.p2 = r2.Vec{X: centerX + (targetX-centerX)*0.7, Y: targetY - 5} // Mid curve
 		p.p3 = r2.Vec{X: targetX, Y: targetY}
-		
+
 		// Assign a color for this explosion
 		if len(fw.palette) > 0 {
 			p.color = fw.palette[rand.Intn(len(fw.palette))]
@@ -237,7 +237,7 @@ func (fw *FireworksEffect) Update(frame int) {
 	// Update all particles
 	for i := range fw.particles {
 		p := &fw.particles[i]
-		
+
 		// Skip inactive particles (t=1 and phase=0 means waiting for next launch)
 		if p.t >= 1 && p.phase == 0 {
 			continue
@@ -253,7 +253,7 @@ func (fw *FireworksEffect) Update(frame int) {
 		case 2: // Fall - faster
 			speed = 0.04
 		}
-		
+
 		p.t += speed
 
 		// Update position along bezier path
