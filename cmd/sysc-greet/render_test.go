@@ -4,6 +4,8 @@ import (
 	"image"
 	"strings"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
 func TestPowerViewLayerCoversFullTerminal(t *testing.T) {
@@ -40,6 +42,27 @@ func TestReleaseNotesDescribeGreeterSupport(t *testing.T) {
 	} {
 		if !strings.Contains(notes, text) {
 			t.Errorf("release notes omit %q", text)
+		}
+	}
+}
+
+func TestViewTerminalModes(t *testing.T) {
+	for _, altScreen := range []bool{false, true} {
+		for _, testMode := range []bool{false, true} {
+			for _, mode := range []ViewMode{ModeLogin, ModeMenu, ModePower, ModeReleaseNotes} {
+				m := model{width: 80, height: 24, mode: mode, altScreen: altScreen, config: Config{TestMode: testMode}}
+				view := m.View()
+				if view.AltScreen != altScreen || !view.UniformKeyLayout {
+					t.Fatalf("mode %v lost terminal or keyboard settings", mode)
+				}
+				wantMouse := tea.MouseModeNone
+				if altScreen && !testMode {
+					wantMouse = tea.MouseModeCellMotion
+				}
+				if view.MouseMode != wantMouse {
+					t.Fatalf("mode %v: mouse mode %v, want %v", mode, view.MouseMode, wantMouse)
+				}
+			}
 		}
 	}
 }

@@ -320,8 +320,9 @@ type model struct {
 	startTime       time.Time
 
 	// Terminal dimensions
-	width  int
-	height int
+	width     int
+	height    int
+	altScreen bool
 
 	// Power menu
 	powerOptions []string
@@ -892,14 +893,11 @@ func initialModel(config Config, screensaverMode bool) model {
 }
 
 func (m model) Init() tea.Cmd {
-	// Request keyboard enhancements to get CAPS LOCK state reporting
-	// RequestUniformKeyLayout enables kitty flags 4+8 which includes lock key state reporting
 	return tea.Batch(
 		textinput.Blink,
 		m.spinner.Tick,
 		doTick(),
 		doBgTick(m.animSpeed),
-		tea.RequestUniformKeyLayout,
 	)
 }
 
@@ -2493,7 +2491,10 @@ func (m model) View() tea.View {
 		content = m.renderMainView(termWidth, termHeight)
 	}
 
-	var view tea.View
+	view := tea.View{AltScreen: m.altScreen, UniformKeyLayout: true}
+	if m.altScreen && !m.config.TestMode {
+		view.MouseMode = tea.MouseModeCellMotion
+	}
 
 	// Check if fire background is enabled
 	// CHANGED 2025-10-06 - Removed wallpaper check
@@ -2940,26 +2941,18 @@ func main() {
 	logDebug("WAYLAND_DISPLAY: %s", os.Getenv("WAYLAND_DISPLAY"))
 	logDebug("XDG_RUNTIME_DIR: %s", os.Getenv("XDG_RUNTIME_DIR"))
 
-	// Initialize Bubble Tea program with proper screen management
-	// CHANGED 2025-09-29 - Handle TTY access gracefully for different environments
-	// CHANGED 2025-10-21 - Enable kitty keyboard protocol for CAPS LOCK detection
-	opts := []tea.ProgramOption{}
-
-	// Check if we can access TTY before using alt screen
-	if _, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err != nil {
-		// No TTY access - use basic program options
+	m := initialModel(config, screensaverTestMode)
+	// Use fullscreen terminal modes when a controlling TTY is available.
+	if tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err != nil {
 		if config.Debug {
 			logDebug(" No TTY access, running without alt screen")
 		}
 	} else {
-		// TTY available - use full screen features
-		opts = append(opts, tea.WithAltScreen())
-		if !config.TestMode {
-			opts = append(opts, tea.WithMouseCellMotion())
-		}
+		tty.Close()
+		m.altScreen = true
 	}
 
-	p := tea.NewProgram(initialModel(config, screensaverTestMode), opts...)
+	p := tea.NewProgram(m)
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)
