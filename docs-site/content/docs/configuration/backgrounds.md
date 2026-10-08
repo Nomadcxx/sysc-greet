@@ -46,3 +46,15 @@ Access via **F1** → **Wallpaper**.
 1. Custom wallpaper (if selected)
 2. Themed wallpaper (auto-matches theme)
 3. Background effect (if no wallpaper)
+
+## Secondary monitors
+
+In Niri, sysc-greet can use an installed `sysc-terminal` to draw native ASCII backgrounds on secondary outputs. These surfaces accept no keyboard input. The login window keeps focus, and the greeter removes its helpers on exit or output removal.
+
+| Option | Behavior |
+| --- | --- |
+| `--secondary-backgrounds=false` | Disable secondary backgrounds; enabled by default in Niri |
+| `--secondary-exclude DP-3,HDMI-A-1` | Exclude named outputs |
+| `--secondary-effect pour` | Choose a sysc-terminal effect; defaults to Matrix |
+
+Helpers follow the selected greeter theme when the installed renderer supports it; unsupported palettes use Dracula. They overlay existing wallpapers. Install sysc-terminal separately. A missing or failed helper leaves login available. Other compositors do not run secondary helpers.

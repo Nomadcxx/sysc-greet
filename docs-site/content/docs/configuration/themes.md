@@ -34,6 +34,8 @@ Ayu, Amber, Blue, Purple, Green and Orange ship as TOML files in `/usr/share/sys
 
 Press **F1** → **Themes** to cycle through available themes. Your selection is saved automatically.
 
+Use `--theme blue` to choose a startup theme. Names are case insensitive; an explicit theme overrides the saved selection. Test mode ignores saved preferences.
+
 ## Custom Themes
 
 Create custom themes by placing TOML files in:
