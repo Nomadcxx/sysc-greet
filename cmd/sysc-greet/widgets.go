@@ -15,7 +15,10 @@ func (m model) renderAmbientRow(width int) string {
 		return ""
 	}
 	var parts []string
-	if m.config.Ambient.Metrics && width >= 18 {
+	label := lipgloss.NewStyle().Foreground(FgSecondary)
+	value := lipgloss.NewStyle().Foreground(FgPrimary).Bold(true)
+	panel := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(BorderDefault).Padding(0, 1)
+	if m.config.Ambient.Metrics && width >= 29 {
 		cpu, ram := "--%", "--%"
 		usage := m.machine.CPU
 		if usage.Valid && !math.IsNaN(usage.Fraction) && !math.IsInf(usage.Fraction, 0) && usage.Fraction >= 0 && usage.Fraction <= 1 {
@@ -25,13 +28,15 @@ func (m model) renderAmbientRow(width int) string {
 		if m.machine.MemoryValid && memory.TotalBytes > 0 && memory.UsedBytes <= memory.TotalBytes {
 			ram = fmt.Sprintf("%.0f%%", float64(memory.UsedBytes)/float64(memory.TotalBytes)*100)
 		}
-		parts = append(parts, fmt.Sprintf("CPU %4s  RAM %4s", cpu, ram))
+		parts = append(parts,
+			panel.Render(label.Render("CPU ")+value.Render(fmt.Sprintf("%4s", cpu))),
+			panel.Render(label.Render("Memory ")+value.Render(fmt.Sprintf("%4s", ram))))
 	}
-	used := lipgloss.Width(strings.Join(parts, "  "))
-	if used > 0 {
-		used += 2
+	used := 0
+	if len(parts) > 0 {
+		used = 31 // CPU + Memory panels, their gap, and the gap before weather.
 	}
-	if strings.TrimSpace(m.config.Ambient.WeatherLocation) != "" && width >= used+28 {
+	if strings.TrimSpace(m.config.Ambient.WeatherLocation) != "" && width >= used+38 {
 		unit := "C"
 		if m.config.Ambient.WeatherUnits == "fahrenheit" {
 			unit = "F"
@@ -48,12 +53,18 @@ func (m model) renderAmbientRow(width int) string {
 		if weather.Valid && weather.Stale {
 			freshness = lipgloss.NewStyle().Foreground(Warning).Render("stale")
 		}
-		parts = append(parts, fmt.Sprintf("Weather %4s°%s %-7s %s", temperature, unit, condition, freshness))
+		parts = append(parts, panel.Render(label.Render("Weather ")+
+			value.Render(fmt.Sprintf("%4s°%s", temperature, unit))+" "+
+			label.Render(fmt.Sprintf("%-13s", condition))+" "+freshness))
 	}
 	if len(parts) == 0 {
 		return ""
 	}
-	return lipgloss.NewStyle().Foreground(FgSecondary).Render(strings.Join(parts, "  "))
+	row := parts[0]
+	for _, part := range parts[1:] {
+		row = lipgloss.JoinHorizontal(lipgloss.Top, row, "  ", part)
+	}
+	return row
 }
 
 func weatherCondition(code int) string {
@@ -61,7 +72,7 @@ func weatherCondition(code int) string {
 	case 0:
 		return "Clear"
 	case 1, 2:
-		return "Partly"
+		return "Partly cloudy"
 	case 3:
 		return "Cloudy"
 	case 45, 48:
