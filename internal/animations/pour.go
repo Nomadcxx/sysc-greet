@@ -205,7 +205,7 @@ func (p *PourEffect) groupByRows() {
 
 	// Create groups in order (top to bottom for down, bottom to top for up)
 	p.groups = make([][]int, 0)
-	
+
 	if p.pourDirection == "down" {
 		// Pour top to bottom in order
 		for _, y := range rows {
@@ -236,7 +236,7 @@ func (p *PourEffect) groupByColumns() {
 
 	// Create groups in order (left to right for right, right to left for left)
 	p.groups = make([][]int, 0)
-	
+
 	if p.pourDirection == "right" {
 		// Pour left to right in order
 		for _, x := range cols {

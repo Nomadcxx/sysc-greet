@@ -46,8 +46,8 @@ type Fish struct {
 	x         float64
 	y         float64
 	speed     float64
-	size      int // 0=tiny, 1=small, 2=medium, 3=large
-	direction int // 1=right, -1=left
+	size      int      // 0=tiny, 1=small, 2=medium, 3=large
+	direction int      // 1=right, -1=left
 	pattern   []string // Multi-line pattern
 	color     string
 	swimPhase float64
@@ -55,13 +55,13 @@ type Fish struct {
 
 // Seaweed represents swaying underwater plants
 type Seaweed struct {
-	x            int
-	height       int
-	swayPhase    float64
-	swaySpeed    float64
-	swayAmount   float64
-	colors       []string
-	variant      int // 0=straight, 1=wavy
+	x          int
+	height     int
+	swayPhase  float64
+	swaySpeed  float64
+	swayAmount float64
+	colors     []string
+	variant    int // 0=straight, 1=wavy
 }
 
 // Bubble represents a rising bubble
@@ -173,7 +173,7 @@ func (a *AquariumEffect) init() {
 	a.diver = &Diver{
 		x:         -20,
 		y:         float64(a.height - diverHeight - 2), // Place above bottom with margin
-		speed:     0.03, // Reduced 10x for sysc-greet
+		speed:     0.03,                                // Reduced 10x for sysc-greet
 		direction: 1,
 		pattern:   diverPattern,
 		swimPhase: 0,
@@ -213,7 +213,7 @@ func (a *AquariumEffect) init() {
 	a.boat = &Boat{
 		x:         float64(a.rng.Intn(a.width)),
 		y:         float64(oceanY - boatHeight), // Above ocean surface
-		speed:     0.04, // Reduced 10x for sysc-greet
+		speed:     0.04,                         // Reduced 10x for sysc-greet
 		direction: boatDirection,
 		pattern:   boatPattern,
 		boatType:  boatType,

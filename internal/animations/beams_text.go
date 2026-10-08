@@ -18,18 +18,18 @@ type BeamsTextEffect struct {
 	text   string
 
 	// Configuration
-	beamRowSymbols      []rune
-	beamColumnSymbols   []rune
-	beamDelay           int
-	beamRowSpeedRange   [2]int
+	beamRowSymbols       []rune
+	beamColumnSymbols    []rune
+	beamDelay            int
+	beamRowSpeedRange    [2]int
 	beamColumnSpeedRange [2]int
-	beamGradientStops   []string
-	beamGradientSteps   int
-	beamGradientFrames  int
-	finalGradientStops  []string
-	finalGradientSteps  int
-	finalGradientFrames int
-	finalWipeSpeed      int
+	beamGradientStops    []string
+	beamGradientSteps    int
+	beamGradientFrames   int
+	finalGradientStops   []string
+	finalGradientSteps   int
+	finalGradientFrames  int
+	finalWipeSpeed       int
 
 	// Character data
 	chars []BeamsCharacter
@@ -58,13 +58,13 @@ type BeamsCharacter struct {
 	y        int
 
 	// Animation state
-	visible         bool
-	currentSymbol   rune
-	currentColor    string
-	sceneActive     string
-	sceneFrame      int
-	beamGradient    []string
-	fadeGradient    []string
+	visible          bool
+	currentSymbol    rune
+	currentColor     string
+	sceneActive      string
+	sceneFrame       int
+	beamGradient     []string
+	fadeGradient     []string
 	brightenGradient []string
 }
 
@@ -551,7 +551,7 @@ func (b *BeamsTextEffect) updateFinalWipePhase() {
 // updateHoldPhase handles the hold period before reset
 func (b *BeamsTextEffect) updateHoldPhase() {
 	b.holdCounter++
-	
+
 	// Hold for 6 seconds at ~20fps = 120 frames
 	if b.holdCounter >= 120 {
 		b.Reset()
