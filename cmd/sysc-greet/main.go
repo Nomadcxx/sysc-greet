@@ -2087,18 +2087,18 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							ASCIIIndex:  m.asciiArtIndex,
 							AnimSpeed:   m.animSpeed,
 						})
-
-						// Reinitialize ASCII effects with new theme colors if active
-						if m.selectedBackground == "beams" && m.beamsEffect != nil && m.selectedSession != nil {
-							logDebug("Theme changed to %s - reinitializing beams", themeName)
-							m.resetBeamsEffectForSession(m.selectedSession.Name)
-						}
-						if m.selectedBackground == "pour" && m.pourEffect != nil && m.selectedSession != nil {
-							logDebug("Theme changed to %s - reinitializing pour", themeName)
-							m.resetPourEffectForSession(m.selectedSession.Name)
-						}
-						// Aquarium updates palette automatically via UpdatePalette() in backgrounds.go
 					}
+
+					// Reinitialize ASCII effects with new theme colors if active
+					if m.selectedBackground == "beams" && m.beamsEffect != nil && m.selectedSession != nil {
+						logDebug("Theme changed to %s - reinitializing beams", themeName)
+						m.resetBeamsEffectForSession(m.selectedSession.Name)
+					}
+					if m.selectedBackground == "pour" && m.pourEffect != nil && m.selectedSession != nil {
+						logDebug("Theme changed to %s - reinitializing pour", themeName)
+						m.resetPourEffectForSession(m.selectedSession.Name)
+					}
+					// Aquarium updates palette automatically via UpdatePalette() in backgrounds.go
 					m.mode = ModeLogin
 				}
 				return m, nil
