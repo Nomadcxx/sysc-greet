@@ -33,6 +33,7 @@ func TestReleaseNotesDescribeGreeterSupport(t *testing.T) {
 	applyTheme("dracula", true)
 	notes := stripAnsi((model{}).renderReleaseNotesView(213, 54))
 	for _, text := range []string{
+		"Ayu, Amber, Blue, Purple, Green, Orange themes (same names as sysc-shell)",
 		"Mango greeter compositor",
 		"Supported greeter backends: niri (default), cagebreak, sway, mango",
 		"Hyprland greeter support deprecated (login sessions unaffected)",

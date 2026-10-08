@@ -215,6 +215,7 @@ func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
 
 	updates := []string{
 		"New:",
+		"  • Ayu, Amber, Blue, Purple, Green, Orange themes (same names as sysc-shell)",
 		"  • Mango greeter compositor and .deb / .rpm release packages",
 		"  • Supported greeter backends: niri (default), cagebreak, sway, mango",
 		"  • Hyprland greeter support deprecated (login sessions unaffected)",

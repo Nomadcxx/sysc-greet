@@ -1,9 +1,9 @@
 ---
 title: "Themes"
-description: "sysc-greet includes multiple built-in color themes. Themes affect the entire color scheme of the greeter including backgrounds, borders, text, and accent ele..."
+description: "sysc-greet includes multiple color themes. Themes affect the entire color scheme of the greeter including backgrounds, borders, text, and accent ele..."
 ---
 
-sysc-greet includes multiple built-in color themes. Themes affect the entire color scheme of the greeter including backgrounds, borders, text, and accent elements.
+sysc-greet includes multiple color themes. Themes affect the entire color scheme of the greeter including backgrounds, borders, text, and accent elements.
 
 ## Available Themes
 
@@ -21,6 +21,14 @@ sysc-greet includes multiple built-in color themes. Themes affect the entire col
 | Eldritch | #37f499 | Purple and green theme |
 | RAMA | #ef233c | RAMA keyboard aesthetics |
 | Dark | #ffffff | True black and white minimal theme |
+| Ayu | #e6b450 | Dark theme with a gold primary and green and blue accents |
+| Amber | #ffc107 | Brown-black with amber accents |
+| Blue | #42a5f5 | Blue-grey with a blue primary |
+| Purple | #d0bcff | Near-black with Material violet |
+| Green | #4caf50 | Green-black with a green primary |
+| Orange | #ff6d00 | Brown-black with an orange primary |
+
+Ayu, Amber, Blue, Purple, Green and Orange ship as TOML files in `/usr/share/sysc-greet/themes/` and use the same names and palette colors as sysc-shell. To change one, copy it to `~/.config/sysc-greet/themes/`; a user theme with the same name wins.
 
 ## Changing Themes
 
