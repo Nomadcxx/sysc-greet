@@ -92,3 +92,9 @@ The user included CPU/RAM, GPU, cached weather and secondary-output plumbing in 
 On the desktop's active Niri session, DP-1 hosted the login window and DP-3 hosted one sysc-terminal Background surface with keyboard interaction None. The native driver retained login focus through helper startup, theme changes and logical output removal/reappearance. It checked mixed scales 1.0/1.25, global and per-output opt-outs, invalid helper effects, and child reaping after exit. IPC confirmed Nord propagation and unsupported Blue fallback to Dracula. Inspected 15-second captures after each change; evidence is under `/tmp/sysc-secondary-proof-nluo48xl`. CPU/RAM, GPU and weather snapshots were valid. Weather used bench coordinates 0,0, not a user location.
 
 The full Go 1.26 suite, focused collector/secondary/theme race checks, vet, build and shipping Niri config validation passed. The native SSH bench covered single-output collection and clean exit. Nix's vendor hash was regenerated; a full Nix build remains unverified because the local daemon is unavailable. This desktop's current greetd session uses Mango, so production secondary-output behavior needs a separate compositor integration.
+
+## Integration checks
+
+The combined fullscreen desktop check verified CPU/RAM and weather inside the login panel, password masking, all six live secondary palette changes, retained focus and helper cleanup. Typewriter, Print, Beams and Pour stayed inside the login border at 5, 10 and 15 seconds with Dracula and Blue.
+
+Delayed secondary captures exposed a separate Matrix placement issue in sysc-Go: an ascending column scan favored the left side at its 150-stream cap. Commit `8414641` chooses spawn positions across the full grid, with a regression test that preserves the cap and checks all four quarters. sysc-terminal pins that fix. Secondary backgrounds remain Niri-only.
