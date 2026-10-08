@@ -135,6 +135,7 @@ func (m model) handleWallpaperSelection(selectedOption string) (tea.Model, tea.C
 				sessionName = m.selectedSession.Name
 			}
 			cache.SavePreferences(cache.UserPreferences{
+				FollowShell: &m.followShell,
 				Theme:       m.currentTheme,
 				Background:  m.selectedBackground,
 				Wallpaper:   m.selectedWallpaper, // Now empty
@@ -157,6 +158,7 @@ func (m model) handleWallpaperSelection(selectedOption string) (tea.Model, tea.C
 				sessionName = m.selectedSession.Name
 			}
 			cache.SavePreferences(cache.UserPreferences{
+				FollowShell: &m.followShell,
 				Theme:       m.currentTheme,
 				Background:  m.selectedBackground,
 				Wallpaper:   m.selectedWallpaper,

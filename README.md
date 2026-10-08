@@ -142,6 +142,14 @@ See [Installation Guide](https://nomadcxx.github.io/sysc-greet/docs/getting-star
 
 Use `--theme blue` to select a theme at startup. Names from the Themes menu are case insensitive. An explicit theme overrides the saved theme; test mode ignores saved preferences.
 
+## Follow the shell theme
+
+The greeter follows sysc-shell's committed named palette by default. The account chosen during installation controls the machine-wide greeter theme; each user's sysc-lock follows their own shell. The next greeter or lock start uses the selection.
+
+The greeter installer uses `SUDO_USER` as the theme account. Set `SYSC_THEME_USER=username` when installing as root to choose it explicitly. It creates `/var/lib/sysc-greet/shell-theme/` owned by that account and readable by the greeter. Sysc-shell publishes the theme name there and in its user's XDG config directory. This keeps the user's home private.
+
+Select **Follow sysc-shell** in the Themes menu to toggle following. Choosing a greeter theme switches to an independent selection. `--theme dracula` overrides the shell for that launch; `--follow-shell=false` disables following. `--shell-theme-file PATH` selects an exported name file for testing. Missing, invalid or unsupported selections retain the saved greeter theme. Generated wallpaper, hex and custom palettes use this fallback until color transport supports them.
+
 ## Optional login status
 
 Enable the bordered CPU and Memory panels inside the login panel:
