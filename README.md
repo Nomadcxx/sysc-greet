@@ -138,6 +138,10 @@ sudo dnf install ./sysc-greet-1.1.11-1.x86_64.rpm
 See [Installation Guide](https://nomadcxx.github.io/sysc-greet/docs/getting-started/installation/) for details.
 
 
+## Startup theme
+
+Use `--theme blue` to select a theme at startup. Names from the Themes menu are case insensitive. An explicit theme overrides the saved theme; test mode ignores saved preferences.
+
 ## Optional login status
 
 Enable the compact CPU/RAM row inside the login panel:

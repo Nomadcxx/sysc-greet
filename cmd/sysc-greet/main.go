@@ -327,7 +327,6 @@ type model struct {
 	selectedSession *sessions.Session
 	sessionIndex    int
 	ipcClient       *ipc.Client
-	theme           themesOld.Theme
 	mode            ViewMode
 	config          Config
 	startTime       time.Time
@@ -616,23 +615,6 @@ func initialModel(config Config, screensaverMode bool) model {
 		sessionIndex = 0
 	}
 
-	// Load themes from directory
-	themesDir := "themes"
-	loadedThemes, err := themesOld.LoadThemesFromDir(themesDir)
-	if err != nil && config.Debug {
-		logDebug(" Failed to load themes: %v", err)
-	}
-
-	// Use specified theme if available, otherwise default
-	currentTheme := themesOld.DefaultTheme
-	if config.ThemeName != "" {
-		if theme, ok := loadedThemes[config.ThemeName]; ok {
-			currentTheme = theme
-		}
-	} else if theme, ok := loadedThemes["gnome"]; ok {
-		currentTheme = theme
-	}
-
 	// Scan for custom themes
 	themeDirs := []string{
 		dataDir + "/themes",
@@ -646,10 +628,6 @@ func initialModel(config Config, screensaverMode bool) model {
 
 	// Set initial focus
 	ti.Focus()
-
-	// REMOVED 2025-10-17 - Don't apply Dracula at initialization
-	// The cached theme will be loaded immediately after model creation (line 558)
-	// Applying Dracula here causes a race condition with the cached theme wallpaper
 
 	// CHANGED 2025-10-11 - Determine initial mode
 	initialMode := ModeLogin
@@ -665,7 +643,6 @@ func initialModel(config Config, screensaverMode bool) model {
 		selectedSession:     selectedSession,
 		sessionIndex:        sessionIndex,
 		ipcClient:           ipcClient,
-		theme:               currentTheme,
 		mode:                initialMode,
 		config:              config,
 		startTime:           time.Now(),
@@ -684,7 +661,7 @@ func initialModel(config Config, screensaverMode bool) model {
 		// Set Dracula as default theme and disable border animation
 		selectedBorderStyle:    "classic",
 		selectedBackground:     "none",
-		currentTheme:           "dracula",
+		currentTheme:           startupThemeName(config.ThemeName, "", availableThemes),
 		availableThemes:        availableThemes,
 		borderAnimationEnabled: false,
 		selectedFont:           "/usr/share/bubble-greet/fonts/dos_rebel.flf", // Absolute path
@@ -730,17 +707,15 @@ func initialModel(config Config, screensaverMode bool) model {
 
 	// CHANGED 2025-10-03 - Load cached preferences including session
 	// CHANGED 2025-10-03 - Skip cache in test mode
-	// FIXED 2025-10-17 - Apply Dracula as fallback if no cached theme exists
+	// Apply the explicit CLI theme before restoring cached effects.
 	themeApplied := false
 	if !m.config.TestMode {
 		if prefs, err := cache.LoadPreferences(); err == nil && prefs != nil {
-			if prefs.Theme != "" {
-				m.currentTheme = prefs.Theme
-				logDebug("Loaded cached theme: %s", prefs.Theme)
-				home, _ := os.UserHomeDir()
-				applyThemeWithWallpaper(prefs.Theme, m.config.TestMode, shouldSetCachedThemeWallpaper(prefs, home))
-				themeApplied = true
-			}
+			m.currentTheme = startupThemeName(config.ThemeName, prefs.Theme, m.availableThemes)
+			home, _ := os.UserHomeDir()
+			applyThemeWithWallpaper(m.currentTheme, m.config.TestMode, shouldSetCachedThemeWallpaper(prefs, home))
+			themeApplied = true
+			logDebug("Startup theme: %s", m.currentTheme)
 			if prefs.Background != "" {
 				m.selectedBackground = prefs.Background
 				logDebug("Loaded cached background: %s", prefs.Background)
@@ -882,14 +857,15 @@ func initialModel(config Config, screensaverMode bool) model {
 		}
 	}
 
-	// FIXED 2025-10-17 - Apply Dracula as fallback if no cached theme was loaded
+	// Test mode and an absent cache still apply the resolved startup theme.
 	if !themeApplied {
-		applyTheme("dracula", m.config.TestMode)
-		logDebug("No cached theme found - applied Dracula as default")
+		applyTheme(m.currentTheme, m.config.TestMode)
+		logDebug("Startup theme: %s", m.currentTheme)
 	}
 
 	// Inputs are built before the theme loads; restyle with theme colors
 	m.applyInputTheme()
+	m.spinner.Style = lipgloss.NewStyle().Foreground(Primary)
 
 	// CHANGED 2025-10-11 - Initialize print effect if starting in screensaver mode
 	if screensaverMode {
@@ -2959,7 +2935,7 @@ func main() {
 	flag.BoolVar(&config.TestMode, "test", false, "Enable test mode (no actual authentication)")
 	flag.BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	flag.BoolVar(&screensaverTestMode, "screensaver", false, "Start directly in screensaver mode for testing")
-	flag.StringVar(&config.ThemeName, "theme", "", "Theme name (dracula, gruvbox, material, nord, tokyo-night, catppuccin, solarized, monochrome, transishardjob, eldritch)")
+	flag.StringVar(&config.ThemeName, "theme", "", "Theme name from the Themes menu (overrides saved theme)")
 	flag.BoolVar(&config.RememberUsername, "remember-username", true, "Remember last logged in username")
 	flag.BoolVar(&config.ShowTime, "time", false, "") // Hidden flag - not shown in help
 	flag.BoolVar(&config.Ambient.Metrics, "metrics", false, "Show CPU/RAM usage in the login panel")

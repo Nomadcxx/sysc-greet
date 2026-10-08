@@ -16,6 +16,29 @@ import (
 // Theme Management - Extracted during Phase 6 refactoring
 // This file contains theme application, wallpaper management, and animation color helpers
 
+func startupThemeName(requested, cached string, available []string) string {
+	if requested == "" {
+		if cached != "" {
+			return cached
+		}
+		return "dracula"
+	}
+	requested = strings.TrimSpace(requested)
+	for _, name := range available {
+		if strings.EqualFold(requested, name) {
+			return name
+		}
+	}
+	switch strings.ToLower(requested) {
+	case "tokyo-night", "tokyonight":
+		return "Tokyo Night"
+	case "catppuccin-mocha":
+		return "Catppuccin"
+	default:
+		return "dracula"
+	}
+}
+
 // applyTheme sets the color scheme and wallpaper for the entire application based on theme name
 // CHANGED 2025-10-01 - Theme support with proper color palettes
 // CHANGED 2025-10-11 - Added testMode parameter
