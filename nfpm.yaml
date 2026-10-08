@@ -29,6 +29,11 @@ contents:
     dst: /usr/share/sysc-greet/wallpapers/
     type: tree
 
+  # Bundled themes
+  - src: ./themes/
+    dst: /usr/share/sysc-greet/themes/
+    type: tree
+
   # Fonts
   - src: ./fonts/
     dst: /usr/share/sysc-greet/fonts/

@@ -34,6 +34,9 @@ install: build
 	@echo "Installing ASCII configs..."
 	@mkdir -p /usr/share/sysc-greet
 	@cp -r ascii_configs /usr/share/sysc-greet/
+	@echo "Installing themes..."
+	@mkdir -p /usr/share/sysc-greet/themes
+	@install -m644 themes/*.toml /usr/share/sysc-greet/themes/
 	@echo "✓ Installation complete"
 
 # Run test mode

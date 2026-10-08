@@ -56,6 +56,10 @@
             mkdir -p $out/share/sysc-greet/wallpapers
             cp -r wallpapers/* $out/share/sysc-greet/wallpapers/
 
+            # Install bundled themes
+            mkdir -p $out/share/sysc-greet/themes
+            cp themes/*.toml $out/share/sysc-greet/themes/
+
             # Install assets (logo, showcase)
             mkdir -p $out/share/sysc-greet/Assets
             cp assets/logo.png $out/share/sysc-greet/Assets/

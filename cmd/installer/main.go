@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
@@ -1903,6 +1904,14 @@ func installConfigs(m *model) error {
 	if _, err := os.Stat("examples/themes/example.toml"); err == nil {
 		if err := exec.Command("install", "-m", "644", "examples/themes/example.toml", configPath+"/themes/").Run(); err != nil {
 			return fmt.Errorf("failed to copy example theme")
+		}
+	}
+
+	// Install bundled themes with permissions readable by the greeter user.
+	bundled, _ := filepath.Glob("themes/*.toml")
+	for _, theme := range bundled {
+		if err := exec.Command("install", "-m", "644", theme, configPath+"/themes/").Run(); err != nil {
+			return fmt.Errorf("failed to copy theme %s: %w", filepath.Base(theme), err)
 		}
 	}
 
