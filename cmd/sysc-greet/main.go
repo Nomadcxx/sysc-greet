@@ -2775,7 +2775,40 @@ func ensureFullTerminalCoverage(content string, termWidth, termHeight int) strin
 
 // Complete dual border redesign
 func (m model) renderMainView(termWidth, termHeight int) string {
-	return m.renderDualBorderLayout(termWidth, termHeight)
+	m.width, m.height = termWidth, termHeight
+	// ponytail: legacy ASCII frames omit some authentication feedback; use the
+	// shared form for these states until those frames also reuse renderMainForm.
+	needsFeedback := strings.HasPrefix(m.selectedBorderStyle, "ascii") &&
+		(m.mode == ModeLoading || m.errorMessage != "" || m.failedAttempts > 0 || m.capsLockOn)
+	// Decorative frames assume at least 80 columns and 24 rows.
+	if !needsFeedback && termWidth >= 80 && termHeight >= 24 {
+		content := m.renderDualBorderLayout(termWidth, termHeight)
+		if lipgloss.Width(content) <= termWidth && lipgloss.Height(content) <= termHeight {
+			return content
+		}
+	}
+	width := min(72, max(15, termWidth-6))
+	form := m.renderMainForm(width)
+	var lines []string
+	for _, line := range strings.Split(form, "\n") {
+		if strings.TrimSpace(stripAnsi(line)) != "" {
+			lines = append(lines, line)
+		}
+	}
+	help := "Enter Continue • Tab Focus • F1 Menu"
+	if m.sessionDropdownOpen {
+		help = "↑↓ Navigate • Enter Select • Esc Close"
+	} else if m.mode == ModeLoading {
+		help = "Please wait..."
+	} else if m.mode == ModePassword {
+		help = "Enter Login • Esc Back • Tab Focus • F1 Menu"
+	}
+	form = lipgloss.JoinVertical(lipgloss.Left, strings.Join(lines, "\n"), "", lipgloss.NewStyle().Foreground(FgMuted).Width(width).Render(help))
+	frame := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(BorderDefault).Background(BgBase).Padding(0, 2).Render(form)
+	if lipgloss.Width(frame) <= termWidth && lipgloss.Height(frame) <= termHeight {
+		return frame
+	}
+	return form
 }
 
 // Border rendering functions moved to borders.go

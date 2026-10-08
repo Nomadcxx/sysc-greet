@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // UI Components - Extracted during Phase 3 refactoring
@@ -56,7 +57,7 @@ func (m model) renderMonochromeForm(width int) string {
 	// CHANGED 2025-10-05 - Display error message in monochrome style
 	if m.errorMessage != "" {
 		errorStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FF5555")).
+			Foreground(Danger).
 			Bold(true)
 		sections = append(sections, "")
 		sections = append(sections, errorStyle.Render("✗ "+m.errorMessage))
@@ -67,6 +68,12 @@ func (m model) renderMonochromeForm(width int) string {
 
 // renderMainForm renders the main login form with session, username/password inputs
 func (m model) renderMainForm(width int) string {
+	width = max(15, width)
+	// SetWidth alone does not refresh the textinput viewport after a resize.
+	m.usernameInput.SetWidth(width - 14)
+	m.usernameInput.SetCursor(m.usernameInput.Position())
+	m.passwordInput.SetWidth(width - 14)
+	m.passwordInput.SetCursor(m.passwordInput.Position())
 	var parts []string
 
 	// Session selection (always visible at top)
@@ -103,7 +110,7 @@ func (m model) renderMainForm(width int) string {
 		// Display error message and failed attempt counter on login screen
 		if m.errorMessage != "" {
 			errorStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#FF5555")).
+				Foreground(Danger).
 				Bold(true)
 			parts = append(parts, "")
 			parts = append(parts, errorStyle.Render("✗ "+m.errorMessage))
@@ -112,13 +119,13 @@ func (m model) renderMainForm(width int) string {
 		// Display failed attempt counter on login screen
 		if m.failedAttempts > 0 {
 			attemptStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#FFAA00")).
+				Foreground(Warning).
 				Bold(true)
 
 			if m.failedAttempts >= 3 {
 				// Warning style for 3+ attempts
 				warningStyle := lipgloss.NewStyle().
-					Foreground(lipgloss.Color("#FF5555")).
+					Foreground(Danger).
 					Bold(true)
 				parts = append(parts, "")
 				parts = append(parts, warningStyle.Render("⚠ WARNING: Multiple failed attempts may lock your account"))
@@ -154,7 +161,7 @@ func (m model) renderMainForm(width int) string {
 		// CAPS LOCK warning
 		if m.capsLockOn && m.focusState == FocusPassword {
 			capsLockStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#FF5555")).
+				Foreground(Danger).
 				Bold(true).
 				Align(lipgloss.Center).
 				Width(width)
@@ -165,7 +172,7 @@ func (m model) renderMainForm(width int) string {
 		// CHANGED 2025-10-05 - Display error message below password in main form
 		if m.errorMessage != "" {
 			errorStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#FF5555")).
+				Foreground(Danger).
 				Bold(true)
 			parts = append(parts, "")
 			parts = append(parts, errorStyle.Render("✗ "+m.errorMessage))
@@ -174,13 +181,13 @@ func (m model) renderMainForm(width int) string {
 		// Display failed attempt counter
 		if m.failedAttempts > 0 {
 			attemptStyle := lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#FFAA00")).
+				Foreground(Warning).
 				Bold(true)
 
 			if m.failedAttempts >= 3 {
 				// Warning style for 3+ attempts
 				warningStyle := lipgloss.NewStyle().
-					Foreground(lipgloss.Color("#FF5555")).
+					Foreground(Danger).
 					Bold(true)
 				parts = append(parts, "")
 				parts = append(parts, warningStyle.Render("⚠ WARNING: Multiple failed attempts may lock your account"))
@@ -202,7 +209,7 @@ func (m model) renderMainForm(width int) string {
 		parts = append(parts, loadingText)
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, parts...)
+	return ansi.Wrap(lipgloss.JoinVertical(lipgloss.Left, parts...), width, "")
 }
 
 // renderSessionSelector renders the session selector with dropdown indicator
@@ -218,6 +225,7 @@ func (m model) renderSessionSelector(width int) string {
 	var sessionDisplay string
 	if m.selectedSession != nil {
 		sessionText := fmt.Sprintf("%s (%s)", m.selectedSession.Name, m.selectedSession.Type)
+		sessionText = ansi.Truncate(sessionText, max(1, width-15), "…")
 
 		borderColor := BorderDefault
 		if m.focusState == FocusSession {
@@ -276,7 +284,7 @@ func (m model) renderSessionSelector(width int) string {
 
 // renderSessionDropdown renders the dropdown list of available sessions
 func (m model) renderSessionDropdown(width int) string {
-	maxDropdownHeight := 8
+	maxDropdownHeight := min(8, max(1, m.height-17))
 	dropdownContent := make([]string, 0, min(len(m.sessions), maxDropdownHeight))
 
 	start := 0
@@ -299,6 +307,7 @@ func (m model) renderSessionDropdown(width int) string {
 	for i := start; i < end; i++ {
 		session := m.sessions[i]
 		sessionText := fmt.Sprintf("%s (%s)", session.Name, session.Type)
+		sessionText = ansi.Truncate(sessionText, max(1, width-17), "…")
 
 		var sessionStyle lipgloss.Style
 		if i == m.sessionIndex {
