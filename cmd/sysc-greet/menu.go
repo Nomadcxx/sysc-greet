@@ -6,6 +6,20 @@ import (
 
 // Created menu.go for modular menu handling
 
+func (m model) navigateToMainMenu() model {
+	m.mode = ModeMenu
+	m.menuIndex = 0
+	m.menuOptions = []string{
+		"Close Menu",
+		"Themes",
+		"Borders",
+		"Backgrounds",
+		"ASCII Effects",
+		"Wallpaper",
+	}
+	return m
+}
+
 // navigateToThemesSubmenu switches to the themes submenu
 func (m model) navigateToThemesSubmenu() (tea.Model, tea.Cmd) {
 	m.menuOptions = []string{"← Back"}

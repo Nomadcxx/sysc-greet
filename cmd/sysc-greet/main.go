@@ -1396,19 +1396,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		// Remapped F1 to Menu
 		// Main menu - works from any mode
 		m.sessionDropdownOpen = false
-		m.mode = ModeMenu
-		m.menuIndex = 0
-
-		// Build new structured menu
-		m.menuOptions = []string{
-			"Close Menu",
-			"Themes",
-			"Borders",
-			"Backgrounds",
-			"ASCII Effects",
-			"Wallpaper",
-		}
-		return m, nil
+		return m.navigateToMainMenu(), nil
 
 	case "f2":
 		// Remapped F2 to Sessions
@@ -1492,17 +1480,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		// Add escape handling for submenus
 		case ModeThemesSubmenu, ModeBordersSubmenu, ModeBackgroundsSubmenu, ModeWallpaperSubmenu, ModeASCIIEffectsSubmenu:
 			// Go back to main menu
-			m.mode = ModeMenu
-			m.menuOptions = []string{
-				"Close Menu",
-				"Themes",
-				"Borders",
-				"Backgrounds",
-				"Wallpaper",
-				"ASCII Effects",
-			}
-			m.menuIndex = 0
-			return m, nil
+			return m.navigateToMainMenu(), nil
 		// Add escape handling for release notes
 		case ModeReleaseNotes:
 			// Return to login mode
@@ -2073,17 +2051,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 
 			// Handle "← Back" option for all submenus
 			if selectedOption == "← Back" {
-				m.mode = ModeMenu
-				m.menuOptions = []string{
-					"Close Menu",
-					"Themes",
-					"Borders",
-					"Backgrounds",
-					"Wallpaper",
-					"ASCII Effects",
-				}
-				m.menuIndex = 0
-				return m, nil
+				return m.navigateToMainMenu(), nil
 			}
 
 			// Implement actual submenu functionality
