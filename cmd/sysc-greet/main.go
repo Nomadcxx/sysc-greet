@@ -8,9 +8,11 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/Nomadcxx/sysc-greet/internal/animations"
@@ -3045,7 +3047,9 @@ func main() {
 	logDebug("WAYLAND_DISPLAY: %s", os.Getenv("WAYLAND_DISPLAY"))
 	logDebug("XDG_RUNTIME_DIR: %s", os.Getenv("XDG_RUNTIME_DIR"))
 
-	ctx, cancel := context.WithCancel(context.Background())
+	// Bubble Tea handles SIGINT/SIGTERM; terminal close also sends SIGHUP.
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGHUP)
+	defer cancel()
 	collector, err := newAmbientCollector(ctx, config.Ambient)
 	if err != nil {
 		cancel()
@@ -3066,7 +3070,7 @@ func main() {
 		m.altScreen = true
 	}
 
-	p := tea.NewProgram(m)
+	p := tea.NewProgram(m, tea.WithContext(ctx))
 	secondaryDone := startSecondaryBackgrounds(ctx, config.Secondary, m.secondaryTheme, p.Send)
 
 	_, err = p.Run()
