@@ -55,4 +55,4 @@ It launches native fullscreen Kitty, selects the theme through the menu, and che
 
 Local `go test -count=1 -p 2 ./...`, `GOMAXPROCS=4 go vet ./...`, and the bench build/focused tests pass. GitHub CI also passes for `63fc263`.
 
-The separate CLI theme-selection problem remains in `sysc-greet-dev-46`. The startup code reads the requested theme into `m.theme` while `m.currentTheme` starts at Dracula. Test theme changes through the menu until that issue is resolved.
+Commit `7387be8` fixes the separate CLI theme-selection problem (`sysc-greet-dev-46`). Startup now applies the requested theme to the active palette, inputs and spinner, with case-insensitive menu names and saved-theme precedence. Native Blue startup and secondary palette propagation pass.

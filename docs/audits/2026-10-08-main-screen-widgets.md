@@ -73,7 +73,7 @@ Fullscreen ASCII effects on secondary outputs are feasible. The inspected sysc-w
 
 Use the installed sysc-terminal renderer. It already places ASCII effects on native Wayland Background surfaces with keyboard interaction None. The greeter supervises one helper per eligible secondary output through bounded IPC and owns cleanup. No additional display mode or renderer is needed.
 
-Query its installed palette catalog before launch. sysc-Go currently lacks the six new greeter palettes, so unsupported selections use Dracula with a debug diagnostic. Track upstream parity in beads sysc-greet-dev-52. Niri is the first supported compositor; others need their own enumeration and hardware checks.
+Query its installed palette catalog before launch. sysc-Go lacked the six new greeter palettes at the audit baseline. The palette branches now add them to sysc-Go and pin that dependency in sysc-terminal; older installed renderers still use Dracula for unsupported selections, with a debug diagnostic. Niri is the first supported compositor; others need their own enumeration and hardware checks.
 
 Proposed behavior follows the requested opt-out model: decorative backgrounds enabled on eligible secondary outputs, with a global disable and per-output exclusions. Motion preferences can select a static fallback. The primary output owns the only authentication UI. Keep its keyboard focus throughout initialization and hotplug handling; background helpers never connect to greetd or receive credentials.
 
