@@ -83,7 +83,7 @@ fg_muted = "#ee33ee"
 border_focus = "#711aad"
 ```
 
-![Piink theme](https://github.com/user-attachments/assets/c0d3ede0-5945-45da-b0d8-48ab9adf9484)
+![Piink theme](/piink-theme.png)
 
 This theme also pairs well with a custom ASCII config using braille-art. See `examples/themes/piink.toml` in the repository.
 
