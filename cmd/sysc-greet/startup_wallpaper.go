@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Nomadcxx/sysc-greet/internal/cache"
+	"github.com/Nomadcxx/sysc-greet/internal/themes"
 	"github.com/Nomadcxx/sysc-greet/internal/wallpaper"
 )
 
@@ -90,7 +91,7 @@ func gSlapperStartupArgs(path string, isVideo bool) []string {
 	return []string{"-f", "-I", wallpaper.GSlapperSocket, "*", path}
 }
 
-func runStartupWallpaperDaemon() error {
+func runStartupWallpaperDaemon(config Config) error {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
 		home = "/var/lib/greeter"
@@ -101,6 +102,8 @@ func runStartupWallpaperDaemon() error {
 		prefs = nil
 	}
 
+	available := append(themes.GetAvailableThemes(), themes.ScanCustomThemes([]string{filepath.Join(home, ".config", "sysc-greet", "themes"), filepath.Join(dataDir, "themes")})...)
+	prefs = startupThemePreferences(prefs, config, available)
 	selected := resolveStartupWallpaper(prefs, home, dataDir)
 	if !fileExists(selected.Path) {
 		return fmt.Errorf("startup wallpaper not found: %s", selected.Path)
@@ -115,4 +118,19 @@ func runStartupWallpaperDaemon() error {
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// Copy cached preferences so wallpaper startup and login resolve the same theme.
+func startupThemePreferences(prefs *cache.UserPreferences, config Config, available []string) *cache.UserPreferences {
+	copy := cache.UserPreferences{}
+	if prefs != nil {
+		copy = *prefs
+	}
+	follow := config.FollowShell == nil || *config.FollowShell
+	if config.FollowShell == nil && copy.FollowShell != nil {
+		follow = *copy.FollowShell
+	}
+	m := model{config: config, followShell: follow, availableThemes: available}
+	copy.Theme = m.startupTheme(copy.Theme)
+	return &copy
 }

@@ -1919,6 +1919,14 @@ func installConfigs(m *model) error {
 }
 
 func setupCache(m *model) error {
+	account := os.Getenv("SYSC_THEME_USER")
+	if account == "" {
+		account = os.Getenv("SUDO_USER")
+	}
+	if err := setupShellThemeDir("/var/lib/sysc-greet", account); err != nil {
+		return fmt.Errorf("shell theme sharing: %w", err)
+	}
+
 	// Create greeter-owned state/cache directories used by kitty, gSlapper,
 	// shader caches, and sysc-greet preferences.
 	dirs := []string{

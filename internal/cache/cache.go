@@ -65,6 +65,7 @@ func LoadSelectedSession() (*sessions.Session, error) {
 
 // UserPreferences holds cached user preferences
 type UserPreferences struct {
+	FollowShell *bool  `json:"follow_shell,omitempty"`
 	Theme       string `json:"theme"`        // Last selected theme
 	Background  string `json:"background"`   // Last selected background animation (aquarium, matrix, fire, etc.)
 	Wallpaper   string `json:"wallpaper"`    // Last selected gslapper video wallpaper (separate from background effect)

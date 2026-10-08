@@ -275,6 +275,8 @@ type ASCIIConfig struct {
 // The sysc-greet.conf system was unused and confusing - hardcoded sessionPalettes provide all needed palettes
 
 type Config struct {
+	FollowShell      *bool
+	ShellThemeFile   string
 	TestMode         bool
 	Debug            bool
 	ShowTime         bool
@@ -314,6 +316,7 @@ const (
 
 type model struct {
 	ambient         *ambientCollector
+	followShell     bool
 	hideAmbient     bool // Set only on render copies when optional status cannot fit.
 	machine         metricsMsg
 	weather         weatherMsg
@@ -662,6 +665,7 @@ func initialModel(config Config, screensaverMode bool) model {
 		selectedBorderStyle:    "classic",
 		selectedBackground:     "none",
 		currentTheme:           startupThemeName(config.ThemeName, "", availableThemes),
+		followShell:            config.FollowShell == nil || *config.FollowShell,
 		availableThemes:        availableThemes,
 		borderAnimationEnabled: false,
 		selectedFont:           "/usr/share/bubble-greet/fonts/dos_rebel.flf", // Absolute path
@@ -697,6 +701,8 @@ func initialModel(config Config, screensaverMode bool) model {
 		typewriterTicker: nil,
 	}
 
+	m.currentTheme = m.startupTheme("")
+
 	// Test mode skips cached preferences, so SYSC_BG lets a background effect
 	// be exercised directly: SYSC_BG=fire sysc-greet --test
 	if config.TestMode {
@@ -711,7 +717,10 @@ func initialModel(config Config, screensaverMode bool) model {
 	themeApplied := false
 	if !m.config.TestMode {
 		if prefs, err := cache.LoadPreferences(); err == nil && prefs != nil {
-			m.currentTheme = startupThemeName(config.ThemeName, prefs.Theme, m.availableThemes)
+			if config.FollowShell == nil && prefs.FollowShell != nil {
+				m.followShell = *prefs.FollowShell
+			}
+			m.currentTheme = m.startupTheme(prefs.Theme)
 			home, _ := os.UserHomeDir()
 			applyThemeWithWallpaper(m.currentTheme, m.config.TestMode, shouldSetCachedThemeWallpaper(prefs, home))
 			themeApplied = true
@@ -1203,6 +1212,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					username = m.usernameInput.Value()
 				}
 				cache.SavePreferences(cache.UserPreferences{
+					FollowShell: &m.followShell,
 					Theme:       m.currentTheme,
 					Background:  m.selectedBackground,
 					Wallpaper:   m.selectedWallpaper,
@@ -1265,6 +1275,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					username = m.usernameInput.Value()
 				}
 				cache.SavePreferences(cache.UserPreferences{
+					FollowShell: &m.followShell,
 					Theme:       m.currentTheme,
 					Background:  m.selectedBackground,
 					Wallpaper:   m.selectedWallpaper,
@@ -1629,6 +1640,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							username = m.usernameInput.Value()
 						}
 						cache.SavePreferences(cache.UserPreferences{
+							FollowShell: &m.followShell,
 							Theme:       m.currentTheme,
 							Background:  m.selectedBackground,
 							Wallpaper:   m.selectedWallpaper,
@@ -1726,6 +1738,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							username = m.usernameInput.Value()
 						}
 						cache.SavePreferences(cache.UserPreferences{
+							FollowShell: &m.followShell,
 							Theme:       m.currentTheme,
 							Background:  m.selectedBackground,
 							Wallpaper:   m.selectedWallpaper,
@@ -1799,6 +1812,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					sessionName = m.selectedSession.Name
 				}
 				cache.SavePreferences(cache.UserPreferences{
+					FollowShell: &m.followShell,
 					Theme:       m.currentTheme,
 					Background:  m.selectedBackground,
 					Wallpaper:   m.selectedWallpaper,
@@ -1823,6 +1837,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					sessionName = m.selectedSession.Name
 				}
 				cache.SavePreferences(cache.UserPreferences{
+					FollowShell: &m.followShell,
 					Theme:       m.currentTheme,
 					Background:  m.selectedBackground,
 					Wallpaper:   m.selectedWallpaper,
@@ -1852,6 +1867,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						sessionName = m.selectedSession.Name
 					}
 					cache.SavePreferences(cache.UserPreferences{
+						FollowShell: &m.followShell,
 						Theme:       m.currentTheme,
 						Background:  m.selectedBackground,
 						Wallpaper:   m.selectedWallpaper,
@@ -1994,6 +2010,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					sessionName = m.selectedSession.Name
 				}
 				cache.SavePreferences(cache.UserPreferences{
+					FollowShell: &m.followShell,
 					Theme:       m.currentTheme,
 					Background:  m.selectedBackground,
 					Wallpaper:   m.selectedWallpaper,
@@ -2057,9 +2074,19 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			// Implement actual submenu functionality
 			switch m.mode {
 			case ModeThemesSubmenu:
-				// Parse theme selection and apply it
+				followingChanged := false
+				if strings.HasSuffix(selectedOption, "Follow sysc-shell") {
+					m.followShell = !m.followShell
+					m.config.ThemeName = ""
+					selectedOption = "Theme: " + m.startupTheme(m.currentTheme)
+					followingChanged = true
+				}
+				// Parse theme selection and apply it.
 				if strings.HasPrefix(selectedOption, "Theme: ") {
 					themeName := strings.TrimPrefix(selectedOption, "Theme: ")
+					if !followingChanged {
+						m.followShell = false
+					}
 					m.currentTheme = themeName
 					if m.secondaryTheme != nil {
 						m.secondaryTheme.Store(themeName)
@@ -2075,6 +2102,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							sessionName = m.selectedSession.Name
 						}
 						cache.SavePreferences(cache.UserPreferences{
+							FollowShell: &m.followShell,
 							Theme:       m.currentTheme,
 							Background:  m.selectedBackground,
 							Wallpaper:   m.selectedWallpaper,
@@ -2133,6 +2161,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						sessionName = m.selectedSession.Name
 					}
 					cache.SavePreferences(cache.UserPreferences{
+						FollowShell: &m.followShell,
 						Theme:       m.currentTheme,
 						Background:  m.selectedBackground,
 						Wallpaper:   m.selectedWallpaper,
@@ -2378,6 +2407,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						sessionName = m.selectedSession.Name
 					}
 					cache.SavePreferences(cache.UserPreferences{
+						FollowShell: &m.followShell,
 						Theme:       m.currentTheme,
 						Background:  m.selectedBackground,
 						Wallpaper:   m.selectedWallpaper,
@@ -2897,6 +2927,7 @@ func main() {
 	var showVersion bool
 	var startWallpaperDaemon bool
 	var widgetConfigPath string
+	var followShell bool
 
 	flag.BoolVar(&showVersion, "version", false, "Show version information")
 	flag.BoolVar(&showVersion, "v", false, "Show version information (shorthand)")
@@ -2904,6 +2935,8 @@ func main() {
 	flag.BoolVar(&config.TestMode, "test", false, "Enable test mode (no actual authentication)")
 	flag.BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	flag.BoolVar(&screensaverTestMode, "screensaver", false, "Start directly in screensaver mode for testing")
+	flag.BoolVar(&followShell, "follow-shell", true, "Follow the installed shell account theme by default")
+	flag.StringVar(&config.ShellThemeFile, "shell-theme-file", "", "Override the exported shell theme file")
 	flag.StringVar(&config.ThemeName, "theme", "", "Theme name from the Themes menu (overrides saved theme)")
 	flag.BoolVar(&config.RememberUsername, "remember-username", true, "Remember last logged in username")
 	flag.BoolVar(&config.ShowTime, "time", false, "") // Hidden flag - not shown in help
@@ -2924,6 +2957,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS]\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "sysc-greet - A terminal greeter for greetd\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
+		fmt.Fprintln(os.Stderr, "  -follow-shell=false\n    \tKeep an independent greeter theme")
+		fmt.Fprintln(os.Stderr, "  -shell-theme-file PATH\n    \tRead the shell theme selection from PATH")
 		fmt.Fprintln(os.Stderr, "  -widget-config PATH\n    \tWidget JSON config (user config, then /etc/sysc-greet/widgets.json)")
 		fmt.Fprintln(os.Stderr, "  -weather-shell-config PATH\n    \tsysc-shell config for weather-location=sysc-shell")
 		fmt.Fprintln(os.Stderr, "  -metrics\n    \tShow CPU/Memory usage in the login panel")
@@ -2960,6 +2995,11 @@ func main() {
 	}
 
 	flag.Parse()
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "follow-shell" {
+			config.FollowShell = &followShell
+		}
+	})
 
 	// Handle version flag
 	if showVersion {
@@ -2970,7 +3010,7 @@ func main() {
 	}
 
 	if startWallpaperDaemon {
-		if err := runStartupWallpaperDaemon(); err != nil {
+		if err := runStartupWallpaperDaemon(config); err != nil {
 			fmt.Fprintf(os.Stderr, "failed to start wallpaper daemon: %v\n", err)
 			os.Exit(1)
 		}

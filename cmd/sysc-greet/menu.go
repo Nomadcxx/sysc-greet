@@ -23,6 +23,11 @@ func (m model) navigateToMainMenu() model {
 // navigateToThemesSubmenu switches to the themes submenu
 func (m model) navigateToThemesSubmenu() (tea.Model, tea.Cmd) {
 	m.menuOptions = []string{"← Back"}
+	mark := "[ ] "
+	if m.followShell {
+		mark = "[✓] "
+	}
+	m.menuOptions = append(m.menuOptions, mark+"Follow sysc-shell")
 	for _, theme := range m.availableThemes {
 		m.menuOptions = append(m.menuOptions, "Theme: "+theme)
 	}
