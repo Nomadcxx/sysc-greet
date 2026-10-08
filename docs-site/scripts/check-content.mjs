@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { extname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../content/docs/', import.meta.url));
+const publicRoot = fileURLToPath(new URL('../public/', import.meta.url));
+const workflow = fileURLToPath(new URL('../../.github/workflows/docs.yml', import.meta.url));
 const expectedPages = [
   'index.mdx',
   'getting-started/installation.md',
@@ -42,6 +44,18 @@ for (const path of contentFiles(root).filter((file) => ['.md', '.mdx'].includes(
   assert.doesNotMatch(content, /\]\([^)]*\.md(?:#[^)]*)?\)/, `stale .md link in ${rel}`);
   assert.doesNotMatch(content, /^!!!/m, `legacy admonition syntax in ${rel}`);
   assert.doesNotMatch(content, /docs-src|mkdocs/i, `stale documentation system reference in ${rel}`);
+  // ponytail: a remote image makes remark-images fetch it at build time; a 403
+  // from the runner took down the Pages deploy 30 times (#97). Serve images from public/.
+  for (const [, src] of content.matchAll(/!\[[^\]]*\]\(([^)\s]+)[^)]*\)/g)) {
+    assert.ok(!/^https?:\/\//.test(src), `remote image ${src} in ${rel} — vendor it into docs-site/public/`);
+    if (src.startsWith('/')) {
+      assert.ok(existsSync(join(publicRoot, src.slice(1))), `${rel} references missing public asset ${src}`);
+    }
+  }
 }
+
+const workflowText = readFileSync(workflow, 'utf8');
+assert.match(workflowText, /^ {2}pull_request:/m, 'docs.yml must trigger on pull_request');
+assert.match(workflowText, /if: github\.event_name != 'pull_request'/, 'docs.yml deploy job must skip pull_request events');
 
 console.log(`content check passed (${expectedPages.length} pages)`);
