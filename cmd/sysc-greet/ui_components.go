@@ -209,6 +209,9 @@ func (m model) renderMainForm(width int) string {
 		parts = append(parts, loadingText)
 	}
 
+	if row := m.renderAmbientRow(width); row != "" {
+		parts = append(parts, "", row)
+	}
 	return ansi.Wrap(lipgloss.JoinVertical(lipgloss.Left, parts...), width, "")
 }
 

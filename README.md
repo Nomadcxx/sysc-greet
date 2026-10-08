@@ -138,6 +138,16 @@ sudo dnf install ./sysc-greet-1.1.11-1.x86_64.rpm
 See [Installation Guide](https://nomadcxx.github.io/sysc-greet/docs/getting-started/installation/) for details.
 
 
+## Optional login status
+
+Enable the compact CPU/RAM row inside the login panel:
+
+```sh
+sysc-greet --test --metrics --secondary-backgrounds=false
+```
+
+Add `--weather-location LAT,LON` for weather at your configured coordinates. Use `--weather-units fahrenheit` for Fahrenheit; Celsius is the default. Both sources default to disabled. Unavailable readings show `--`; cached weather shows `stale` after a failed refresh. The row hides when authentication needs the space.
+
 ## Documentation
 
 For detailed docs, configuration guides, troubleshooting, and usage instructions, check out the [full documentation site](https://nomadcxx.github.io/sysc-greet/).

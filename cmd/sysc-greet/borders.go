@@ -288,6 +288,10 @@ func (m model) renderASCII1BorderLayout(termWidth, termHeight int) string {
 		sections = append(sections, errorStyle.Render("✗ "+m.errorMessage))
 	}
 
+	if row := m.renderAmbientRow(goodsWidth - 8); row != "" {
+		sections = append(sections, "", row)
+	}
+
 	// Join THE GOODS
 	goodsContent := strings.Join(sections, "\n")
 
@@ -471,6 +475,9 @@ func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
 	passwordLabel := lipgloss.NewStyle().Foreground(Primary).Bold(true).Render("Password:")
 	passwordRow := lipgloss.JoinHorizontal(lipgloss.Left, passwordLabel, " ", m.passwordInput.View())
 	contentLines = append(contentLines, passwordRow)
+	if row := m.renderAmbientRow(min(72, termWidth-36)); row != "" {
+		contentLines = append(contentLines, "", row)
+	}
 
 	// Calculate border width based on actual content
 	// Find maximum content width
@@ -604,6 +611,9 @@ func (m model) renderASCII3BorderLayout(termWidth, termHeight int) string {
 	passwordLabel := lipgloss.NewStyle().Foreground(Primary).Bold(true).Render("Password:")
 	passwordRow := lipgloss.JoinHorizontal(lipgloss.Left, passwordLabel, " ", m.passwordInput.View())
 	contentLines = append(contentLines, passwordRow)
+	if row := m.renderAmbientRow(min(72, termWidth-36)); row != "" {
+		contentLines = append(contentLines, "", row)
+	}
 
 	// Calculate border width based on content
 	maxContentWidth := 0
@@ -774,6 +784,9 @@ func (m model) renderASCII4BorderLayout(termWidth, termHeight int) string {
 	passwordLabel := lipgloss.NewStyle().Foreground(Primary).Bold(true).Render("Password:")
 	passwordRow := lipgloss.JoinHorizontal(lipgloss.Left, passwordLabel, " ", m.passwordInput.View())
 	contentLines = append(contentLines, passwordRow)
+	if row := m.renderAmbientRow(min(72, termWidth-36)); row != "" {
+		contentLines = append(contentLines, "", row)
+	}
 
 	// Calculate border width based on content
 	maxContentWidth := 0
