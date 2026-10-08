@@ -1,0 +1,16 @@
+# Colors from sysc-shell's cyan palette (dark)
+
+name = "Cyan"
+
+[colors]
+bg_base = "#0e1416"
+bg_active = "#303637"
+primary = "#00bcd4"
+secondary = "#4dd0e1"
+accent = "#4dd0e1"
+warning = "#00bcd4"
+danger = "#f2b8b5"
+fg_primary = "#dee3e5"
+fg_secondary = "#c5cacc"
+fg_muted = "#a4a9ab"
+border_focus = "#00bcd4"

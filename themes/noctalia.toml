@@ -1,0 +1,16 @@
+# Colors from sysc-shell's noctalia palette (dark)
+
+name = "Noctalia"
+
+[colors]
+bg_base = "#070722"
+bg_active = "#21215f"
+primary = "#fff59b"
+secondary = "#a9aefe"
+accent = "#9bfece"
+warning = "#fff59b"
+danger = "#fd4663"
+fg_primary = "#f3edf7"
+fg_secondary = "#d7d1dd"
+fg_muted = "#b1adbb"
+border_focus = "#fff59b"

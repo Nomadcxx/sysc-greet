@@ -1,0 +1,16 @@
+# Colors from sysc-shell's kanagawa palette (dark)
+
+name = "Kanagawa"
+
+[colors]
+bg_base = "#1f1f28"
+bg_active = "#2a2a37"
+primary = "#76946a"
+secondary = "#c0a36e"
+accent = "#7e9cd8"
+warning = "#76946a"
+danger = "#c34043"
+fg_primary = "#c8c093"
+fg_secondary = "#b4ad86"
+fg_muted = "#999375"
+border_focus = "#76946a"

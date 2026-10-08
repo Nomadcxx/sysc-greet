@@ -1,0 +1,16 @@
+# Colors from sysc-shell's void palette (dark)
+
+name = "Void"
+
+[colors]
+bg_base = "#000000"
+bg_active = "#1a1a1a"
+primary = "#ffffff"
+secondary = "#ffffff"
+accent = "#808080"
+warning = "#ffffff"
+danger = "#999999"
+fg_primary = "#ffffff"
+fg_secondary = "#e0e0e0"
+fg_muted = "#b8b8b8"
+border_focus = "#ffffff"

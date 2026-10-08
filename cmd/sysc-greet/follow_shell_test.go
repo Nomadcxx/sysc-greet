@@ -2,9 +2,11 @@ package main
 
 import (
 	"github.com/Nomadcxx/sysc-greet/internal/cache"
+	"github.com/Nomadcxx/sysc-greet/internal/themes"
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -100,5 +102,24 @@ func TestFollowShellMenu(t *testing.T) {
 	m, _ = m.handleKeyInput(tea.KeyPressMsg{Code: tea.KeyEnter})
 	if m.followShell || m.currentTheme != "Dracula" {
 		t.Fatal("explicit theme did not disable following")
+	}
+}
+
+func TestFollowShellBundledCatalog(t *testing.T) {
+	original := themes.CustomThemes
+	t.Cleanup(func() { themes.CustomThemes = original })
+	themes.CustomThemes = make(map[string]themes.ThemeColors)
+	available := themes.ScanCustomThemes([]string{filepath.Join("..", "..", "themes")})
+	path := filepath.Join(t.TempDir(), "theme")
+	for _, name := range []string{"rose-pine", "kanagawa", "noctalia", "eldritch-abyss", "void", "red", "cyan", "coral", "pink"} {
+		t.Run(name, func(t *testing.T) {
+			if err := os.WriteFile(path, []byte(name+"\n"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			m := model{config: Config{ShellThemeFile: path}, followShell: true, availableThemes: available}
+			if got := m.startupTheme("Dracula"); !strings.EqualFold(got, name) {
+				t.Fatalf("theme=%q, want %q", got, name)
+			}
+		})
 	}
 }

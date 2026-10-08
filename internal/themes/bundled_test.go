@@ -13,7 +13,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-var bundled = []string{"ayu", "amber", "blue", "purple", "green", "orange"}
+var bundled = []string{"ayu", "amber", "blue", "purple", "green", "orange", "rose-pine", "kanagawa", "noctalia", "eldritch-abyss", "void", "red", "cyan", "coral", "pink"}
 
 var hexRe = regexp.MustCompile(`^#[0-9a-f]{6}$`)
 
