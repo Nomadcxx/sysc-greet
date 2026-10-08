@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"image/color"
@@ -9,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/Nomadcxx/sysc-greet/internal/animations"
@@ -276,6 +278,8 @@ type Config struct {
 	ShowTime         bool
 	ThemeName        string
 	RememberUsername bool
+	Ambient          ambientConfig
+	Secondary        secondaryConfig
 }
 
 type ViewMode string
@@ -307,6 +311,12 @@ const (
 )
 
 type model struct {
+	ambient         *ambientCollector
+	machine         metricsMsg
+	weather         weatherMsg
+	gpu             gpuMsg
+	secondary       secondaryMsg
+	secondaryTheme  *atomic.Value
 	usernameInput   textinput.Model
 	passwordInput   textinput.Model
 	spinner         spinner.Model
@@ -894,6 +904,9 @@ func initialModel(config Config, screensaverMode bool) model {
 
 func (m model) Init() tea.Cmd {
 	return tea.Batch(
+		m.ambient.metricsCmd(0),
+		m.ambient.weatherCmd(0),
+		m.ambient.gpuCmd(0),
 		textinput.Blink,
 		m.spinner.Tick,
 		doTick(),
@@ -905,6 +918,41 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case gpuMsg:
+		m.gpu = msg
+		if m.config.Debug {
+			logDebug("Ambient GPU: devices=%d issues=%v error=%v", len(msg.Snapshot.GPUs), msg.Snapshot.Issues, msg.Err)
+		}
+		return m, m.ambient.gpuCmd(2 * time.Second)
+	case secondaryMsg:
+		m.secondary = msg
+		if m.config.Debug {
+			logDebug("Secondary backgrounds: primary=%s outputs=%v error=%v", msg.Primary, msg.Outputs, msg.Err)
+		}
+		return m, nil
+	case metricsMsg:
+		m.machine = msg
+		if m.config.Debug {
+			logDebug("Ambient metrics: CPU valid=%v fraction=%.4f RAM valid=%v used=%d total=%d CPU error=%v RAM error=%v", msg.CPU.Valid, msg.CPU.Fraction, msg.MemoryValid, msg.Memory.UsedBytes, msg.Memory.TotalBytes, msg.CPUErr, msg.MemoryErr)
+		}
+		return m, m.ambient.metricsCmd(time.Second)
+	case weatherMsg:
+		delay := 15 * time.Minute
+		if !msg.Valid {
+			delay = 30 * time.Second
+			if m.weather.Valid {
+				m.weather.Stale = true
+				m.weather.Err = msg.Err
+			} else {
+				m.weather = msg
+			}
+		} else {
+			m.weather = msg
+		}
+		if m.config.Debug {
+			logDebug("Ambient weather: valid=%v stale=%v temperature=%.1f code=%d error=%v", m.weather.Valid, m.weather.Stale, m.weather.Temperature, m.weather.Code, m.weather.Err)
+		}
+		return m, m.ambient.weatherCmd(delay)
 	case tea.KeyboardEnhancementsMsg:
 		// Upgrade kitty keyboard protocol to include alternate key and associated text reporting.
 		// Without these flags, non-US keyboard layouts (e.g., German QWERTZ) get wrong characters
@@ -2066,6 +2114,9 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				if strings.HasPrefix(selectedOption, "Theme: ") {
 					themeName := strings.TrimPrefix(selectedOption, "Theme: ")
 					m.currentTheme = themeName
+					if m.secondaryTheme != nil {
+						m.secondaryTheme.Store(themeName)
+					}
 					// Apply theme immediately
 					applyTheme(themeName, m.config.TestMode)
 					m.applyInputTheme()
@@ -2855,6 +2906,7 @@ func main() {
 	// Initialize config with defaults
 	config := Config{
 		RememberUsername: true, // Default: remember username
+		Secondary:        secondaryConfig{Enabled: true},
 	}
 
 	var screensaverTestMode bool // CHANGED 2025-10-11 - Add screensaver test mode flag
@@ -2870,6 +2922,13 @@ func main() {
 	flag.StringVar(&config.ThemeName, "theme", "", "Theme name (dracula, gruvbox, material, nord, tokyo-night, catppuccin, solarized, monochrome, transishardjob, eldritch)")
 	flag.BoolVar(&config.RememberUsername, "remember-username", true, "Remember last logged in username")
 	flag.BoolVar(&config.ShowTime, "time", false, "") // Hidden flag - not shown in help
+	flag.BoolVar(&config.Ambient.Metrics, "metrics", false, "Collect CPU/RAM for upcoming widgets (no display yet)")
+	flag.BoolVar(&config.Ambient.GPU, "gpu", false, "Collect optional GPU statistics for upcoming widgets (no display yet)")
+	flag.BoolVar(&config.Secondary.Enabled, "secondary-backgrounds", true, "Enable backgrounds on secondary outputs in supported greeter sessions")
+	flag.StringVar(&config.Secondary.Exclude, "secondary-exclude", "", "Comma-separated outputs to exclude from secondary backgrounds")
+	flag.StringVar(&config.Secondary.Effect, "secondary-effect", "matrix", "sysc-terminal effect for secondary backgrounds")
+	flag.StringVar(&config.Ambient.WeatherLocation, "weather-location", "", "Collect weather at LAT,LON for upcoming widgets (no display yet)")
+	flag.StringVar(&config.Ambient.WeatherUnits, "weather-units", "celsius", "Weather temperature units: celsius or fahrenheit")
 
 	// Add help text
 	// CHANGED 2025-10-12 - Updated help text to reflect sysc-greet branding
@@ -2878,6 +2937,13 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS]\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "sysc-greet - A terminal greeter for greetd\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
+		fmt.Fprintln(os.Stderr, "  -metrics\n    \tCollect CPU/RAM for upcoming widgets (no display yet)")
+		fmt.Fprintln(os.Stderr, "  -gpu\n    \tCollect optional GPU statistics for upcoming widgets (no display yet)")
+		fmt.Fprintln(os.Stderr, "  -secondary-backgrounds=false\n    \tDisable secondary backgrounds (enabled in supported greeter sessions)")
+		fmt.Fprintln(os.Stderr, "  -secondary-exclude OUTPUT,OUTPUT\n    \tExclude outputs from secondary backgrounds")
+		fmt.Fprintln(os.Stderr, "  -secondary-effect string\n    \tsysc-terminal effect (default matrix)")
+		fmt.Fprintln(os.Stderr, "  -weather-location LAT,LON\n    \tCollect weather for upcoming widgets (no display yet)")
+		fmt.Fprintln(os.Stderr, "  -weather-units string\n    \tWeather units: celsius (default) or fahrenheit")
 		// Manually print flags (excluding hidden ones)
 		fmt.Fprintf(os.Stderr, "  -debug\n")
 		fmt.Fprintf(os.Stderr, "    	Enable debug output\n")
@@ -2941,7 +3007,17 @@ func main() {
 	logDebug("WAYLAND_DISPLAY: %s", os.Getenv("WAYLAND_DISPLAY"))
 	logDebug("XDG_RUNTIME_DIR: %s", os.Getenv("XDG_RUNTIME_DIR"))
 
+	ctx, cancel := context.WithCancel(context.Background())
+	collector, err := newAmbientCollector(ctx, config.Ambient)
+	if err != nil {
+		cancel()
+		fmt.Fprintf(os.Stderr, "Invalid ambient configuration: %v\n", err)
+		os.Exit(1)
+	}
 	m := initialModel(config, screensaverTestMode)
+	m.ambient = collector
+	m.secondaryTheme = &atomic.Value{}
+	m.secondaryTheme.Store(m.currentTheme)
 	// Use fullscreen terminal modes when a controlling TTY is available.
 	if tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err != nil {
 		if config.Debug {
@@ -2953,8 +3029,15 @@ func main() {
 	}
 
 	p := tea.NewProgram(m)
+	secondaryDone := startSecondaryBackgrounds(ctx, config.Secondary, m.secondaryTheme, p.Send)
 
-	if _, err := p.Run(); err != nil {
+	_, err = p.Run()
+	cancel()
+	<-secondaryDone
+	if closeErr := collector.close(); closeErr != nil {
+		logDebug("Close GPU sampler: %v", closeErr)
+	}
+	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
