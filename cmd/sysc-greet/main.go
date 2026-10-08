@@ -1,14 +1,18 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"image/color"
 	"log"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/Nomadcxx/sysc-greet/internal/animations"
@@ -276,6 +280,8 @@ type Config struct {
 	ShowTime         bool
 	ThemeName        string
 	RememberUsername bool
+	Ambient          ambientConfig
+	Secondary        secondaryConfig
 }
 
 type ViewMode string
@@ -307,6 +313,13 @@ const (
 )
 
 type model struct {
+	ambient         *ambientCollector
+	hideAmbient     bool // Set only on render copies when optional status cannot fit.
+	machine         metricsMsg
+	weather         weatherMsg
+	gpu             gpuMsg
+	secondary       secondaryMsg
+	secondaryTheme  *atomic.Value
 	usernameInput   textinput.Model
 	passwordInput   textinput.Model
 	spinner         spinner.Model
@@ -314,7 +327,6 @@ type model struct {
 	selectedSession *sessions.Session
 	sessionIndex    int
 	ipcClient       *ipc.Client
-	theme           themesOld.Theme
 	mode            ViewMode
 	config          Config
 	startTime       time.Time
@@ -603,23 +615,6 @@ func initialModel(config Config, screensaverMode bool) model {
 		sessionIndex = 0
 	}
 
-	// Load themes from directory
-	themesDir := "themes"
-	loadedThemes, err := themesOld.LoadThemesFromDir(themesDir)
-	if err != nil && config.Debug {
-		logDebug(" Failed to load themes: %v", err)
-	}
-
-	// Use specified theme if available, otherwise default
-	currentTheme := themesOld.DefaultTheme
-	if config.ThemeName != "" {
-		if theme, ok := loadedThemes[config.ThemeName]; ok {
-			currentTheme = theme
-		}
-	} else if theme, ok := loadedThemes["gnome"]; ok {
-		currentTheme = theme
-	}
-
 	// Scan for custom themes
 	themeDirs := []string{
 		dataDir + "/themes",
@@ -633,10 +628,6 @@ func initialModel(config Config, screensaverMode bool) model {
 
 	// Set initial focus
 	ti.Focus()
-
-	// REMOVED 2025-10-17 - Don't apply Dracula at initialization
-	// The cached theme will be loaded immediately after model creation (line 558)
-	// Applying Dracula here causes a race condition with the cached theme wallpaper
 
 	// CHANGED 2025-10-11 - Determine initial mode
 	initialMode := ModeLogin
@@ -652,7 +643,6 @@ func initialModel(config Config, screensaverMode bool) model {
 		selectedSession:     selectedSession,
 		sessionIndex:        sessionIndex,
 		ipcClient:           ipcClient,
-		theme:               currentTheme,
 		mode:                initialMode,
 		config:              config,
 		startTime:           time.Now(),
@@ -671,7 +661,7 @@ func initialModel(config Config, screensaverMode bool) model {
 		// Set Dracula as default theme and disable border animation
 		selectedBorderStyle:    "classic",
 		selectedBackground:     "none",
-		currentTheme:           "dracula",
+		currentTheme:           startupThemeName(config.ThemeName, "", availableThemes),
 		availableThemes:        availableThemes,
 		borderAnimationEnabled: false,
 		selectedFont:           "/usr/share/bubble-greet/fonts/dos_rebel.flf", // Absolute path
@@ -717,17 +707,15 @@ func initialModel(config Config, screensaverMode bool) model {
 
 	// CHANGED 2025-10-03 - Load cached preferences including session
 	// CHANGED 2025-10-03 - Skip cache in test mode
-	// FIXED 2025-10-17 - Apply Dracula as fallback if no cached theme exists
+	// Apply the explicit CLI theme before restoring cached effects.
 	themeApplied := false
 	if !m.config.TestMode {
 		if prefs, err := cache.LoadPreferences(); err == nil && prefs != nil {
-			if prefs.Theme != "" {
-				m.currentTheme = prefs.Theme
-				logDebug("Loaded cached theme: %s", prefs.Theme)
-				home, _ := os.UserHomeDir()
-				applyThemeWithWallpaper(prefs.Theme, m.config.TestMode, shouldSetCachedThemeWallpaper(prefs, home))
-				themeApplied = true
-			}
+			m.currentTheme = startupThemeName(config.ThemeName, prefs.Theme, m.availableThemes)
+			home, _ := os.UserHomeDir()
+			applyThemeWithWallpaper(m.currentTheme, m.config.TestMode, shouldSetCachedThemeWallpaper(prefs, home))
+			themeApplied = true
+			logDebug("Startup theme: %s", m.currentTheme)
 			if prefs.Background != "" {
 				m.selectedBackground = prefs.Background
 				logDebug("Loaded cached background: %s", prefs.Background)
@@ -869,14 +857,15 @@ func initialModel(config Config, screensaverMode bool) model {
 		}
 	}
 
-	// FIXED 2025-10-17 - Apply Dracula as fallback if no cached theme was loaded
+	// Test mode and an absent cache still apply the resolved startup theme.
 	if !themeApplied {
-		applyTheme("dracula", m.config.TestMode)
-		logDebug("No cached theme found - applied Dracula as default")
+		applyTheme(m.currentTheme, m.config.TestMode)
+		logDebug("Startup theme: %s", m.currentTheme)
 	}
 
 	// Inputs are built before the theme loads; restyle with theme colors
 	m.applyInputTheme()
+	m.spinner.Style = lipgloss.NewStyle().Foreground(Primary)
 
 	// CHANGED 2025-10-11 - Initialize print effect if starting in screensaver mode
 	if screensaverMode {
@@ -894,6 +883,9 @@ func initialModel(config Config, screensaverMode bool) model {
 
 func (m model) Init() tea.Cmd {
 	return tea.Batch(
+		m.ambient.metricsCmd(0),
+		m.ambient.weatherCmd(0),
+		m.ambient.gpuCmd(0),
 		textinput.Blink,
 		m.spinner.Tick,
 		doTick(),
@@ -905,6 +897,41 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case gpuMsg:
+		m.gpu = msg
+		if m.config.Debug {
+			logDebug("Ambient GPU: devices=%d issues=%v error=%v", len(msg.Snapshot.GPUs), msg.Snapshot.Issues, msg.Err)
+		}
+		return m, m.ambient.gpuCmd(2 * time.Second)
+	case secondaryMsg:
+		m.secondary = msg
+		if m.config.Debug {
+			logDebug("Secondary backgrounds: primary=%s outputs=%v error=%v", msg.Primary, msg.Outputs, msg.Err)
+		}
+		return m, nil
+	case metricsMsg:
+		m.machine = msg
+		if m.config.Debug {
+			logDebug("Ambient metrics: CPU valid=%v fraction=%.4f RAM valid=%v used=%d total=%d CPU error=%v RAM error=%v", msg.CPU.Valid, msg.CPU.Fraction, msg.MemoryValid, msg.Memory.UsedBytes, msg.Memory.TotalBytes, msg.CPUErr, msg.MemoryErr)
+		}
+		return m, m.ambient.metricsCmd(time.Second)
+	case weatherMsg:
+		delay := 15 * time.Minute
+		if !msg.Valid {
+			delay = 30 * time.Second
+			if m.weather.Valid {
+				m.weather.Stale = true
+				m.weather.Err = msg.Err
+			} else {
+				m.weather = msg
+			}
+		} else {
+			m.weather = msg
+		}
+		if m.config.Debug {
+			logDebug("Ambient weather: valid=%v stale=%v temperature=%.1f code=%d error=%v", m.weather.Valid, m.weather.Stale, m.weather.Temperature, m.weather.Code, m.weather.Err)
+		}
+		return m, m.ambient.weatherCmd(delay)
 	case tea.KeyboardEnhancementsMsg:
 		// Upgrade kitty keyboard protocol to include alternate key and associated text reporting.
 		// Without these flags, non-US keyboard layouts (e.g., German QWERTZ) get wrong characters
@@ -1369,19 +1396,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		// Remapped F1 to Menu
 		// Main menu - works from any mode
 		m.sessionDropdownOpen = false
-		m.mode = ModeMenu
-		m.menuIndex = 0
-
-		// Build new structured menu
-		m.menuOptions = []string{
-			"Close Menu",
-			"Themes",
-			"Borders",
-			"Backgrounds",
-			"ASCII Effects",
-			"Wallpaper",
-		}
-		return m, nil
+		return m.navigateToMainMenu(), nil
 
 	case "f2":
 		// Remapped F2 to Sessions
@@ -1465,17 +1480,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		// Add escape handling for submenus
 		case ModeThemesSubmenu, ModeBordersSubmenu, ModeBackgroundsSubmenu, ModeWallpaperSubmenu, ModeASCIIEffectsSubmenu:
 			// Go back to main menu
-			m.mode = ModeMenu
-			m.menuOptions = []string{
-				"Close Menu",
-				"Themes",
-				"Borders",
-				"Backgrounds",
-				"Wallpaper",
-				"ASCII Effects",
-			}
-			m.menuIndex = 0
-			return m, nil
+			return m.navigateToMainMenu(), nil
 		// Add escape handling for release notes
 		case ModeReleaseNotes:
 			// Return to login mode
@@ -2046,17 +2051,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 
 			// Handle "← Back" option for all submenus
 			if selectedOption == "← Back" {
-				m.mode = ModeMenu
-				m.menuOptions = []string{
-					"Close Menu",
-					"Themes",
-					"Borders",
-					"Backgrounds",
-					"Wallpaper",
-					"ASCII Effects",
-				}
-				m.menuIndex = 0
-				return m, nil
+				return m.navigateToMainMenu(), nil
 			}
 
 			// Implement actual submenu functionality
@@ -2066,6 +2061,9 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				if strings.HasPrefix(selectedOption, "Theme: ") {
 					themeName := strings.TrimPrefix(selectedOption, "Theme: ")
 					m.currentTheme = themeName
+					if m.secondaryTheme != nil {
+						m.secondaryTheme.Store(themeName)
+					}
 					// Apply theme immediately
 					applyTheme(themeName, m.config.TestMode)
 					m.applyInputTheme()
@@ -2724,7 +2722,44 @@ func ensureFullTerminalCoverage(content string, termWidth, termHeight int) strin
 
 // Complete dual border redesign
 func (m model) renderMainView(termWidth, termHeight int) string {
-	return m.renderDualBorderLayout(termWidth, termHeight)
+	m.width, m.height = termWidth, termHeight
+	// ponytail: legacy ASCII frames omit some authentication feedback; use the
+	// shared form for these states until those frames also reuse renderMainForm.
+	needsFeedback := strings.HasPrefix(m.selectedBorderStyle, "ascii") &&
+		(m.mode == ModeLoading || m.errorMessage != "" || m.failedAttempts > 0 || m.capsLockOn)
+	// Decorative frames assume at least 80 columns and 24 rows.
+	if !needsFeedback && termWidth >= 80 && termHeight >= 24 {
+		content := m.renderDualBorderLayout(termWidth, termHeight)
+		if lipgloss.Width(content) <= termWidth && lipgloss.Height(content) <= termHeight {
+			return content
+		}
+	}
+	width := min(72, max(15, termWidth-6))
+	form := m.renderMainForm(width)
+	var lines []string
+	for _, line := range strings.Split(form, "\n") {
+		if strings.TrimSpace(stripAnsi(line)) != "" {
+			lines = append(lines, line)
+		}
+	}
+	help := "Enter Continue • Tab Focus • F1 Menu"
+	if m.sessionDropdownOpen {
+		help = "↑↓ Navigate • Enter Select • Esc Close"
+	} else if m.mode == ModeLoading {
+		help = "Please wait..."
+	} else if m.mode == ModePassword {
+		help = "Enter Login • Esc Back • Tab Focus • F1 Menu"
+	}
+	form = lipgloss.JoinVertical(lipgloss.Left, strings.Join(lines, "\n"), "", lipgloss.NewStyle().Foreground(FgMuted).Width(width).Render(help))
+	frame := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(BorderDefault).Background(BgBase).Padding(0, 2).Render(form)
+	if lipgloss.Width(frame) <= termWidth && lipgloss.Height(frame) <= termHeight {
+		return frame
+	}
+	if m.renderAmbientRow(width) != "" {
+		m.hideAmbient = true
+		return m.renderMainView(termWidth, termHeight)
+	}
+	return form
 }
 
 // Border rendering functions moved to borders.go
@@ -2855,6 +2890,7 @@ func main() {
 	// Initialize config with defaults
 	config := Config{
 		RememberUsername: true, // Default: remember username
+		Secondary:        secondaryConfig{Enabled: true},
 	}
 
 	var screensaverTestMode bool // CHANGED 2025-10-11 - Add screensaver test mode flag
@@ -2867,9 +2903,16 @@ func main() {
 	flag.BoolVar(&config.TestMode, "test", false, "Enable test mode (no actual authentication)")
 	flag.BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	flag.BoolVar(&screensaverTestMode, "screensaver", false, "Start directly in screensaver mode for testing")
-	flag.StringVar(&config.ThemeName, "theme", "", "Theme name (dracula, gruvbox, material, nord, tokyo-night, catppuccin, solarized, monochrome, transishardjob, eldritch)")
+	flag.StringVar(&config.ThemeName, "theme", "", "Theme name from the Themes menu (overrides saved theme)")
 	flag.BoolVar(&config.RememberUsername, "remember-username", true, "Remember last logged in username")
 	flag.BoolVar(&config.ShowTime, "time", false, "") // Hidden flag - not shown in help
+	flag.BoolVar(&config.Ambient.Metrics, "metrics", false, "Show CPU/RAM usage in the login panel")
+	flag.BoolVar(&config.Ambient.GPU, "gpu", false, "Collect optional GPU statistics for upcoming widgets (no display yet)")
+	flag.BoolVar(&config.Secondary.Enabled, "secondary-backgrounds", true, "Enable backgrounds on secondary outputs in supported greeter sessions")
+	flag.StringVar(&config.Secondary.Exclude, "secondary-exclude", "", "Comma-separated outputs to exclude from secondary backgrounds")
+	flag.StringVar(&config.Secondary.Effect, "secondary-effect", "matrix", "sysc-terminal effect for secondary backgrounds")
+	flag.StringVar(&config.Ambient.WeatherLocation, "weather-location", "", "Show weather at LAT,LON in the login panel")
+	flag.StringVar(&config.Ambient.WeatherUnits, "weather-units", "celsius", "Weather temperature units: celsius or fahrenheit")
 
 	// Add help text
 	// CHANGED 2025-10-12 - Updated help text to reflect sysc-greet branding
@@ -2878,6 +2921,13 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS]\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "sysc-greet - A terminal greeter for greetd\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
+		fmt.Fprintln(os.Stderr, "  -metrics\n    \tShow CPU/RAM usage in the login panel")
+		fmt.Fprintln(os.Stderr, "  -gpu\n    \tCollect optional GPU statistics for upcoming widgets (no display yet)")
+		fmt.Fprintln(os.Stderr, "  -secondary-backgrounds=false\n    \tDisable secondary backgrounds (enabled in supported greeter sessions)")
+		fmt.Fprintln(os.Stderr, "  -secondary-exclude OUTPUT,OUTPUT\n    \tExclude outputs from secondary backgrounds")
+		fmt.Fprintln(os.Stderr, "  -secondary-effect string\n    \tsysc-terminal effect (default matrix)")
+		fmt.Fprintln(os.Stderr, "  -weather-location LAT,LON\n    \tShow weather at LAT,LON in the login panel")
+		fmt.Fprintln(os.Stderr, "  -weather-units string\n    \tWeather units: celsius (default) or fahrenheit")
 		// Manually print flags (excluding hidden ones)
 		fmt.Fprintf(os.Stderr, "  -debug\n")
 		fmt.Fprintf(os.Stderr, "    	Enable debug output\n")
@@ -2941,7 +2991,19 @@ func main() {
 	logDebug("WAYLAND_DISPLAY: %s", os.Getenv("WAYLAND_DISPLAY"))
 	logDebug("XDG_RUNTIME_DIR: %s", os.Getenv("XDG_RUNTIME_DIR"))
 
+	// Bubble Tea handles SIGINT/SIGTERM; terminal close also sends SIGHUP.
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGHUP)
+	defer cancel()
+	collector, err := newAmbientCollector(ctx, config.Ambient)
+	if err != nil {
+		cancel()
+		fmt.Fprintf(os.Stderr, "Invalid ambient configuration: %v\n", err)
+		os.Exit(1)
+	}
 	m := initialModel(config, screensaverTestMode)
+	m.ambient = collector
+	m.secondaryTheme = &atomic.Value{}
+	m.secondaryTheme.Store(m.currentTheme)
 	// Use fullscreen terminal modes when a controlling TTY is available.
 	if tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err != nil {
 		if config.Debug {
@@ -2952,9 +3014,16 @@ func main() {
 		m.altScreen = true
 	}
 
-	p := tea.NewProgram(m)
+	p := tea.NewProgram(m, tea.WithContext(ctx))
+	secondaryDone := startSecondaryBackgrounds(ctx, config.Secondary, m.secondaryTheme, p.Send)
 
-	if _, err := p.Run(); err != nil {
+	_, err = p.Run()
+	cancel()
+	<-secondaryDone
+	if closeErr := collector.close(); closeErr != nil {
+		logDebug("Close GPU sampler: %v", closeErr)
+	}
+	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}

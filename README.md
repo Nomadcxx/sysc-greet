@@ -138,6 +138,26 @@ sudo dnf install ./sysc-greet-1.1.11-1.x86_64.rpm
 See [Installation Guide](https://nomadcxx.github.io/sysc-greet/docs/getting-started/installation/) for details.
 
 
+## Startup theme
+
+Use `--theme blue` to select a theme at startup. Names from the Themes menu are case insensitive. An explicit theme overrides the saved theme; test mode ignores saved preferences.
+
+## Optional login status
+
+Enable the compact CPU/RAM row inside the login panel:
+
+```sh
+sysc-greet --test --metrics --secondary-backgrounds=false
+```
+
+Add `--weather-location LAT,LON` for weather at your configured coordinates. Use `--weather-units fahrenheit` for Fahrenheit; Celsius is the default. Both sources default to disabled. Unavailable readings show `--`; cached weather shows `stale` after a failed refresh. The row hides when authentication needs the space.
+
+## Secondary-monitor backgrounds
+
+In Niri, sysc-greet starts a native `sysc-terminal` background on each active output except the login window's output. Install sysc-terminal separately; a missing helper leaves login available. Helpers follow theme changes and exit with the greeter.
+
+Use `--secondary-backgrounds=false` to disable them, `--secondary-exclude DP-3,HDMI-A-1` to exclude outputs, or `--secondary-effect pour` to choose a renderer effect. The default is Matrix. Helpers overlay existing wallpapers; closing them reveals the wallpaper again. Other compositors do not run these helpers.
+
 ## Documentation
 
 For detailed docs, configuration guides, troubleshooting, and usage instructions, check out the [full documentation site](https://nomadcxx.github.io/sysc-greet/).

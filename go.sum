@@ -1,5 +1,7 @@
 github.com/BurntSushi/toml v1.5.0 h1:W5quZX/G/csjUnuI8SUYlsHs9M38FC7znL0lIO+DvMg=
 github.com/BurntSushi/toml v1.5.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
+github.com/Nomadcxx/sysc-metrics v0.7.1 h1:rgtOJ5mKnhwJqe19l/tFCOkX/+ogUzUzD2jDOo3UgkE=
+github.com/Nomadcxx/sysc-metrics v0.7.1/go.mod h1:qIgYyJuuD0Ql7wlh3cN0kiHsSG/LEMczrq+vXA7rIQs=
 github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=
 github.com/atotto/clipboard v0.1.4/go.mod h1:ZY9tmq7sm5xIbd9bOK4onWV4S6X0u6GY7Vn0Yu86PYI=
 github.com/aymanbagabas/go-osc52/v2 v2.0.1 h1:HwpRHbFMcZLEVr42D4p7XBqjyuxQH5SMiErDT4WkJ2k=
@@ -12,8 +14,6 @@ github.com/charmbracelet/bubbles/v2 v2.0.0-beta.1 h1:swACzss0FjnyPz1enfX56GKkLiu
 github.com/charmbracelet/bubbles/v2 v2.0.0-beta.1/go.mod h1:6HamsBKWqEC/FVHuQMHgQL+knPyvHH55HwJDHl/adMw=
 github.com/charmbracelet/bubbletea v1.3.4 h1:kCg7B+jSCFPLYRA52SDZjr51kG/fMUEoPoZrkaDHyoI=
 github.com/charmbracelet/bubbletea v1.3.4/go.mod h1:dtcUCyCGEX3g9tosuYiut3MXgY/Jsv9nKVdibKKRRXo=
-github.com/charmbracelet/bubbletea/v2 v2.0.0-beta.4.0.20250910155747-997384b0b35e h1:4BBnKWFwJ5FLyhw/ijFxKE04i9rubr8WIPR1kjO57iA=
-github.com/charmbracelet/bubbletea/v2 v2.0.0-beta.4.0.20250910155747-997384b0b35e/go.mod h1:F7AfLKYQqpM3NNBVs7ctW417tavhvoh9SBjsgtwpzbY=
 github.com/charmbracelet/bubbletea/v2 v2.0.0-beta.5.0.20251030163446-d7c95b8a2778 h1:fqALY+ex0B7mHuQjEAFiY/caSdJYOiWCwtvZyxprIsQ=
 github.com/charmbracelet/bubbletea/v2 v2.0.0-beta.5.0.20251030163446-d7c95b8a2778/go.mod h1:SUTLq+/pGQ5qntHgt0JswfVJFfgJgWDqyvyiSLVlmbo=
 github.com/charmbracelet/colorprofile v0.3.2 h1:9J27WdztfJQVAQKX2WOlSSRB+5gaKqqITmrvb1uTIiI=
@@ -22,12 +22,8 @@ github.com/charmbracelet/lipgloss v1.1.0 h1:vYXsiLHVkK7fp74RkV7b2kq9+zDLoEU4MZoF
 github.com/charmbracelet/lipgloss v1.1.0/go.mod h1:/6Q8FR2o+kj8rz4Dq0zQc3vYf7X+B0binUUBwA0aL30=
 github.com/charmbracelet/lipgloss/v2 v2.0.0-beta.3.0.20250917201909-41ff0bf215ea h1:g1HfUgSMvye8mgecMD1mPscpt+pzJoDEiSA+p2QXzdQ=
 github.com/charmbracelet/lipgloss/v2 v2.0.0-beta.3.0.20250917201909-41ff0bf215ea/go.mod h1:ngHerf1JLJXBrDXdphn5gFrBPriCL437uwukd5c93pM=
-github.com/charmbracelet/ultraviolet v0.0.0-20250915111650-81d4262876ef h1:VrWaUi2LXYLjfjCHowdSOEc6dQ9Ro14KY7Bw4IWd19M=
-github.com/charmbracelet/ultraviolet v0.0.0-20250915111650-81d4262876ef/go.mod h1:AThRsQH1t+dfyOKIwXRoJBniYFQUkUpQq4paheHMc2o=
 github.com/charmbracelet/ultraviolet v0.0.0-20251017140847-d4ace4d6e731 h1:Lr+igmzKpLPdb8yUZBP9noYWwCZP042z2nWPrJZTc+8=
 github.com/charmbracelet/ultraviolet v0.0.0-20251017140847-d4ace4d6e731/go.mod h1:KfWwUa0Oe//D72YlhbOq/g40L7UiGtATrvsGI3cciG8=
-github.com/charmbracelet/x/ansi v0.10.1 h1:rL3Koar5XvX0pHGfovN03f5cxLbCF2YvLeyz7D2jVDQ=
-github.com/charmbracelet/x/ansi v0.10.1/go.mod h1:3RQDQ6lDnROptfpWuUVIUG64bD2g2BgntdxH0Ya5TeE=
 github.com/charmbracelet/x/ansi v0.10.2 h1:ith2ArZS0CJG30cIUfID1LXN7ZFXRCww6RUvAPA+Pzw=
 github.com/charmbracelet/x/ansi v0.10.2/go.mod h1:HbLdJjQH4UH4AqA2HpRWuWNluRE6zxJH/yteYEYCFa8=
 github.com/charmbracelet/x/cellbuf v0.0.13 h1:/KBBKHuVRbq1lYx5BzEHBAFBP8VcQzJejZ/IA3iR28k=
@@ -48,8 +44,6 @@ github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWE
 github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
 github.com/mattn/go-localereader v0.0.1 h1:ygSAOl7ZXTx4RdPYinUpg6W99U8jWvWi9Ye2JC/oIi4=
 github.com/mattn/go-localereader v0.0.1/go.mod h1:8fBrzywKY7BI3czFoHkuzRoWE9C+EiG4R1k4Cjx5p88=
-github.com/mattn/go-runewidth v0.0.16 h1:E5ScNMtiwvlvB5paMFdw9p4kSQzbXFikJ5SQO6TULQc=
-github.com/mattn/go-runewidth v0.0.16/go.mod h1:Jdepj2loyihRzMpdS35Xk/zdY8IAYHsh153qUoGf23w=
 github.com/mattn/go-runewidth v0.0.17 h1:78v8ZlW0bP43XfmAfPsdXcoNCelfMHsDmd/pkENfrjQ=
 github.com/mattn/go-runewidth v0.0.17/go.mod h1:Jdepj2loyihRzMpdS35Xk/zdY8IAYHsh153qUoGf23w=
 github.com/mbndr/figlet4go v0.0.0-20190224160619-d6cef5b186ea h1:mQncVDBpKkAecPcH2IMGpKUQYhwowlafQbfkz2QFqkc=
@@ -71,8 +65,6 @@ golang.org/x/sync v0.17.0 h1:l60nONMj9l5drqw6jlhIELNv9I0A4OFgRsG9k2oT9Ug=
 golang.org/x/sync v0.17.0/go.mod h1:9KTHXmSnoGruLpwFjVSX0lNNA75CykiMECbovNTZqGI=
 golang.org/x/sys v0.0.0-20210809222454-d867a43fc93e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.6.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
-golang.org/x/sys v0.36.0 h1:KVRy2GtZBrk1cBYA7MKu5bEZFxQk4NIDV6RLVcC8o0k=
-golang.org/x/sys v0.36.0/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=
 golang.org/x/sys v0.37.0 h1:fdNQudmxPjkdUTPnLn5mdQv7Zwvbvpaxqs831goi9kQ=
 golang.org/x/sys v0.37.0/go.mod h1:OgkHotnGiDImocRcuBABYBEXf8A9a87e/uXjp9XT3ks=
 golang.org/x/text v0.23.0 h1:D71I7dUrlY+VX0gQShAThNGHFxZ13dGLBHQLVl1mJlY=

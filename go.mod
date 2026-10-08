@@ -1,9 +1,10 @@
 module github.com/Nomadcxx/sysc-greet
 
-go 1.25.1
+go 1.26
 
 require (
 	github.com/BurntSushi/toml v1.5.0
+	github.com/Nomadcxx/sysc-metrics v0.7.1
 	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbles/v2 v2.0.0-beta.1
 	github.com/charmbracelet/bubbletea v1.3.4
