@@ -1,12 +1,14 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
+	"slices"
 	"strings"
 	"time"
 
@@ -1167,21 +1169,46 @@ func mangoArtifact() string {
 	return ""
 }
 
-// osRelease returns ID and VERSION_ID from /etc/os-release
+// Release codenames of the Ubuntu and Debian versions that have sysc-greet
+// release packages, so derivatives can resolve to their base release.
+var (
+	ubuntuReleases = map[string]string{"noble": "24.04", "plucky": "25.04", "questing": "25.10", "resolute": "26.04"}
+	debianReleases = map[string]string{"trixie": "13"}
+)
+
+// osRelease returns the distro ID and VERSION_ID from /etc/os-release,
+// resolving Ubuntu and Debian derivatives to their base release
 func osRelease() (id, version string) {
 	data, err := os.ReadFile("/etc/os-release")
 	if err != nil {
 		return "", ""
 	}
-	for _, line := range strings.Split(string(data), "\n") {
-		if v := strings.TrimPrefix(line, "ID="); v != line {
-			id = strings.Trim(v, `"`)
-		}
-		if v := strings.TrimPrefix(line, "VERSION_ID="); v != line {
-			version = strings.Trim(v, `"`)
+	return parseOSRelease(string(data))
+}
+
+// parseOSRelease maps derivatives (Mint, Pop!_OS, ...) to the Ubuntu or Debian
+// release underneath through ID_LIKE and the base codename. Derivatives whose
+// base release is unknown keep their own ID and VERSION_ID.
+func parseOSRelease(data string) (id, version string) {
+	fields := map[string]string{}
+	for _, line := range strings.Split(data, "\n") {
+		if k, v, ok := strings.Cut(line, "="); ok {
+			fields[k] = strings.Trim(v, `"`)
 		}
 	}
-	return id, version
+	like := strings.Fields(fields["ID_LIKE"])
+	switch {
+	case slices.Contains(like, "ubuntu"):
+		if v, ok := ubuntuReleases[fields["UBUNTU_CODENAME"]]; ok {
+			return "ubuntu", v
+		}
+	case slices.Contains(like, "debian"):
+		codename := cmp.Or(fields["DEBIAN_CODENAME"], fields["VERSION_CODENAME"])
+		if v, ok := debianReleases[codename]; ok {
+			return "debian", v
+		}
+	}
+	return fields["ID"], fields["VERSION_ID"]
 }
 
 // installReleasePackage downloads a package attached to the latest
