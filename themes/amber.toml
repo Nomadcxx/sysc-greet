@@ -1,0 +1,17 @@
+# Amber theme for sysc-greet
+# Colors from sysc-shell's amber palette (dark)
+
+name = "Amber"
+
+[colors]
+bg_base = "#17130b"
+bg_active = "#39342b"
+primary = "#ffc107"
+secondary = "#ffd54f"
+accent = "#ffd54f"
+warning = "#ffc107"
+danger = "#f2b8b5"
+fg_primary = "#ebe1d4"
+fg_secondary = "#d2c8bc"
+fg_muted = "#b0a79c"
+border_focus = "#ffc107"

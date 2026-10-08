@@ -1,0 +1,17 @@
+# Orange theme for sysc-greet
+# Colors from sysc-shell's orange palette (dark)
+
+name = "Orange"
+
+[colors]
+bg_base = "#1a120e"
+bg_active = "#3d332e"
+primary = "#ff6d00"
+secondary = "#ffb74d"
+accent = "#ffb74d"
+warning = "#ff6d00"
+danger = "#f2b8b5"
+fg_primary = "#f0dfd8"
+fg_secondary = "#d6c6c0"
+fg_muted = "#b4a69f"
+border_focus = "#ff6d00"

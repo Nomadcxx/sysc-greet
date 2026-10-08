@@ -1,0 +1,17 @@
+# Blue theme for sysc-greet
+# Colors from sysc-shell's blue palette (dark)
+
+name = "Blue"
+
+[colors]
+bg_base = "#101418"
+bg_active = "#32353a"
+primary = "#42a5f5"
+secondary = "#8ab4f8"
+accent = "#8ab4f8"
+warning = "#f8d38a"
+danger = "#f2b8b5"
+fg_primary = "#e0e2e8"
+fg_secondary = "#c7c9cf"
+fg_muted = "#a6a8ae"
+border_focus = "#42a5f5"

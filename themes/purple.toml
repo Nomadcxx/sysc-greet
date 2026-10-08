@@ -1,0 +1,17 @@
+# Purple theme for sysc-greet
+# Colors from sysc-shell's purple palette (dark)
+
+name = "Purple"
+
+[colors]
+bg_base = "#141218"
+bg_active = "#36343a"
+primary = "#d0bcff"
+secondary = "#ccc2dc"
+accent = "#d0bcff"
+warning = "#f1daad"
+danger = "#f2b8b5"
+fg_primary = "#e6e0e9"
+fg_secondary = "#cdc7d0"
+fg_muted = "#aba6ae"
+border_focus = "#d0bcff"

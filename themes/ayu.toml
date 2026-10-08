@@ -1,0 +1,17 @@
+# Ayu theme for sysc-greet
+# Colors from sysc-shell's ayu palette (dark)
+
+name = "Ayu"
+
+[colors]
+bg_base = "#0b0e14"
+bg_active = "#1e222a"
+primary = "#e6b450"
+secondary = "#aad94c"
+accent = "#39bae6"
+warning = "#e6b450"
+danger = "#d95757"
+fg_primary = "#d1d1c7"
+fg_secondary = "#b9bab2"
+fg_muted = "#9a9a95"
+border_focus = "#e6b450"

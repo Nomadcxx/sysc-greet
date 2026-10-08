@@ -1,0 +1,17 @@
+# Green theme for sysc-greet
+# Colors from sysc-shell's green palette (dark)
+
+name = "Green"
+
+[colors]
+bg_base = "#10140f"
+bg_active = "#323630"
+primary = "#4caf50"
+secondary = "#81c995"
+accent = "#81c995"
+warning = "#e4ba66"
+danger = "#f2b8b5"
+fg_primary = "#e0e4db"
+fg_secondary = "#c7cbc3"
+fg_muted = "#a6aaa2"
+border_focus = "#4caf50"
