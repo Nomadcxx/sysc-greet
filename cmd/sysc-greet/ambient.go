@@ -20,10 +20,11 @@ import (
 const weatherEndpoint = "https://api.open-meteo.com/v1/forecast"
 
 type ambientConfig struct {
-	Metrics         bool
-	GPU             bool
-	WeatherLocation string
-	WeatherUnits    string
+	Metrics         bool   `json:"metrics"`
+	GPU             bool   `json:"gpu"`
+	WeatherLocation string `json:"weather_location"`
+	WeatherUnits    string `json:"weather_units"`
+	ShellConfig     string `json:"shell_config"`
 }
 
 type weatherLocation struct{ latitude, longitude float64 }

@@ -2896,6 +2896,7 @@ func main() {
 	var screensaverTestMode bool // CHANGED 2025-10-11 - Add screensaver test mode flag
 	var showVersion bool
 	var startWallpaperDaemon bool
+	var widgetConfigPath string
 
 	flag.BoolVar(&showVersion, "version", false, "Show version information")
 	flag.BoolVar(&showVersion, "v", false, "Show version information (shorthand)")
@@ -2906,13 +2907,15 @@ func main() {
 	flag.StringVar(&config.ThemeName, "theme", "", "Theme name from the Themes menu (overrides saved theme)")
 	flag.BoolVar(&config.RememberUsername, "remember-username", true, "Remember last logged in username")
 	flag.BoolVar(&config.ShowTime, "time", false, "") // Hidden flag - not shown in help
-	flag.BoolVar(&config.Ambient.Metrics, "metrics", false, "Show CPU/RAM usage in the login panel")
+	flag.StringVar(&widgetConfigPath, "widget-config", "", "Widget JSON configuration file (overrides default paths)")
+	flag.StringVar(&config.Ambient.ShellConfig, "weather-shell-config", "", "sysc-shell config path when weather-location is sysc-shell")
+	flag.BoolVar(&config.Ambient.Metrics, "metrics", false, "Show CPU/Memory usage in the login panel")
 	flag.BoolVar(&config.Ambient.GPU, "gpu", false, "Collect optional GPU statistics for upcoming widgets (no display yet)")
 	flag.BoolVar(&config.Secondary.Enabled, "secondary-backgrounds", true, "Enable backgrounds on secondary outputs in supported greeter sessions")
 	flag.StringVar(&config.Secondary.Exclude, "secondary-exclude", "", "Comma-separated outputs to exclude from secondary backgrounds")
 	flag.StringVar(&config.Secondary.Effect, "secondary-effect", "matrix", "sysc-terminal effect for secondary backgrounds")
-	flag.StringVar(&config.Ambient.WeatherLocation, "weather-location", "", "Show weather at LAT,LON in the login panel")
-	flag.StringVar(&config.Ambient.WeatherUnits, "weather-units", "celsius", "Weather temperature units: celsius or fahrenheit")
+	flag.StringVar(&config.Ambient.WeatherLocation, "weather-location", "", "Show weather at LAT,LON or reuse sysc-shell coordinates")
+	flag.StringVar(&config.Ambient.WeatherUnits, "weather-units", "", "Weather temperature units: celsius or fahrenheit")
 
 	// Add help text
 	// CHANGED 2025-10-12 - Updated help text to reflect sysc-greet branding
@@ -2921,12 +2924,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS]\n\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "sysc-greet - A terminal greeter for greetd\n\n")
 		fmt.Fprintf(os.Stderr, "Options:\n")
-		fmt.Fprintln(os.Stderr, "  -metrics\n    \tShow CPU/RAM usage in the login panel")
+		fmt.Fprintln(os.Stderr, "  -widget-config PATH\n    \tWidget JSON config (user config, then /etc/sysc-greet/widgets.json)")
+		fmt.Fprintln(os.Stderr, "  -weather-shell-config PATH\n    \tsysc-shell config for weather-location=sysc-shell")
+		fmt.Fprintln(os.Stderr, "  -metrics\n    \tShow CPU/Memory usage in the login panel")
 		fmt.Fprintln(os.Stderr, "  -gpu\n    \tCollect optional GPU statistics for upcoming widgets (no display yet)")
 		fmt.Fprintln(os.Stderr, "  -secondary-backgrounds=false\n    \tDisable secondary backgrounds (enabled in supported greeter sessions)")
 		fmt.Fprintln(os.Stderr, "  -secondary-exclude OUTPUT,OUTPUT\n    \tExclude outputs from secondary backgrounds")
 		fmt.Fprintln(os.Stderr, "  -secondary-effect string\n    \tsysc-terminal effect (default matrix)")
-		fmt.Fprintln(os.Stderr, "  -weather-location LAT,LON\n    \tShow weather at LAT,LON in the login panel")
+		fmt.Fprintln(os.Stderr, "  -weather-location LAT,LON\n    \tShow weather at LAT,LON or reuse sysc-shell coordinates")
 		fmt.Fprintln(os.Stderr, "  -weather-units string\n    \tWeather units: celsius (default) or fahrenheit")
 		// Manually print flags (excluding hidden ones)
 		fmt.Fprintf(os.Stderr, "  -debug\n")
@@ -2994,6 +2999,21 @@ func main() {
 	// Bubble Tea handles SIGINT/SIGTERM; terminal close also sends SIGHUP.
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGHUP)
 	defer cancel()
+	paths := []string{"/etc/sysc-greet/widgets.json"}
+	if dir, err := os.UserConfigDir(); err == nil {
+		paths = append([]string{filepath.Join(dir, "sysc-greet", "widgets.json")}, paths...)
+	}
+	if widgetConfigPath != "" {
+		paths = []string{widgetConfigPath}
+	}
+	overrides := make(map[string]bool)
+	flag.Visit(func(f *flag.Flag) { overrides[f.Name] = true })
+	ambient, err := loadWidgetConfig(paths, config.Ambient, overrides)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Widget configuration warning: %v\n", err)
+		logDebug("Widget configuration warning: %v", err)
+	}
+	config.Ambient = ambient
 	collector, err := newAmbientCollector(ctx, config.Ambient)
 	if err != nil {
 		cancel()

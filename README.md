@@ -144,13 +144,25 @@ Use `--theme blue` to select a theme at startup. Names from the Themes menu are 
 
 ## Optional login status
 
-Enable the compact CPU/RAM row inside the login panel:
+Enable the bordered CPU and Memory panels inside the login panel:
 
 ```sh
 sysc-greet --test --metrics --secondary-backgrounds=false
 ```
 
-Add `--weather-location LAT,LON` for weather at your configured coordinates. Use `--weather-units fahrenheit` for Fahrenheit; Celsius is the default. Both sources default to disabled. Unavailable readings show `--`; cached weather shows `stale` after a failed refresh. The row hides when authentication needs the space.
+Add `--weather-location LAT,LON` for weather at your configured coordinates. Use `--weather-units fahrenheit` for Fahrenheit; Celsius is the default. Both sources default to disabled. Each panel has its own subdued border and label. Unavailable readings show `--`; cached weather shows `stale` after a failed refresh. Weather hides first on narrow screens; the panels hide when authentication needs the space.
+
+For persistent settings, create `/etc/sysc-greet/widgets.json` (for greetd) or `$XDG_CONFIG_HOME/sysc-greet/widgets.json` (default `~/.config/sysc-greet/widgets.json`). The first existing user file overrides the system file; launch flags override file settings. `--widget-config PATH` selects a different file.
+
+```json
+{
+  "metrics": true,
+  "weather_location": "-37.8136,144.9631",
+  "weather_units": "celsius"
+}
+```
+
+To reuse sysc-shell coordinates and units, set `"weather_location": "sysc-shell"` and omit `weather_units`. The default source is the running user's `sysc-shell/config.json` under the XDG config directory. Set `"shell_config": "/path/to/sysc-shell/config.json"` or `--weather-shell-config PATH` to choose another source. Greetd runs as `greeter`, so use a config that this account can read; do not assume it can access your home directory. Direct coordinates in the system widget file work without sysc-shell. Shell configs with a city name need explicit coordinates in the greeter file. If the shell config is unavailable or invalid, the greeter warns and hides weather while keeping login available. Set `"weather_location": ""` or pass `--weather-location=` to disable weather.
 
 ## Secondary-monitor backgrounds
 
