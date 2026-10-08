@@ -1,0 +1,16 @@
+# Colors from sysc-shell's eldritch-abyss palette (dark)
+
+name = "Eldritch-Abyss"
+
+[colors]
+bg_base = "#171928"
+bg_active = "#474852"
+primary = "#2dcc82"
+secondary = "#0396b3"
+accent = "#8b75d9"
+warning = "#2dcc82"
+danger = "#cc5860"
+fg_primary = "#d8e6e6"
+fg_secondary = "#c1cdcf"
+fg_muted = "#a2adb1"
+border_focus = "#2dcc82"

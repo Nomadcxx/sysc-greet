@@ -1,0 +1,16 @@
+# Colors from sysc-shell's pink palette (dark)
+
+name = "Pink"
+
+[colors]
+bg_base = "#191112"
+bg_active = "#3c3233"
+primary = "#e91e63"
+secondary = "#f8bbd9"
+accent = "#f8bbd9"
+warning = "#e91e63"
+danger = "#f2b8b5"
+fg_primary = "#f0dee0"
+fg_secondary = "#d6c5c7"
+fg_muted = "#b4a5a6"
+border_focus = "#e91e63"

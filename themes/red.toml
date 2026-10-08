@@ -1,0 +1,16 @@
+# Colors from sysc-shell's red palette (dark)
+
+name = "Red"
+
+[colors]
+bg_base = "#1a1110"
+bg_active = "#3d3231"
+primary = "#f44336"
+secondary = "#f28b82"
+accent = "#f28b82"
+warning = "#f44336"
+danger = "#f2b8b5"
+fg_primary = "#f1dedc"
+fg_secondary = "#d7c5c4"
+fg_muted = "#b5a5a3"
+border_focus = "#f44336"

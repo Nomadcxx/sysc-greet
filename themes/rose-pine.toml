@@ -1,0 +1,16 @@
+# Colors from sysc-shell's rose-pine palette (dark)
+
+name = "Rose-Pine"
+
+[colors]
+bg_base = "#191724"
+bg_active = "#26233a"
+primary = "#ebbcba"
+secondary = "#9ccfd8"
+accent = "#31748f"
+warning = "#ebbcba"
+danger = "#eb6f92"
+fg_primary = "#e0def4"
+fg_secondary = "#c8c6db"
+fg_muted = "#a8a6ba"
+border_focus = "#ebbcba"
