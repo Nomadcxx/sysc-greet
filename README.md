@@ -1,8 +1,12 @@
-![sysc-greet](assets/logo.png)
+![sysc-greet](assets/header.webp)
 
 A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd), written in Go with the Bubble Tea framework.
 
-![Preview](assets/showcase.gif)
+<details>
+<summary>Preview</summary>
+
+<img src="assets/showcase.gif" alt="sysc-greet preview" loading="lazy">
+</details>
 
 ## Quick Links
 
