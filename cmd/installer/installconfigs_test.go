@@ -103,3 +103,17 @@ func TestSyscCompositorGreeterBackend(t *testing.T) {
 		}
 	}
 }
+
+func TestNiriGreeterQuitCommand(t *testing.T) {
+	for _, tc := range []struct {
+		compositor string
+		want       string
+	}{
+		{"niri", "niri msg action quit --skip-confirmation"},
+		{"sysc-compositor", "sysc-compositor msg action quit --skip-confirmation"},
+	} {
+		if got := niriGreeterQuitCommand(tc.compositor); got != tc.want {
+			t.Errorf("niriGreeterQuitCommand(%q) = %q, want %q", tc.compositor, got, tc.want)
+		}
+	}
+}

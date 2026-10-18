@@ -263,6 +263,13 @@ func niriGreeterCommand(compositor string) string {
 	return ""
 }
 
+func niriGreeterQuitCommand(compositor string) string {
+	if compositor == "niri" || compositor == "sysc-compositor" {
+		return compositor + " msg action quit --skip-confirmation"
+	}
+	return ""
+}
+
 const mangoUnsupported = "Mango packages are available only on Arch, Debian 13, Ubuntu 26.04, Fedora 43/44. Use niri, sysc-compositor, cagebreak, or sway instead"
 
 // mangoAvailable reports whether installMango can install mango here
@@ -1994,6 +2001,11 @@ func configureGreetd(m *model) error {
 
 	switch m.selectedCompositor {
 	case "niri", "sysc-compositor":
+		quitCommand := niriGreeterQuitCommand(m.selectedCompositor)
+		if quitCommand == "" {
+			return fmt.Errorf("unknown Niri-compatible greeter compositor: %s", m.selectedCompositor)
+		}
+
 		compositorConfig = `// SYSC-Greet Niri config for greetd greeter session
 // Monitors auto-detected by niri at runtime
 
@@ -2039,7 +2051,7 @@ animations {
 
 spawn-sh-at-startup "cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state /usr/local/bin/sysc-greet --wallpaper-daemon"
 
-spawn-sh-at-startup "cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
+spawn-sh-at-startup "cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; ` + quitCommand + `"
 
 binds {
 }
