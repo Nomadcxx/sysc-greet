@@ -1,13 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/Nomadcxx/sysc-greet/internal/animations"
 	"github.com/Nomadcxx/sysc-greet/internal/sessions"
 	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -268,6 +271,47 @@ func TestInitialModelSelectsTestSessionASCIIProfile(t *testing.T) {
 	}
 	if got := ansi.Strip(m.getSessionASCII()); !strings.Contains(got, "▄▀▀█▀▀") {
 		t.Fatalf("test session did not load sysc-compositor ASCII: %q", got)
+	}
+}
+
+func TestSyscCompositorASCIIHeaderVisibleInCompactLayout(t *testing.T) {
+	originalDataDir := dataDir
+	dataDir = filepath.Join("..", "..")
+	t.Cleanup(func() { dataDir = originalDataDir })
+
+	for _, size := range [][2]int{{80, 24}, {100, 35}, {120, 40}} {
+		t.Run(fmt.Sprintf("%dx%d", size[0], size[1]), func(t *testing.T) {
+			m := initialModel(Config{TestMode: true, TestSession: "sysc-compositor"}, false)
+			view := m.renderMainView(size[0], size[1])
+			if !strings.Contains(ansi.Strip(view), "▄▀▀█▀▀") {
+				t.Fatal("login layout dropped the sysc-compositor ASCII header")
+			}
+			if !strings.Contains(view, "\x1b[38;2;") || !strings.Contains(view, "\x1b[48;2;") {
+				t.Fatal("login layout dropped ANSI foreground or background colors")
+			}
+			if width, height := lipgloss.Width(view), lipgloss.Height(view); width > size[0] || height > size[1] {
+				t.Fatalf("layout is %dx%d, exceeds %dx%d", width, height, size[0], size[1])
+			}
+		})
+	}
+}
+
+func TestSyscCompositorPrintEffectVisibleInCompactLayout(t *testing.T) {
+	originalDataDir := dataDir
+	dataDir = filepath.Join("..", "..")
+	t.Cleanup(func() { dataDir = originalDataDir })
+
+	m := initialModel(Config{TestMode: true, TestSession: "sysc-compositor"}, false)
+	m.selectedBackground = "print"
+	m.printEffect = animations.NewPrintEffect("PRINT-FX", 0)
+	now := time.Now()
+	for i := 1; i <= 5; i++ {
+		m.printEffect.Tick(now.Add(time.Duration(i) * time.Second))
+	}
+
+	view := m.renderMainView(80, 24)
+	if !strings.Contains(ansi.Strip(view), "PRINT") {
+		t.Fatal("compact layout dropped the session's active print effect")
 	}
 }
 

@@ -2818,6 +2818,15 @@ func (m model) renderMainView(termWidth, termHeight int) string {
 	}
 	form = lipgloss.JoinVertical(lipgloss.Left, strings.Join(lines, "\n"), "", lipgloss.NewStyle().Foreground(FgMuted).Width(width).Render(help))
 	frame := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(BorderDefault).Background(BgBase).Padding(0, 2).Render(form)
+	if m.selectedSession != nil {
+		if art := m.getSessionArt(m.selectedSession.Name); art != "" {
+			compact := lipgloss.JoinVertical(lipgloss.Center, art, "", frame)
+			// ponytail: keep the full ANSI art when it fits; clipping needs ANSI-aware per-line handling.
+			if lipgloss.Width(compact) <= termWidth && lipgloss.Height(compact) <= termHeight {
+				return compact
+			}
+		}
+	}
 	if lipgloss.Width(frame) <= termWidth && lipgloss.Height(frame) <= termHeight {
 		return frame
 	}
