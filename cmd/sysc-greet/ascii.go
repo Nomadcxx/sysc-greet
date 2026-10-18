@@ -2,13 +2,16 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"math"
 	"os"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/Nomadcxx/sysc-greet/internal/animations"
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // ascii.go - ASCII art configuration, loading, rendering, and animations
@@ -88,6 +91,8 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 					config.Name = value
 				case "color":
 					config.Color = strings.TrimSpace(value)
+				case "ansi_style":
+					config.ANSIStyle = strings.EqualFold(value, "true")
 				case "animation_style":
 					config.AnimationStyle = value
 				case "animation_speed":
@@ -153,6 +158,146 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 	}
 
 	return config, nil
+}
+
+func renderANSIASCII(art string) (string, bool) {
+	// TheDraw's Bash and Python exports spell the ESC byte as readable \\033.
+	art = strings.ReplaceAll(art, `\033`, "\x1b")
+
+	var output, run strings.Builder
+	foreground, background := FgPrimary, BgBase
+	parser := ansi.NewParser()
+	state := byte(ansi.NormalState)
+	sawControl := false
+
+	flush := func() {
+		if run.Len() == 0 {
+			return
+		}
+		output.WriteString(lipgloss.NewStyle().Foreground(foreground).Background(background).Render(run.String()))
+		run.Reset()
+	}
+
+	input := []byte(art)
+	for len(input) > 0 {
+		if input[0] == '\n' {
+			flush()
+			output.WriteByte('\n')
+			input = input[1:]
+			state = ansi.NormalState
+			parser.Reset()
+			continue
+		}
+
+		sequence, width, consumed, nextState := ansi.DecodeSequence(input, state, parser)
+		if consumed <= 0 || consumed > len(input) {
+			input = input[1:]
+			state = ansi.NormalState
+			parser.Reset()
+			continue
+		}
+		input = input[consumed:]
+		state = nextState
+
+		if width == 0 && len(sequence) > 0 && unicode.IsControl(rune(sequence[0])) {
+			sawControl = true
+			command := ansi.Cmd(parser.Command())
+			isCSI := sequence[0] == 0x9b || (sequence[0] == 0x1b && len(sequence) > 1 && sequence[1] == '[')
+			if isCSI && command.Final() == 'm' && command.Prefix() == 0 && command.Intermediate() == 0 {
+				if nextForeground, nextBackground, changed := applyANSIStyle(parser.Params(), foreground, background); changed {
+					flush()
+					foreground, background = nextForeground, nextBackground
+				}
+			}
+			continue
+		}
+
+		run.Write(sequence)
+	}
+
+	flush()
+	return output.String(), sawControl
+}
+
+func applyANSIStyle(params ansi.Params, foreground, background color.Color) (color.Color, color.Color, bool) {
+	for _, param := range params {
+		if param.HasMore() {
+			// Colon-delimited extended SGR is outside the 16-color profile format.
+			return foreground, background, false
+		}
+	}
+
+	changed := false
+	for i := 0; i < len(params); i++ {
+		code := params[i].Param(0)
+		switch {
+		case code == 0:
+			foreground, background = FgPrimary, BgBase
+			changed = true
+		case code == 39:
+			foreground = FgPrimary
+			changed = true
+		case code == 49:
+			background = BgBase
+			changed = true
+		case code >= 30 && code <= 37:
+			foreground = asciiANSIColor(code - 30)
+			changed = true
+		case code >= 90 && code <= 97:
+			foreground = asciiANSIColor(code - 90 + 8)
+			changed = true
+		case code >= 40 && code <= 47:
+			background = asciiANSIColor(code - 40)
+			changed = true
+		case code == 38 || code == 48:
+			// Ignore the unsupported extended-color group, including its payload.
+			if i+1 >= len(params) {
+				return foreground, background, false
+			}
+			switch params[i+1].Param(-1) {
+			case 2:
+				if i+4 >= len(params) {
+					return foreground, background, false
+				}
+				i += 4
+			case 5:
+				if i+2 >= len(params) {
+					return foreground, background, false
+				}
+				i += 2
+			default:
+				return foreground, background, false
+			}
+		}
+	}
+	return foreground, background, changed
+}
+
+func asciiANSIColor(index int) color.Color {
+	switch index {
+	case 0:
+		return BgBase
+	case 1:
+		return Danger
+	case 2, 5, 10, 13:
+		return Accent
+	case 3, 11:
+		return Warning
+	case 4, 6:
+		return Secondary
+	case 7:
+		return FgSecondary
+	case 8:
+		return FgMuted
+	case 9:
+		return Danger
+	case 12, 14:
+		return Primary
+	case 15:
+		return FgPrimary
+	default:
+		return FgPrimary
+	}
 }
 
 // Support multi-variant ASCII with cycling and height normalization
@@ -227,6 +372,12 @@ func (m model) getSessionASCII() string {
 	if m.selectedBackground == "pour" && m.pourEffect != nil {
 		// Pour effect renders with its own colors
 		return m.pourEffect.Render()
+	}
+
+	if asciiConfig.ANSIStyle {
+		if rendered, hasControls := renderANSIASCII(currentASCII); hasControls {
+			return rendered
+		}
 	}
 
 	// CHANGED 2025-10-11 - Removed height normalization padding to ensure consistent 2-line spacing

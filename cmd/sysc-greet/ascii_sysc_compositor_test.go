@@ -1,12 +1,16 @@
 package main
 
 import (
+	"image/color"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/Nomadcxx/sysc-greet/internal/sessions"
+	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 func TestLoadSyscCompositorASCIIConfig(t *testing.T) {
@@ -19,11 +23,14 @@ func TestLoadSyscCompositorASCIIConfig(t *testing.T) {
 	if config.Name != "sysc-compositor" {
 		t.Fatalf("Name = %q, want sysc-compositor", config.Name)
 	}
+	if !config.ANSIStyle {
+		t.Fatal("expected sysc-compositor to enable ANSI-style rendering")
+	}
 	if len(config.ASCIIVariants) == 0 {
 		t.Fatal("expected at least one ASCII variant")
 	}
-	if !strings.HasPrefix(config.ASCIIVariants[0], "  ▄▀▀█▀▀") {
-		t.Fatal("first ASCII variant should be the TAAG Bleach output")
+	if !strings.HasPrefix(config.ASCIIVariants[0], `\033[0;37m`) {
+		t.Fatal("first ASCII variant should contain the TAAG Bleach ANSI export")
 	}
 	if len(config.ASCIIVariants) < 2 || !strings.HasPrefix(config.ASCIIVariants[1], "█▀▀▀▀▀▀") {
 		t.Fatal("second ASCII variant should use the sanitized TAAG shell art")
@@ -46,6 +53,153 @@ func TestLoadSyscCompositorASCIIConfig(t *testing.T) {
 	}
 }
 
+func TestGetSessionASCIIUsesEmbeddedANSIAndThemeRoles(t *testing.T) {
+	writeASCIIConfigForTest(t, `name=sysc-compositor
+ansi_style=true
+ascii_1="""
+\033[94;44mA\033[31mB \033[49mC\033[39mX\033[0m
+\033[38;2;31;32;33mD\033[2J
+"""
+`)
+
+	oldPrimary, oldSecondary := Primary, Secondary
+	oldDanger, oldBgBase, oldFgPrimary := Danger, BgBase, FgPrimary
+	Primary = lipgloss.Color("#112233")
+	Secondary = lipgloss.Color("#445566")
+	Danger = lipgloss.Color("#ff0000")
+	BgBase = lipgloss.Color("#000000")
+	FgPrimary = lipgloss.Color("#eeeeee")
+	t.Cleanup(func() {
+		Primary, Secondary = oldPrimary, oldSecondary
+		Danger, BgBase, FgPrimary = oldDanger, oldBgBase, oldFgPrimary
+	})
+
+	session := sessions.Session{Name: "sysc-compositor"}
+	got := (model{selectedSession: &session}).getSessionASCII()
+	if plain := ansi.Strip(got); plain != "AB CX\nD" {
+		t.Fatalf("plain ANSI art = %q, want %q", plain, "AB CX\nD")
+	}
+	aligned := lipgloss.NewStyle().Width(20).Align(lipgloss.Center).Render(got)
+	if !strings.Contains(aligned, "38;2;17;34;51") {
+		t.Fatal("ANSI foreground color was lost through Lipgloss alignment")
+	}
+	alignedLines := strings.Split(ansi.Strip(aligned), "\n")
+	wantLines := []string{"AB CX", "D"}
+	if len(alignedLines) != len(wantLines) {
+		t.Fatalf("aligned line count = %d, want %d", len(alignedLines), len(wantLines))
+	}
+	for i, line := range alignedLines {
+		if width := lipgloss.Width(line); width != 20 {
+			t.Errorf("aligned line %d width = %d, want 20", i+1, width)
+		}
+		want := wantLines[i]
+		if got := strings.TrimSpace(line); got != want {
+			t.Errorf("aligned line %d text = %q, want %q", i+1, got, want)
+		}
+	}
+	if strings.Contains(got, `\033`) || strings.Contains(got, "\x1b[2J") {
+		t.Fatalf("config escape text or unsupported CSI reached output: %q", got)
+	}
+	if !strings.Contains(got, "\x1b[38;2;17;34;51;48;2;68;85;102mA") {
+		t.Fatalf("bright blue foreground and blue background did not use theme roles: %q", got)
+	}
+	if !strings.Contains(got, "\x1b[38;2;255;0;0;48;2;68;85;102mB ") {
+		t.Fatalf("standard red foreground did not use Danger: %q", got)
+	}
+	if !strings.Contains(got, "\x1b[38;2;255;0;0;48;2;0;0;0mC") {
+		t.Fatalf("background reset did not restore BgBase: %q", got)
+	}
+	if !strings.Contains(got, "\x1b[38;2;238;238;238;48;2;0;0;0mX") {
+		t.Fatalf("foreground reset did not restore FgPrimary: %q", got)
+	}
+	if !strings.Contains(got, "\x1b[38;2;238;238;238;48;2;0;0;0mD") {
+		t.Fatalf("extended-color payload was misread as standard SGR: %q", got)
+	}
+}
+
+func TestASCIIANSIColorSlotsResolveToThemeRoles(t *testing.T) {
+	oldBgBase, oldDanger, oldAccent := BgBase, Danger, Accent
+	oldWarning, oldSecondary, oldPrimary := Warning, Secondary, Primary
+	oldFgSecondary, oldFgMuted, oldFgPrimary := FgSecondary, FgMuted, FgPrimary
+	BgBase = lipgloss.Color("#010101")
+	Danger = lipgloss.Color("#020202")
+	Accent = lipgloss.Color("#030303")
+	Warning = lipgloss.Color("#040404")
+	Secondary = lipgloss.Color("#050505")
+	Primary = lipgloss.Color("#060606")
+	FgSecondary = lipgloss.Color("#070707")
+	FgMuted = lipgloss.Color("#080808")
+	FgPrimary = lipgloss.Color("#090909")
+	t.Cleanup(func() {
+		BgBase, Danger, Accent = oldBgBase, oldDanger, oldAccent
+		Warning, Secondary, Primary = oldWarning, oldSecondary, oldPrimary
+		FgSecondary, FgMuted, FgPrimary = oldFgSecondary, oldFgMuted, oldFgPrimary
+	})
+
+	want := []color.Color{
+		BgBase, Danger, Accent, Warning, Secondary, Accent, Secondary, FgSecondary,
+		FgMuted, Danger, Accent, Warning, Primary, Accent, Primary, FgPrimary,
+	}
+	for slot, expected := range want {
+		if got := asciiANSIColor(slot); got != expected {
+			t.Errorf("ANSI color slot %d resolved to %v, want %v", slot, got, expected)
+		}
+	}
+}
+
+func TestGetSessionASCIIUnmarkedConfigRetainsColorOverride(t *testing.T) {
+	writeASCIIConfigForTest(t, `name=sysc-compositor
+color=#abcdef
+ascii_1="""
+LOGO
+"""
+`)
+
+	session := sessions.Session{Name: "sysc-compositor"}
+	got := (model{selectedSession: &session}).getSessionASCII()
+	if plain := ansi.Strip(got); plain != "LOGO" {
+		t.Fatalf("plain art = %q, want LOGO", plain)
+	}
+	if !strings.Contains(got, "\x1b[38;2;171;205;239mLOGO") {
+		t.Fatalf("unmarked profile did not keep its configured color: %q", got)
+	}
+}
+
+func TestGetSessionASCIIRendersPlainVariantWithLegacyThemeStyle(t *testing.T) {
+	originalDataDir := dataDir
+	dataDir = filepath.Join("..", "..")
+	t.Cleanup(func() { dataDir = originalDataDir })
+
+	oldPrimary, oldBgBase := Primary, BgBase
+	Primary = lipgloss.Color("#112233")
+	BgBase = lipgloss.Color("#000000")
+	t.Cleanup(func() { Primary, BgBase = oldPrimary, oldBgBase })
+
+	session := sessions.Session{Name: "sysc-compositor"}
+	got := (model{selectedSession: &session, asciiArtIndex: 1}).getSessionASCII()
+	if plain := ansi.Strip(got); !strings.HasPrefix(plain, "█▀▀▀▀▀▀") {
+		t.Fatalf("plain variant was not preserved: %q", plain)
+	}
+	if !strings.Contains(got, "\x1b[38;2;17;34;51") {
+		t.Fatalf("plain variant did not keep the existing theme color path: %q", got)
+	}
+}
+
+func writeASCIIConfigForTest(t *testing.T, config string) {
+	t.Helper()
+	oldDataDir := dataDir
+	dataDir = t.TempDir()
+	t.Cleanup(func() { dataDir = oldDataDir })
+
+	configDir := filepath.Join(dataDir, "ascii_configs")
+	if err := os.MkdirAll(configDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(configDir, "sysc-compositor.conf"), []byte(config), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestGetSessionASCIISelectsSyscCompositorProfile(t *testing.T) {
 	originalDataDir := dataDir
 	dataDir = filepath.Join("..", "..")
@@ -53,7 +207,7 @@ func TestGetSessionASCIISelectsSyscCompositorProfile(t *testing.T) {
 
 	session := sessions.Session{Name: "sysc-compositor"}
 	got := (model{selectedSession: &session}).getSessionASCII()
-	if !strings.Contains(got, "▄▀▀█▀▀") {
+	if !strings.Contains(ansi.Strip(got), "▄▀▀█▀▀") {
 		t.Fatalf("getSessionASCII() did not select sysc-compositor art: %q", got)
 	}
 }
@@ -112,7 +266,7 @@ func TestInitialModelSelectsTestSessionASCIIProfile(t *testing.T) {
 	if m.selectedSession == nil || m.selectedSession.Name != "sysc-compositor" {
 		t.Fatalf("selected session = %#v, want sysc-compositor", m.selectedSession)
 	}
-	if got := m.getSessionASCII(); !strings.Contains(got, "▄▀▀█▀▀") {
+	if got := ansi.Strip(m.getSessionASCII()); !strings.Contains(got, "▄▀▀█▀▀") {
 		t.Fatalf("test session did not load sysc-compositor ASCII: %q", got)
 	}
 }

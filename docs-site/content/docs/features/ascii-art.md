@@ -49,6 +49,10 @@ ascii_1=
 
 If `color=` is set, that color is used for ASCII art. If omitted, the theme's primary color is used.
 
+## ANSI-style art
+
+For generated art that includes ANSI SGR colors, set `ansi_style=true` in that session's config. The renderer maps standard and bright ANSI foreground codes and standard ANSI background codes to roles from the active theme. Those SGR colors take precedence over `color=` for colored variants; plain variants keep the existing color behavior. Extended-color SGR and other terminal control sequences are ignored.
+
 ## Creating Custom ASCII
 
 **ASCII generators:**
