@@ -248,12 +248,22 @@ type greeterCompositor struct {
 // deprecated and only reachable through SYSC_COMPOSITOR=hyprland.
 var greeterCompositors = []greeterCompositor{
 	{name: "niri", label: "Tiling compositor with scrollable workspaces (default)", binaries: []string{"niri"}},
+	{name: "sysc-compositor", label: "Niri-compatible compositor (install separately)", binaries: []string{"sysc-compositor"}},
 	{name: "cagebreak", label: "Minimal tiling kiosk; replaces Hyprland for the greeter", binaries: []string{"cagebreak"}, installable: true},
 	{name: "sway", label: "Stable i3-compatible tiling compositor", binaries: []string{"sway"}},
 	{name: "mango", label: "dwl-based tiling compositor (Arch, Debian 13, Ubuntu 26.04, Fedora 43/44)", binaries: []string{"mango"}, installable: true},
 }
 
-const mangoUnsupported = "no mango package for this distro (Arch, Debian 13, Ubuntu 26.04, Fedora 43/44 only) — use niri, cagebreak, or sway"
+const niriGreeterConfigPath = "/etc/greetd/niri-greeter-config.kdl"
+
+func niriGreeterCommand(compositor string) string {
+	if compositor == "niri" || compositor == "sysc-compositor" {
+		return compositor + " -c " + niriGreeterConfigPath
+	}
+	return ""
+}
+
+const mangoUnsupported = "Mango packages are available only on Arch, Debian 13, Ubuntu 26.04, Fedora 43/44. Use niri, sysc-compositor, cagebreak, or sway instead"
 
 // mangoAvailable reports whether installMango can install mango here
 func mangoAvailable(packageManager string) bool {
@@ -1983,7 +1993,7 @@ func configureGreetd(m *model) error {
 	var configPath string
 
 	switch m.selectedCompositor {
-	case "niri":
+	case "niri", "sysc-compositor":
 		compositorConfig = `// SYSC-Greet Niri config for greetd greeter session
 // Monitors auto-detected by niri at runtime
 
@@ -2034,8 +2044,11 @@ spawn-sh-at-startup "cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_
 binds {
 }
 `
-		configPath = "/etc/greetd/niri-greeter-config.kdl"
-		greetdCommand = "niri -c /etc/greetd/niri-greeter-config.kdl"
+		configPath = niriGreeterConfigPath
+		greetdCommand = niriGreeterCommand(m.selectedCompositor)
+		if greetdCommand == "" {
+			return fmt.Errorf("unknown Niri-compatible greeter compositor: %s", m.selectedCompositor)
+		}
 
 	case "hyprland":
 		compositorConfig = `# SYSC-Greet Hyprland config for greetd greeter session

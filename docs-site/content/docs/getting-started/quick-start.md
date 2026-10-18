@@ -14,7 +14,7 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.
 ```
 
 The interactive installer will guide you through:
-1. Choosing your greeter compositor: niri (default), cagebreak, sway, or mango
+1. Choosing your greeter compositor: niri (default), cagebreak, sway, mango, or a preinstalled sysc-compositor in development builds
 2. Configuring compositor settings
 3. Installing dependencies automatically
 
