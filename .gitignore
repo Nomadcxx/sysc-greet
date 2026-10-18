@@ -8,6 +8,8 @@
 test-*
 *test*
 !*testing.md
+!cmd/sysc-greet/ascii_sysc_compositor_test.go
+!internal/sessions/sessions_test.go
 *debug*
 *.production-backup
 

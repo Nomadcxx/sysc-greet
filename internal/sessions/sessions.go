@@ -31,8 +31,6 @@ func (s Session) String() string {
 }
 
 func LoadSessions() ([]Session, error) {
-	var sessions []Session
-
 	// Default paths
 	paths := []string{
 		"/usr/share/xsessions",
@@ -40,6 +38,11 @@ func LoadSessions() ([]Session, error) {
 		"/run/current-system/sw/share/xsessions",
 		"/run/current-system/sw/share/wayland-sessions",
 	}
+	return loadSessionsFromPaths(paths)
+}
+
+func loadSessionsFromPaths(paths []string) ([]Session, error) {
+	var sessions []Session
 
 	for _, basePath := range paths {
 		err := filepath.Walk(basePath, func(path string, info os.FileInfo, err error) error {

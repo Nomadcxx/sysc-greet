@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+	"unicode"
 
 	"github.com/Nomadcxx/sysc-greet/internal/animations"
 	"github.com/Nomadcxx/sysc-greet/internal/cache"
@@ -278,12 +279,43 @@ type Config struct {
 	FollowShell      *bool
 	ShellThemeFile   string
 	TestMode         bool
+	TestSession      string
 	Debug            bool
 	ShowTime         bool
 	ThemeName        string
 	RememberUsername bool
 	Ambient          ambientConfig
 	Secondary        secondaryConfig
+}
+
+func normalizeTestSessionOption(testMode bool, name string) (string, error) {
+	if name == "" {
+		return "", nil
+	}
+	if !testMode {
+		return "", fmt.Errorf("--test-session requires --test")
+	}
+
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "", fmt.Errorf("--test-session requires a session name")
+	}
+	if strings.ContainsAny(name, `/\\`) || strings.IndexFunc(name, unicode.IsControl) >= 0 {
+		return "", fmt.Errorf("--test-session must not contain path separators or control characters")
+	}
+	return name, nil
+}
+
+func selectTestSession(available []sessions.Session, name string) ([]sessions.Session, *sessions.Session, int) {
+	for i := range available {
+		if strings.EqualFold(available[i].Name, name) {
+			return available, &available[i], i
+		}
+	}
+
+	available = append(available, sessions.Session{Name: name, Exec: name, Type: "Wayland"})
+	i := len(available) - 1
+	return available, &available[i], i
 }
 
 type ViewMode string
@@ -579,6 +611,9 @@ func initialModel(config Config, screensaverMode bool) model {
 	var ipcClient *ipc.Client
 	var selectedSession *sessions.Session
 	var sessionIndex int
+	if config.TestMode && config.TestSession != "" {
+		sess, selectedSession, sessionIndex = selectTestSession(sess, config.TestSession)
+	}
 
 	if !config.TestMode {
 		// CHANGED 2025-10-05 - Proper IPC client error handling
@@ -2810,6 +2845,29 @@ func (m model) renderMainView(termWidth, termHeight int) string {
 
 // Animation helper functions moved to theme.go
 
+// ponytail: support whitespace-separated session Exec lines; quoted desktop-entry
+// arguments need a spec-aware parser if sessions with spaces require them.
+func sessionCommand(execLine string) []string {
+	execParts := strings.Fields(execLine)
+	if len(execParts) > 0 && filepath.Base(execParts[0]) == "sway" {
+		// FIXED 2026-01-17 - Add --unsupported-gpu flag for Sway sessions (NVIDIA compatibility)
+		// This ensures NVIDIA users can log in without being kicked back to greeter
+		// Use filepath.Base() to handle full paths (e.g., /usr/bin/sway) and preserve original Exec
+		hasFlag := false
+		for _, part := range execParts {
+			if part == "--unsupported-gpu" {
+				hasFlag = true
+				break
+			}
+		}
+		if !hasFlag {
+			// Insert --unsupported-gpu after the binary name but before other args
+			execParts = append([]string{execParts[0], "--unsupported-gpu"}, execParts[1:]...)
+		}
+	}
+	return execParts
+}
+
 func (m model) authenticate(username, password string) tea.Cmd {
 	return func() tea.Msg {
 		// CHANGED 2025-10-05 - Add nil check for IPC client
@@ -2870,26 +2928,7 @@ func (m model) authenticate(username, password string) tea.Cmd {
 					m.ipcClient.CancelSession()
 					return fmt.Errorf("no session selected")
 				}
-				// FIXED 2026-01-17 - Add --unsupported-gpu flag for Sway sessions (NVIDIA compatibility)
-				// This ensures NVIDIA users can log in without being kicked back to greeter
-				// Use filepath.Base() to handle full paths (e.g., /usr/bin/sway) and preserve original Exec
-				execParts := strings.Fields(m.selectedSession.Exec)
-				if len(execParts) > 0 && filepath.Base(execParts[0]) == "sway" {
-					// Check if --unsupported-gpu is already present (avoid duplicates)
-					hasFlag := false
-					for _, part := range execParts {
-						if part == "--unsupported-gpu" {
-							hasFlag = true
-							break
-						}
-					}
-					if !hasFlag {
-						// Insert --unsupported-gpu after the binary name but before other args
-						execParts = append([]string{execParts[0], "--unsupported-gpu"}, execParts[1:]...)
-					}
-				}
-				// Use parsed Exec (with --unsupported-gpu added if needed)
-				cmd := execParts
+				cmd := sessionCommand(m.selectedSession.Exec)
 				env := []string{} // Can be populated if needed
 				if err := m.ipcClient.StartSession(cmd, env); err != nil {
 					// Cancel session on StartSession failure
@@ -2933,6 +2972,7 @@ func main() {
 	flag.BoolVar(&showVersion, "v", false, "Show version information (shorthand)")
 	flag.BoolVar(&startWallpaperDaemon, "wallpaper-daemon", false, "Start gSlapper with the cached greeter wallpaper")
 	flag.BoolVar(&config.TestMode, "test", false, "Enable test mode (no actual authentication)")
+	flag.StringVar(&config.TestSession, "test-session", "", "Select a session profile for visual testing (requires --test)")
 	flag.BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	flag.BoolVar(&screensaverTestMode, "screensaver", false, "Start directly in screensaver mode for testing")
 	flag.BoolVar(&followShell, "follow-shell", true, "Follow the installed shell account theme by default")
@@ -2975,6 +3015,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "    	Start directly in screensaver mode for testing\n")
 		fmt.Fprintf(os.Stderr, "  -test\n")
 		fmt.Fprintf(os.Stderr, "    	Enable test mode (no actual authentication)\n")
+		fmt.Fprintf(os.Stderr, "  -test-session string\n")
+		fmt.Fprintf(os.Stderr, "    \tSelect a session profile for visual testing (requires -test)\n")
 		fmt.Fprintf(os.Stderr, "  -theme string\n")
 		fmt.Fprintf(os.Stderr, "    	Theme name (dracula, gruvbox, material, nord, tokyo-night, catppuccin, solarized, monochrome, transishardjob, eldritch)\n")
 		fmt.Fprintf(os.Stderr, "  -v	Show version information (shorthand)\n")
@@ -3007,6 +3049,13 @@ func main() {
 		fmt.Printf("Commit: %s\n", GitCommit)
 		fmt.Printf("Built: %s\n", BuildDate)
 		os.Exit(0)
+	}
+
+	var err error
+	config.TestSession, err = normalizeTestSessionOption(config.TestMode, config.TestSession)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
+		os.Exit(2)
 	}
 
 	if startWallpaperDaemon {
