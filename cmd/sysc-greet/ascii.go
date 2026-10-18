@@ -30,12 +30,34 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 
 	var currentVariantLines []string
 	inASCII := false
+	inTripleASCII := false
+	saveVariant := func() {
+		if len(currentVariantLines) == 0 {
+			return
+		}
+		variant := strings.TrimRight(strings.Join(currentVariantLines, "\n"), "\n")
+		config.ASCIIVariants = append(config.ASCIIVariants, variant)
+		if height := len(strings.Split(variant, "\n")); height > config.MaxASCIIHeight {
+			config.MaxASCIIHeight = height
+		}
+		currentVariantLines = nil
+	}
 
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
 
 		// Skip comments and empty lines
 		if strings.HasPrefix(trimmedLine, "#") || trimmedLine == "" {
+			continue
+		}
+		if inTripleASCII {
+			if trimmedLine == `"""` {
+				saveVariant()
+				inASCII = false
+				inTripleASCII = false
+				continue
+			}
+			currentVariantLines = append(currentVariantLines, line)
 			continue
 		}
 
@@ -46,42 +68,22 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 
 			// Check if this is a new ASCII variant (ascii_1, ascii_2, etc.)
 			if strings.HasPrefix(key, "ascii_") || key == "ascii" {
-				// Save previous variant if exists
-				if inASCII && len(currentVariantLines) > 0 {
-					variant := strings.Join(currentVariantLines, "\n")
-					// Trim trailing newlines for height consistency
-					variant = strings.TrimRight(variant, "\n")
-					config.ASCIIVariants = append(config.ASCIIVariants, variant)
-
-					// Track max height
-					variantLines := strings.Split(variant, "\n")
-					height := len(variantLines)
-					if height > config.MaxASCIIHeight {
-						config.MaxASCIIHeight = height
-					}
+				if inASCII {
+					saveVariant()
 				}
 
 				// Start new variant
 				currentVariantLines = []string{}
 				inASCII = true
+				inTripleASCII = value == `"""`
 
-				if value != "" && value != `"""` {
+				if value != "" && !inTripleASCII {
 					currentVariantLines = append(currentVariantLines, value)
 				}
 			} else {
 				// Save any pending ASCII variant before switching to other keys
-				if inASCII && len(currentVariantLines) > 0 {
-					variant := strings.Join(currentVariantLines, "\n")
-					variant = strings.TrimRight(variant, "\n")
-					config.ASCIIVariants = append(config.ASCIIVariants, variant)
-
-					variantLines := strings.Split(variant, "\n")
-					height := len(variantLines)
-					if height > config.MaxASCIIHeight {
-						config.MaxASCIIHeight = height
-					}
-
-					currentVariantLines = []string{}
+				if inASCII {
+					saveVariant()
 					inASCII = false
 				}
 
@@ -108,18 +110,7 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 		} else if inASCII {
 			if trimmedLine == `"""` {
 				// End ASCII section and save variant
-				if len(currentVariantLines) > 0 {
-					variant := strings.Join(currentVariantLines, "\n")
-					variant = strings.TrimRight(variant, "\n")
-					config.ASCIIVariants = append(config.ASCIIVariants, variant)
-
-					variantLines := strings.Split(variant, "\n")
-					height := len(variantLines)
-					if height > config.MaxASCIIHeight {
-						config.MaxASCIIHeight = height
-					}
-				}
-				currentVariantLines = []string{}
+				saveVariant()
 				inASCII = false
 				continue
 			}
@@ -128,16 +119,8 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 	}
 
 	// Save final variant if exists
-	if inASCII && len(currentVariantLines) > 0 {
-		variant := strings.Join(currentVariantLines, "\n")
-		variant = strings.TrimRight(variant, "\n")
-		config.ASCIIVariants = append(config.ASCIIVariants, variant)
-
-		variantLines := strings.Split(variant, "\n")
-		height := len(variantLines)
-		if height > config.MaxASCIIHeight {
-			config.MaxASCIIHeight = height
-		}
+	if inASCII {
+		saveVariant()
 	}
 
 	// Fallback: if no variants found, use old "ascii=" format
