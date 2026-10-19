@@ -24,6 +24,12 @@ contents:
     dst: /usr/share/sysc-greet/ascii_configs/
     type: tree
 
+  # Third-party license notices for embedded animation assets
+  - src: ./THIRD_PARTY_NOTICES.md
+    dst: /usr/share/sysc-greet/THIRD_PARTY_NOTICES.md
+    file_info:
+      mode: 0644
+
   # Wallpapers
   - src: ./wallpapers/
     dst: /usr/share/sysc-greet/wallpapers/

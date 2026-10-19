@@ -34,6 +34,7 @@ install: build
 	@echo "Installing ASCII configs..."
 	@mkdir -p /usr/share/sysc-greet
 	@cp -r ascii_configs /usr/share/sysc-greet/
+	@install -m644 THIRD_PARTY_NOTICES.md /usr/share/sysc-greet/
 	@echo "Installing themes..."
 	@mkdir -p /usr/share/sysc-greet/themes
 	@install -m644 themes/*.toml /usr/share/sysc-greet/themes/

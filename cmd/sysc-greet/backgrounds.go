@@ -2,6 +2,9 @@ package main
 
 import (
 	"image/color"
+	"strings"
+
+	syscgoanimations "github.com/Nomadcxx/sysc-Go/animations"
 )
 
 // Background Effects - Extracted during Phase 5 refactoring
@@ -28,11 +31,33 @@ func (m model) applyBackgroundAnimation(content string) string {
 		return m.addCracktroEffect(content)
 	case "plasma":
 		return m.addPlasmaEffect(content)
+	case "ak-47":
+		return m.addAK47Effect(content)
 	case "none":
 		fallthrough
 	default:
 		return content
 	}
+}
+
+func (m model) newAK47Effect() *syscgoanimations.AK47Animation {
+	width, height := m.width, m.height
+	if width <= 0 {
+		width = 80
+	}
+	if height <= 0 {
+		height = 30
+	}
+	// ponytail: sysc-Go accepts named palettes only; custom greeter palettes need an AK-47 API that accepts palette values.
+	theme := strings.ReplaceAll(m.currentTheme, " ", "-")
+	return syscgoanimations.NewAK47Effect(width, height, theme)
+}
+
+func (m model) addAK47Effect(content string) string {
+	if m.ak47Effect == nil {
+		return content
+	}
+	return m.ak47Effect.Render()
 }
 
 // addFireEffect renders the fire background (render only, no state mutation)
