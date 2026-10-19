@@ -15,11 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Nomadcxx/sysc-greet/internal/animations"
-	"github.com/Nomadcxx/sysc-greet/internal/cache"
-	"github.com/Nomadcxx/sysc-greet/internal/ipc"
-	"github.com/Nomadcxx/sysc-greet/internal/sessions"
-	themesOld "github.com/Nomadcxx/sysc-greet/internal/themes"
+	syscgoanimations "github.com/Nomadcxx/sysc-Go/animations"
 	"github.com/charmbracelet/bubbles/v2/spinner"
 	"github.com/charmbracelet/bubbles/v2/textinput"
 	tea "github.com/charmbracelet/bubbletea/v2"
@@ -27,6 +23,12 @@ import (
 	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mbndr/figlet4go"
+
+	"github.com/Nomadcxx/sysc-greet/internal/animations"
+	"github.com/Nomadcxx/sysc-greet/internal/cache"
+	"github.com/Nomadcxx/sysc-greet/internal/ipc"
+	"github.com/Nomadcxx/sysc-greet/internal/sessions"
+	themesOld "github.com/Nomadcxx/sysc-greet/internal/themes"
 )
 
 // Version info - set via ldflags during build
@@ -415,8 +417,9 @@ type model struct {
 	sonarEffect       *animations.SonarAnimation    // Sonar background effect
 	cracktroEffect    *animations.CracktroAnimation // Cracktro background effect
 	plasmaEffect      *animations.PlasmaAnimation   // Plasma background effect
-	selectedWallpaper string                        // gslapper video wallpaper (separate from background effect)
-	gslapperLaunched  bool                          // Track if gslapper was launched from cache
+	ak47Effect        *syscgoanimations.AK47Animation
+	selectedWallpaper string // gslapper video wallpaper (separate from background effect)
+	gslapperLaunched  bool   // Track if gslapper was launched from cache
 }
 
 type sessionSelectedMsg sessions.Session
@@ -510,7 +513,7 @@ func (m model) backgroundEffectActive() bool {
 		return true
 	}
 	switch m.selectedBackground {
-	case "fire", "fire+rain", "ascii-rain", "matrix", "fireworks", "sonar", "cracktro", "plasma", "aquarium":
+	case "fire", "fire+rain", "ascii-rain", "matrix", "fireworks", "sonar", "cracktro", "plasma", "aquarium", "ak-47":
 		return true
 	}
 	return false
@@ -984,6 +987,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.aquariumEffect != nil {
 			m.aquariumEffect.Resize(msg.Width, msg.Height)
 		}
+		if m.ak47Effect != nil {
+			m.ak47Effect.Resize(msg.Width, msg.Height)
+		}
 		return m, nil
 
 	case tickMsg:
@@ -1100,6 +1106,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.bgAnimationFrame++
+		if m.selectedBackground == "ak-47" && m.ak47Effect == nil {
+			m.ak47Effect = m.newAK47Effect()
+		}
 
 		if (m.enableFire || m.selectedBackground == "fire" || m.selectedBackground == "fire+rain") && m.fireEffect != nil {
 			m.fireEffect.UpdatePalette(animations.GetFirePalette(m.currentTheme))
@@ -1140,6 +1149,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			fishColors, waterColors, seaweedColors, bubbleColor, diverColor, boatColor, mermaidColor, _ := getThemeColorsForAquarium(m.currentTheme)
 			m.aquariumEffect.UpdatePalette(fishColors, waterColors, seaweedColors, bubbleColor, diverColor, boatColor, mermaidColor)
 			m.aquariumEffect.Update()
+		}
+
+		if m.selectedBackground == "ak-47" && m.ak47Effect != nil {
+			m.ak47Effect.Update()
 		}
 
 		cmds = append(cmds, doBgTick(m.animSpeed))
@@ -1967,6 +1980,15 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.selectedBackground = "none"
 					m.plasmaEffect = nil
 				}
+			case "AK-47":
+				m.enableFire = false
+				if m.selectedBackground != "ak-47" {
+					m.selectedBackground = "ak-47"
+					m.ak47Effect = m.newAK47Effect()
+				} else {
+					m.selectedBackground = "none"
+					m.ak47Effect = nil
+				}
 			case "Aquarium":
 				m.enableFire = false
 				if m.selectedBackground != "aquarium" {
@@ -2000,7 +2022,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 
 			if m.enableFire {
 				m.selectedBackground = "fire"
-			} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" && m.selectedBackground != "sonar" && m.selectedBackground != "cracktro" && m.selectedBackground != "plasma" && m.selectedBackground != "aquarium" && m.selectedBackground != "ticker" {
+			} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" && m.selectedBackground != "sonar" && m.selectedBackground != "cracktro" && m.selectedBackground != "plasma" && m.selectedBackground != "aquarium" && m.selectedBackground != "ak-47" && m.selectedBackground != "ticker" {
 				m.selectedBackground = "none"
 			}
 
@@ -2094,6 +2116,9 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					// Apply theme immediately
 					applyTheme(themeName, m.config.TestMode)
 					m.applyInputTheme()
+					if m.selectedBackground == "ak-47" {
+						m.ak47Effect = m.newAK47Effect()
+					}
 					// CHANGED 2025-10-03 - Save theme preference
 					// CHANGED 2025-10-03 - Skip saving in test mode
 					if !m.config.TestMode {
@@ -2667,6 +2692,20 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: aquarium as background, UI centered on top
+		view.Layer = lipgloss.NewCanvas(
+			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
+			lipgloss.NewLayer(content).X(uiX).Y(uiY),
+		)
+		view.BackgroundColor = BgBase
+		return view
+	} else if m.selectedBackground == "ak-47" && (m.mode == ModeLogin || m.mode == ModePassword) {
+		backgroundContent := m.addAK47Effect("")
+
+		contentWidth := lipgloss.Width(content)
+		contentHeight := lipgloss.Height(content)
+		uiX := (termWidth - contentWidth) / 2
+		uiY := (termHeight - contentHeight) / 2
+
 		view.Layer = lipgloss.NewCanvas(
 			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
 			lipgloss.NewLayer(content).X(uiX).Y(uiY),

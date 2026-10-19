@@ -1876,6 +1876,7 @@ func installConfigs(m *model) error {
 	copies := map[string]string{
 		"ascii_configs/":            configPath + "/",
 		"fonts/":                    configPath + "/",
+		"THIRD_PARTY_NOTICES.md":    configPath + "/",
 		"config/kitty-greeter.conf": "/etc/greetd/kitty.conf",
 	}
 
