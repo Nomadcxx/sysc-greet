@@ -10,7 +10,7 @@ description: |
   Supports Niri, Cagebreak, Sway, and Mango compositors.
 vendor: Nomadcxx
 homepage: https://github.com/Nomadcxx/sysc-greet
-license: GPL-3.0
+license: GPL-3.0-only AND CC-BY-NC-4.0
 
 contents:
   # Main binary
