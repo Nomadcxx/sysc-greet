@@ -355,6 +355,8 @@ type model struct {
 	// Added fields for functional menu system
 	customASCIIText        string
 	selectedBorderStyle    string
+	borderEffect           string
+	formMode               string
 	selectedBackground     string
 	currentTheme           string
 	availableThemes        []string // Built-in + custom theme names
@@ -669,6 +671,8 @@ func initialModel(config Config, screensaverMode bool) model {
 		// Initialize default border and background settings
 		// Set Dracula as default theme and disable border animation
 		selectedBorderStyle:    "classic",
+		borderEffect:           "off",
+		formMode:               "auto",
 		selectedBackground:     "none",
 		currentTheme:           startupThemeName(config.ThemeName, "", availableThemes),
 		followShell:            config.FollowShell == nil || *config.FollowShell,
@@ -741,6 +745,12 @@ func initialModel(config Config, screensaverMode bool) model {
 			}
 			if prefs.BorderStyle != "" {
 				m.selectedBorderStyle = prefs.BorderStyle
+			}
+			if prefs.BorderEffect != "" {
+				m.borderEffect = prefs.BorderEffect
+			}
+			if prefs.FormMode != "" {
+				m.formMode = prefs.FormMode
 			}
 			if prefs.Session != "" {
 				// Find matching session in m.sessions
@@ -1231,23 +1241,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// CHANGED 2025-10-03 - Save session preference
 			// CHANGED 2025-10-03 - Skip saving in test mode
 			// FIXED 2025-10-17 - Save current username value (already loaded for this session above)
-			if !m.config.TestMode {
-				username := ""
-				if m.config.RememberUsername {
-					username = m.usernameInput.Value()
-				}
-				cache.SavePreferences(cache.UserPreferences{
-					FollowShell: &m.followShell,
-					Theme:       m.currentTheme,
-					Background:  m.selectedBackground,
-					Wallpaper:   m.selectedWallpaper,
-					BorderStyle: m.selectedBorderStyle,
-					Session:     session.Name,
-					Username:    username,
-					ASCIIIndex:  m.asciiArtIndex,
-					AnimSpeed:   m.animSpeed,
-				})
-			}
+			m.savePreferences()
 			return m, tea.Batch(cmds...)
 		}
 
@@ -1293,24 +1287,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.failedAttempts = 0 // Reset failed attempts on successful login
 
 			// FIXED 2025-10-17 - Save username to cache on successful login
-			if !m.config.TestMode && m.selectedSession != nil {
-				sessionName := m.selectedSession.Name
-				username := ""
-				if m.config.RememberUsername {
-					username = m.usernameInput.Value()
-				}
-				cache.SavePreferences(cache.UserPreferences{
-					FollowShell: &m.followShell,
-					Theme:       m.currentTheme,
-					Background:  m.selectedBackground,
-					Wallpaper:   m.selectedWallpaper,
-					BorderStyle: m.selectedBorderStyle,
-					Session:     sessionName,
-					Username:    username,
-					ASCIIIndex:  m.asciiArtIndex,
-					AnimSpeed:   m.animSpeed,
-				})
-				logDebug("Saved username '%s' for session: %s", username, sessionName)
+			if m.selectedSession != nil {
+				p := m.currentPreferences()
+				cache.SavePreferences(p)
+				logDebug("Saved username '%s' for session: %s", p.Username, p.Session)
 			}
 
 			fmt.Println("Session started successfully")
@@ -1659,22 +1639,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					}
 
 					// Save ASCII index preference
-					if !m.config.TestMode && m.selectedSession != nil {
-						username := ""
-						if m.config.RememberUsername {
-							username = m.usernameInput.Value()
-						}
-						cache.SavePreferences(cache.UserPreferences{
-							FollowShell: &m.followShell,
-							Theme:       m.currentTheme,
-							Background:  m.selectedBackground,
-							Wallpaper:   m.selectedWallpaper,
-							BorderStyle: m.selectedBorderStyle,
-							Session:     m.selectedSession.Name,
-							Username:    username,
-							ASCIIIndex:  m.asciiArtIndex,
-							AnimSpeed:   m.animSpeed,
-						})
+					if m.selectedSession != nil {
+						m.savePreferences()
 					}
 
 					// Reset print effect with new ASCII if enabled
@@ -1757,22 +1723,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					}
 
 					// Save ASCII index preference
-					if !m.config.TestMode && m.selectedSession != nil {
-						username := ""
-						if m.config.RememberUsername {
-							username = m.usernameInput.Value()
-						}
-						cache.SavePreferences(cache.UserPreferences{
-							FollowShell: &m.followShell,
-							Theme:       m.currentTheme,
-							Background:  m.selectedBackground,
-							Wallpaper:   m.selectedWallpaper,
-							BorderStyle: m.selectedBorderStyle,
-							Session:     m.selectedSession.Name,
-							Username:    username,
-							ASCIIIndex:  m.asciiArtIndex,
-							AnimSpeed:   m.animSpeed,
-						})
+					if m.selectedSession != nil {
+						m.savePreferences()
 					}
 
 					// Reset print effect with new ASCII if enabled
@@ -1831,22 +1783,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			default:
 				m.animSpeed = "slow"
 			}
-			if !m.config.TestMode {
-				sessionName := ""
-				if m.selectedSession != nil {
-					sessionName = m.selectedSession.Name
-				}
-				cache.SavePreferences(cache.UserPreferences{
-					FollowShell: &m.followShell,
-					Theme:       m.currentTheme,
-					Background:  m.selectedBackground,
-					Wallpaper:   m.selectedWallpaper,
-					BorderStyle: m.selectedBorderStyle,
-					Session:     sessionName,
-					ASCIIIndex:  m.asciiArtIndex,
-					AnimSpeed:   m.animSpeed,
-				})
-			}
+			m.savePreferences()
 			newModel, cmd := m.navigateToBackgroundsSubmenu()
 			m2 := newModel.(model)
 			m2.menuIndex = len(m2.menuOptions) - 1
@@ -1856,22 +1793,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 	case "right":
 		if m.mode == ModeBackgroundsSubmenu && m.menuIndex == len(m.menuOptions)-1 {
 			m.animSpeed = cycleAnimSpeed(m.animSpeed)
-			if !m.config.TestMode {
-				sessionName := ""
-				if m.selectedSession != nil {
-					sessionName = m.selectedSession.Name
-				}
-				cache.SavePreferences(cache.UserPreferences{
-					FollowShell: &m.followShell,
-					Theme:       m.currentTheme,
-					Background:  m.selectedBackground,
-					Wallpaper:   m.selectedWallpaper,
-					BorderStyle: m.selectedBorderStyle,
-					Session:     sessionName,
-					ASCIIIndex:  m.asciiArtIndex,
-					AnimSpeed:   m.animSpeed,
-				})
-			}
+			m.savePreferences()
 			newModel, cmd := m.navigateToBackgroundsSubmenu()
 			m2 := newModel.(model)
 			m2.menuIndex = len(m2.menuOptions) - 1
@@ -1886,22 +1808,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			// Handle speed selector row
 			if strings.HasPrefix(selectedOption, "Speed: ") {
 				m.animSpeed = cycleAnimSpeed(m.animSpeed)
-				if !m.config.TestMode {
-					sessionName := ""
-					if m.selectedSession != nil {
-						sessionName = m.selectedSession.Name
-					}
-					cache.SavePreferences(cache.UserPreferences{
-						FollowShell: &m.followShell,
-						Theme:       m.currentTheme,
-						Background:  m.selectedBackground,
-						Wallpaper:   m.selectedWallpaper,
-						BorderStyle: m.selectedBorderStyle,
-						Session:     sessionName,
-						ASCIIIndex:  m.asciiArtIndex,
-						AnimSpeed:   m.animSpeed,
-					})
-				}
+				m.savePreferences()
 				newModel, cmd := m.navigateToBackgroundsSubmenu()
 				m2 := newModel.(model)
 				m2.menuIndex = len(m2.menuOptions) - 1
@@ -2047,22 +1954,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				m.selectedBackground = "none"
 			}
 
-			if !m.config.TestMode {
-				sessionName := ""
-				if m.selectedSession != nil {
-					sessionName = m.selectedSession.Name
-				}
-				cache.SavePreferences(cache.UserPreferences{
-					FollowShell: &m.followShell,
-					Theme:       m.currentTheme,
-					Background:  m.selectedBackground,
-					Wallpaper:   m.selectedWallpaper,
-					BorderStyle: m.selectedBorderStyle,
-					Session:     sessionName,
-					ASCIIIndex:  m.asciiArtIndex,
-					AnimSpeed:   m.animSpeed,
-				})
-			}
+			m.savePreferences()
 
 			savedIndex := m.menuIndex
 			newModel, cmd := m.navigateToBackgroundsSubmenu()
@@ -2145,22 +2037,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					}
 					// CHANGED 2025-10-03 - Save theme preference
 					// CHANGED 2025-10-03 - Skip saving in test mode
-					if !m.config.TestMode {
-						sessionName := ""
-						if m.selectedSession != nil {
-							sessionName = m.selectedSession.Name
-						}
-						cache.SavePreferences(cache.UserPreferences{
-							FollowShell: &m.followShell,
-							Theme:       m.currentTheme,
-							Background:  m.selectedBackground,
-							Wallpaper:   m.selectedWallpaper,
-							BorderStyle: m.selectedBorderStyle,
-							Session:     sessionName,
-							ASCIIIndex:  m.asciiArtIndex,
-							AnimSpeed:   m.animSpeed,
-						})
-					}
+					m.savePreferences()
 
 					// Reinitialize ASCII effects with new theme colors if active
 					if m.selectedBackground == "beams" && m.beamsEffect != nil && m.selectedSession != nil {
@@ -2204,22 +2081,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				}
 				// CHANGED 2025-10-03 - Save border preference
 				// CHANGED 2025-10-03 - Skip saving in test mode
-				if !m.config.TestMode {
-					sessionName := ""
-					if m.selectedSession != nil {
-						sessionName = m.selectedSession.Name
-					}
-					cache.SavePreferences(cache.UserPreferences{
-						FollowShell: &m.followShell,
-						Theme:       m.currentTheme,
-						Background:  m.selectedBackground,
-						Wallpaper:   m.selectedWallpaper,
-						BorderStyle: m.selectedBorderStyle,
-						Session:     sessionName,
-						ASCIIIndex:  m.asciiArtIndex,
-						AnimSpeed:   m.animSpeed,
-					})
-				}
+				m.savePreferences()
 				m.mode = ModeLogin
 				return m, nil
 
@@ -2450,23 +2312,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				}
 
 				// Save preference
-				if !m.config.TestMode {
-					sessionName := ""
-					if m.selectedSession != nil {
-						sessionName = m.selectedSession.Name
-					}
-					cache.SavePreferences(cache.UserPreferences{
-						FollowShell: &m.followShell,
-						Theme:       m.currentTheme,
-						Background:  m.selectedBackground,
-						Wallpaper:   m.selectedWallpaper,
-						BorderStyle: m.selectedBorderStyle,
-						Session:     sessionName,
-						Username:    "",
-						ASCIIIndex:  m.asciiArtIndex,
-						AnimSpeed:   m.animSpeed,
-					})
-				}
+				m.savePreferences()
 				// Refresh menu to update checkboxes
 				newModel, cmd := m.navigateToASCIIEffectsSubmenu()
 				return newModel.(model), cmd
