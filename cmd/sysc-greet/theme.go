@@ -347,13 +347,6 @@ func (m model) getAnimatedColor() color.Color {
 	return colors[index]
 }
 
-// getAnimatedBorderColor cycles through border colors for animated borders
-func (m model) getAnimatedBorderColor() color.Color {
-	colors := []color.Color{BorderDefault, Primary, Secondary}
-	index := (m.borderFrame / 5) % len(colors)
-	return colors[index]
-}
-
 // getFocusColor returns the appropriate color based on focus state
 func (m model) getFocusColor(target FocusState) color.Color {
 	if m.focusState == target {

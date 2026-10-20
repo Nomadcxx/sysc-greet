@@ -188,7 +188,7 @@ func init() {
 }
 
 // Theme management functions moved to theme.go
-// Includes: applyTheme, setThemeWallpaper, getAnimatedColor, getAnimatedBorderColor, getFocusColor
+// Includes: applyTheme, setThemeWallpaper, getAnimatedColor, getFocusColor
 
 // Utility functions moved to utils.go
 // Includes: centerText, stripANSI, stripAnsi, min, extractCharsWithAnsi
@@ -353,15 +353,14 @@ type model struct {
 	menuOptions []string
 	menuIndex   int
 	// Added fields for functional menu system
-	customASCIIText        string
-	selectedBorderStyle    string
-	borderEffect           string
-	formMode               string
-	selectedBackground     string
-	currentTheme           string
-	availableThemes        []string // Built-in + custom theme names
-	borderAnimationEnabled bool
-	selectedFont           string
+	customASCIIText     string
+	selectedBorderStyle string
+	borderEffect        string
+	formMode            string
+	selectedBackground  string
+	currentTheme        string
+	availableThemes     []string // Built-in + custom theme names
+	selectedFont        string
 	// CHANGED 2025-10-01 - Added animation control fields
 	selectedAnimationStyle     string
 	selectedAnimationSpeed     float64
@@ -377,8 +376,6 @@ type model struct {
 
 	// Animation state
 	animationFrame   int
-	pulseColor       int
-	borderFrame      int
 	animSpeed        string // "slow", "normal", "fast"
 	bgAnimationFrame int    // frame counter for background effects
 
@@ -664,22 +661,19 @@ func initialModel(config Config, screensaverMode bool) model {
 		sessionDropdownOpen: false,
 		focusState:          FocusUsername,
 		animationFrame:      0,
-		pulseColor:          0,
-		borderFrame:         0,
 		animSpeed:           "normal",
 		bgAnimationFrame:    0,
 		// Initialize default border and background settings
 		// Set Dracula as default theme and disable border animation
-		selectedBorderStyle:    "classic",
-		borderEffect:           "off",
-		formMode:               "auto",
-		selectedBackground:     "none",
-		currentTheme:           startupThemeName(config.ThemeName, "", availableThemes),
-		followShell:            config.FollowShell == nil || *config.FollowShell,
-		availableThemes:        availableThemes,
-		borderAnimationEnabled: false,
-		selectedFont:           "/usr/share/bubble-greet/fonts/dos_rebel.flf", // Absolute path
-		customASCIIText:        "",
+		selectedBorderStyle: "classic",
+		borderEffect:        "off",
+		formMode:            "auto",
+		selectedBackground:  "none",
+		currentTheme:        startupThemeName(config.ThemeName, "", availableThemes),
+		followShell:         config.FollowShell == nil || *config.FollowShell,
+		availableThemes:     availableThemes,
+		selectedFont:        "/usr/share/bubble-greet/fonts/dos_rebel.flf", // Absolute path
+		customASCIIText:     "",
 		// CHANGED 2025-10-01 - Initialize animation control defaults
 		selectedAnimationStyle:     "gradient",
 		selectedAnimationSpeed:     1.0,
@@ -743,11 +737,12 @@ func initialModel(config Config, screensaverMode bool) model {
 				m.selectedWallpaper = prefs.Wallpaper
 				logDebug("Loaded cached wallpaper: %s", prefs.Wallpaper)
 			}
-			if prefs.BorderStyle != "" {
-				m.selectedBorderStyle = migrateBorderStyle(prefs.BorderStyle)
-			}
-			if prefs.BorderEffect != "" {
-				m.borderEffect = prefs.BorderEffect
+			if prefs.BorderStyle != "" || prefs.BorderEffect != "" {
+				style, effect := migrateBorderPrefs(prefs.BorderStyle, prefs.BorderEffect)
+				if style != "" {
+					m.selectedBorderStyle = style
+				}
+				m.borderEffect = effect
 			}
 			if prefs.FormMode != "" {
 				m.formMode = prefs.FormMode
@@ -1014,8 +1009,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Counters only advance on fast ticks so idle frames are
 			// byte-identical and the renderer diffs them to nothing
 			m.animationFrame++
-			m.pulseColor = (m.pulseColor + 1) % 100
-			m.borderFrame = (m.borderFrame + 1) % 20
 		}
 
 		// Lazy init: create aquarium on first tick when we have real dimensions
@@ -2055,7 +2048,9 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 
 			case ModeBordersSubmenu:
 				// Restored ASCII border handling
-				switch selectedOption {
+				optionName := strings.TrimPrefix(selectedOption, "[✓] ")
+				optionName = strings.TrimPrefix(optionName, "[ ] ")
+				switch optionName {
 				case "Style: Classic":
 					m.selectedBorderStyle = "classic"
 				case "Style: Modern":
@@ -2066,14 +2061,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.selectedBorderStyle = "ascii1"
 				case "Style: ASCII-2":
 					m.selectedBorderStyle = "ascii2"
-				case "Animation: Wave":
-					m.borderAnimationEnabled = true
-					m.selectedBorderStyle = "wave"
-				case "Animation: Pulse":
-					m.borderAnimationEnabled = true
-					m.selectedBorderStyle = "pulse"
-				case "Animation: Off":
-					m.borderAnimationEnabled = false
+				case "Effect: Shimmer":
+					m.borderEffect = "shimmer"
+				case "Effect: Off":
+					m.borderEffect = "off"
 				}
 				// CHANGED 2025-10-03 - Save border preference
 				// CHANGED 2025-10-03 - Skip saving in test mode
@@ -2679,7 +2670,7 @@ func (m model) renderMainView(termWidth, termHeight int) string {
 }
 
 // Border rendering functions moved to borders.go
-// Includes: renderDualBorderLayout, renderASCII1/2/3/4BorderLayout, renderASCIIBorderFallback,
+// Includes: renderDualBorderLayout, renderASCII1/2BorderLayout,
 // getInnerBorderStyle, getOuterBorderStyle, getInnerBorderColor, getOuterBorderColor
 
 // Render form with monochrome colors

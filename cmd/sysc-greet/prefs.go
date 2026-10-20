@@ -2,12 +2,25 @@ package main
 
 import "github.com/Nomadcxx/sysc-greet/internal/cache"
 
-func migrateBorderStyle(style string) string {
+func migrateBorderPrefs(style, effect string) (string, string) {
 	switch style {
 	case "ascii3", "ascii4":
-		return "ascii2"
+		style = "ascii2"
+	case "wave":
+		style = "classic"
+		if effect == "" {
+			effect = "shimmer"
+		}
+	case "pulse":
+		style = "modern"
+		if effect == "" {
+			effect = "shimmer"
+		}
 	}
-	return style
+	if effect == "" {
+		effect = "off"
+	}
+	return style, effect
 }
 
 func (m model) currentPreferences() cache.UserPreferences {

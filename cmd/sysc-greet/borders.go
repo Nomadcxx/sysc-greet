@@ -310,21 +310,6 @@ func (m model) renderASCII1BorderLayout(termWidth, termHeight int) string {
 	return finalContent
 }
 
-// Fallback ASCII border if file not found
-func (m model) renderASCIIBorderFallback(termWidth, termHeight int) string {
-	// Simple ASCII box as fallback
-	monoMedium := lipgloss.Color("#888888")
-
-	content := "┌" + strings.Repeat("─", 60) + "┐\n"
-	for i := 0; i < 20; i++ {
-		content += "│" + strings.Repeat(" ", 60) + "│\n"
-	}
-	content += "└" + strings.Repeat("─", 60) + "┘"
-
-	// CHANGED 2025-10-06 - Return content without Place(), let View() handle centering
-	style := lipgloss.NewStyle().Foreground(monoMedium)
-	return style.Render(content)
-}
 func (m model) getInnerBorderStyle() lipgloss.Border {
 	switch m.selectedBorderStyle {
 	case "classic":
@@ -338,21 +323,6 @@ func (m model) getInnerBorderStyle() lipgloss.Border {
 			Left:   " ",
 			Right:  " ",
 		} // Use single space border for truly minimal look
-	case "ascii":
-		return lipgloss.HiddenBorder() // ASCII borders handle their own rendering
-	case "wave":
-		return lipgloss.Border{
-			Top:         "~",
-			Bottom:      "~",
-			Left:        "│",
-			Right:       "│",
-			TopLeft:     "╭",
-			TopRight:    "╮",
-			BottomLeft:  "╰",
-			BottomRight: "╯",
-		} // Use wavy characters for wave border
-	case "pulse":
-		return lipgloss.DoubleBorder() // Use double border for pulse
 	default:
 		return lipgloss.RoundedBorder() // Default
 	}
@@ -367,65 +337,19 @@ func (m model) getOuterBorderStyle() lipgloss.Border {
 		return lipgloss.HiddenBorder() // Hide outer border for clean modern look
 	case "minimal":
 		return lipgloss.HiddenBorder() // Hide outer for clean minimal look
-	case "ascii":
-		return lipgloss.HiddenBorder() // ASCII style uses only custom border
-	case "wave":
-		return lipgloss.RoundedBorder() // Rounded outer for wave
-	case "pulse":
-		return lipgloss.ThickBorder() // Thick outer for pulse
 	default:
 		return lipgloss.DoubleBorder() // Default
 	}
 }
 
-// Get inner border color with animation support
+// Get inner border color
 func (m model) getInnerBorderColor() color.Color {
-	if !m.borderAnimationEnabled {
-		// Static color based on current theme
-		return Primary
-	}
-
-	switch m.selectedBorderStyle {
-	case "wave":
-		// Wave cycles through all theme colors smoothly
-		// Wave animation - smooth color transitions through full palette
-		colors := []color.Color{Primary, Secondary, Accent, Warning}
-		return colors[(m.animationFrame/2)%len(colors)]
-	case "pulse":
-		// Pulse alternates between bright and dim
-		// Pulse animation - brightness oscillation (bright/dim/bright/dim)
-		if m.animationFrame%8 < 4 {
-			return Primary // Bright phase
-		}
-		return FgMuted // Dim phase
-	default:
-		// Default animated border
-		return m.getAnimatedBorderColor()
-	}
+	return Primary
 }
 
-// Get outer border color with animation support
+// Get outer border color
 func (m model) getOuterBorderColor() color.Color {
-	if !m.borderAnimationEnabled {
-		// Static muted color for outer border
-		return FgSubtle
-	}
-
-	switch m.selectedBorderStyle {
-	case "wave":
-		// Complementary wave offset from inner
-		// Complementary wave for outer border (offset from inner)
-		colors := []color.Color{Secondary, Accent, Warning, Primary}
-		return colors[(m.animationFrame/2+2)%len(colors)] // Offset by 2 for complementary effect
-	case "pulse":
-		// Outer stays subtle during pulse
-		// Subtle static color for outer border during pulse
-		return FgSecondary // Keep outer border constant while inner pulses
-	default:
-		// Default secondary animation
-		colors := []color.Color{FgSubtle, FgSecondary, Primary}
-		return colors[m.animationFrame%len(colors)]
-	}
+	return FgSubtle
 }
 
 func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {

@@ -41,14 +41,13 @@ func (m model) navigateToThemesSubmenu() (tea.Model, tea.Cmd) {
 func (m model) navigateToBordersSubmenu() (tea.Model, tea.Cmd) {
 	m.menuOptions = []string{
 		"← Back",
-		"Style: Classic",
-		"Style: Modern",
-		"Style: Minimal",
-		"Style: ASCII-1",
-		"Style: ASCII-2",
-		"Animation: Wave",
-		"Animation: Pulse",
-		"Animation: Off",
+		formatCheckbox("Style: Classic", m.selectedBorderStyle == "classic"),
+		formatCheckbox("Style: Modern", m.selectedBorderStyle == "modern"),
+		formatCheckbox("Style: Minimal", m.selectedBorderStyle == "minimal"),
+		formatCheckbox("Style: ASCII-1", m.selectedBorderStyle == "ascii1"),
+		formatCheckbox("Style: ASCII-2", m.selectedBorderStyle == "ascii2"),
+		formatCheckbox("Effect: Shimmer", m.borderEffect == "shimmer"),
+		formatCheckbox("Effect: Off", m.borderEffect != "shimmer"),
 	}
 	m.mode = ModeBordersSubmenu
 	m.menuIndex = 0
