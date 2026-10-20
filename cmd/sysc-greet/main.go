@@ -284,6 +284,7 @@ type Config struct {
 	ShowTime         bool
 	ThemeName        string
 	RememberUsername bool
+	BorderLayout     string
 	Ambient          ambientConfig
 	Secondary        secondaryConfig
 }
@@ -2817,6 +2818,7 @@ func main() {
 	flag.StringVar(&config.ThemeName, "theme", "", "Theme name from the Themes menu (overrides saved theme)")
 	flag.BoolVar(&config.RememberUsername, "remember-username", true, "Remember last logged in username")
 	flag.BoolVar(&config.ShowTime, "time", false, "") // Hidden flag - not shown in help
+	flag.StringVar(&config.BorderLayout, "border-layout", "hug", "Outer frame layout: hug keeps fixed margins, fill grows to terminal edges")
 	flag.StringVar(&widgetConfigPath, "widget-config", "", "Widget JSON configuration file (overrides default paths)")
 	flag.StringVar(&config.Ambient.ShellConfig, "weather-shell-config", "", "sysc-shell config path when weather-location is sysc-shell")
 	flag.BoolVar(&config.Ambient.Metrics, "metrics", false, "Show CPU/Memory usage in the login panel")
