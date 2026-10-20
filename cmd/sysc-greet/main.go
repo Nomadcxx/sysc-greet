@@ -262,6 +262,7 @@ type ASCIIConfig struct {
 	AnimationSpeed     float64  // 0.1 (slow) to 2.0 (fast), default 1.0
 	AnimationDirection string   // "left", "right", "up", "down", "center-out", "random"
 	Roasts             string   // Custom roast messages separated by │
+	ANSIStyle          bool     // Interpret embedded SGR colors for explicitly opted-in art
 }
 
 // Parse multiple ASCII variants (ascii_1, ascii_2, etc.)
@@ -280,6 +281,7 @@ type Config struct {
 	FollowShell      *bool
 	ShellThemeFile   string
 	TestMode         bool
+	TestSession      string
 	Debug            bool
 	ShowTime         bool
 	ThemeName        string
@@ -614,6 +616,22 @@ func initialModel(config Config, screensaverMode bool) model {
 			}
 		}
 	}
+	if config.TestMode && config.TestSession != "" {
+		name := config.TestSession
+		selectedSession = nil
+		for i := range sess {
+			if strings.EqualFold(sess[i].Name, name) {
+				selectedSession = &sess[i]
+				sessionIndex = i
+				break
+			}
+		}
+		if selectedSession == nil {
+			sess = append(sess, sessions.Session{Name: name, Exec: name, Type: "Wayland"})
+			sessionIndex = len(sess) - 1
+			selectedSession = &sess[sessionIndex]
+		}
+	}
 
 	// Default to first session if none selected
 	if selectedSession == nil && len(sess) > 0 {
@@ -758,22 +776,7 @@ func initialModel(config Config, screensaverMode bool) model {
 
 			// Initialize ASCII effect objects based on cached selection
 			if m.selectedSession != nil {
-				sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
-				var configFileName string
-				switch sessionName {
-				case "gnome":
-					configFileName = "gnome_desktop"
-				case "i3":
-					configFileName = "i3wm"
-				case "bspwm":
-					configFileName = "bspwm_manager"
-				case "plasma":
-					configFileName = "kde"
-				case "xmonad":
-					configFileName = "xmonad"
-				default:
-					configFileName = sessionName
-				}
+				configFileName := asciiConfigFileName(m.selectedSession.Name)
 				configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 
 				switch m.selectedBackground {
@@ -789,7 +792,7 @@ func initialModel(config Config, screensaverMode bool) model {
 						if variantIndex >= len(asciiConfig.ASCIIVariants) {
 							variantIndex = 0
 						}
-						ascii := asciiConfig.ASCIIVariants[variantIndex]
+						ascii := asciiTextForEffect(asciiConfig, asciiConfig.ASCIIVariants[variantIndex])
 						m.printEffect = animations.NewPrintEffect(ascii, time.Millisecond*3)
 					}
 				case "beams":
@@ -798,7 +801,7 @@ func initialModel(config Config, screensaverMode bool) model {
 						if variantIndex >= len(asciiConfig.ASCIIVariants) {
 							variantIndex = 0
 						}
-						ascii := asciiConfig.ASCIIVariants[variantIndex]
+						ascii := asciiTextForEffect(asciiConfig, asciiConfig.ASCIIVariants[variantIndex])
 						beamColors, finalColors := getThemeColorsForBeams(m.currentTheme)
 						lines := strings.Split(ascii, "\n")
 						asciiHeight := len(lines)
@@ -822,7 +825,7 @@ func initialModel(config Config, screensaverMode bool) model {
 						if variantIndex >= len(asciiConfig.ASCIIVariants) {
 							variantIndex = 0
 						}
-						ascii := asciiConfig.ASCIIVariants[variantIndex]
+						ascii := asciiTextForEffect(asciiConfig, asciiConfig.ASCIIVariants[variantIndex])
 						pourColors := getThemeColorsForPour(m.currentTheme)
 						lines := strings.Split(ascii, "\n")
 						asciiHeight := len(lines)
@@ -1618,22 +1621,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		if m.mode == ModeLogin || m.mode == ModePassword {
 			if m.selectedSession != nil {
 				// Load config to get variant count
-				sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
-				var configFileName string
-				switch sessionName {
-				case "gnome":
-					configFileName = "gnome_desktop"
-				case "i3":
-					configFileName = "i3wm"
-				case "bspwm":
-					configFileName = "bspwm_manager"
-				case "plasma":
-					configFileName = "kde"
-				case "xmonad":
-					configFileName = "xmonad"
-				default:
-					configFileName = sessionName
-				}
+				configFileName := asciiConfigFileName(m.selectedSession.Name)
 
 				configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 				if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
@@ -1671,7 +1659,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						if variantIndex >= len(asciiConfig.ASCIIVariants) {
 							variantIndex = 0
 						}
-						ascii := asciiConfig.ASCIIVariants[variantIndex]
+						ascii := asciiTextForEffect(asciiConfig, asciiConfig.ASCIIVariants[variantIndex])
 						m.printEffect.Reset(ascii)
 					}
 
@@ -1681,7 +1669,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						if variantIndex >= len(asciiConfig.ASCIIVariants) {
 							variantIndex = 0
 						}
-						ascii := asciiConfig.ASCIIVariants[variantIndex]
+						ascii := asciiTextForEffect(asciiConfig, asciiConfig.ASCIIVariants[variantIndex])
 
 						lines := strings.Split(ascii, "\n")
 						asciiHeight := len(lines)
@@ -1716,22 +1704,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		if m.mode == ModeLogin || m.mode == ModePassword {
 			if m.selectedSession != nil {
 				// Load config to get variant count
-				sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
-				var configFileName string
-				switch sessionName {
-				case "gnome":
-					configFileName = "gnome_desktop"
-				case "i3":
-					configFileName = "i3wm"
-				case "bspwm":
-					configFileName = "bspwm_manager"
-				case "plasma":
-					configFileName = "kde"
-				case "xmonad":
-					configFileName = "xmonad"
-				default:
-					configFileName = sessionName
-				}
+				configFileName := asciiConfigFileName(m.selectedSession.Name)
 
 				configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 				if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
@@ -1769,7 +1742,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						if variantIndex >= len(asciiConfig.ASCIIVariants) {
 							variantIndex = 0
 						}
-						ascii := asciiConfig.ASCIIVariants[variantIndex]
+						ascii := asciiTextForEffect(asciiConfig, asciiConfig.ASCIIVariants[variantIndex])
 						m.printEffect.Reset(ascii)
 					}
 
@@ -1779,7 +1752,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						if variantIndex >= len(asciiConfig.ASCIIVariants) {
 							variantIndex = 0
 						}
-						ascii := asciiConfig.ASCIIVariants[variantIndex]
+						ascii := asciiTextForEffect(asciiConfig, asciiConfig.ASCIIVariants[variantIndex])
 
 						lines := strings.Split(ascii, "\n")
 						asciiHeight := len(lines)
@@ -2217,22 +2190,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						// Initialize ticker if not already done
 						if m.typewriterTicker == nil && m.selectedSession != nil {
 							// Load custom roasts from ASCII config
-							sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
-							var configFileName string
-							switch sessionName {
-							case "gnome":
-								configFileName = "gnome_desktop"
-							case "i3":
-								configFileName = "i3wm"
-							case "bspwm":
-								configFileName = "bspwm_manager"
-							case "plasma":
-								configFileName = "kde"
-							case "xmonad":
-								configFileName = "xmonad"
-							default:
-								configFileName = sessionName
-							}
+							configFileName := asciiConfigFileName(m.selectedSession.Name)
 							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 							customRoasts := ""
 							if asciiConfig, err := loadASCIIConfig(configPath); err == nil {
@@ -2251,24 +2209,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						// Initialize print effect with current session's ASCII art
 						if m.selectedSession != nil {
 							// Load ASCII config for current session
-							sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
-
-							// Map session names to config file names
-							var configFileName string
-							switch sessionName {
-							case "gnome":
-								configFileName = "gnome_desktop"
-							case "i3":
-								configFileName = "i3wm"
-							case "bspwm":
-								configFileName = "bspwm_manager"
-							case "plasma":
-								configFileName = "kde"
-							case "xmonad":
-								configFileName = "xmonad"
-							default:
-								configFileName = sessionName
-							}
+							configFileName := asciiConfigFileName(m.selectedSession.Name)
 
 							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
@@ -2277,7 +2218,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 								if variantIndex >= len(asciiConfig.ASCIIVariants) {
 									variantIndex = 0
 								}
-								ascii := asciiConfig.ASCIIVariants[variantIndex]
+								ascii := asciiTextForEffect(asciiConfig, asciiConfig.ASCIIVariants[variantIndex])
 								// Fast print speed for main UI (3ms per char = very fast)
 								m.printEffect = animations.NewPrintEffect(ascii, time.Millisecond*3)
 								if m.config.Debug {
@@ -2298,23 +2239,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					if m.selectedBackground != "beams" {
 						m.selectedBackground = "beams"
 						if m.selectedSession != nil {
-							sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
-
-							var configFileName string
-							switch sessionName {
-							case "gnome":
-								configFileName = "gnome_desktop"
-							case "i3":
-								configFileName = "i3wm"
-							case "bspwm":
-								configFileName = "bspwm_manager"
-							case "plasma":
-								configFileName = "kde"
-							case "xmonad":
-								configFileName = "xmonad"
-							default:
-								configFileName = sessionName
-							}
+							configFileName := asciiConfigFileName(m.selectedSession.Name)
 
 							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
@@ -2322,7 +2247,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 								if variantIndex >= len(asciiConfig.ASCIIVariants) {
 									variantIndex = 0
 								}
-								ascii := asciiConfig.ASCIIVariants[variantIndex]
+								ascii := asciiTextForEffect(asciiConfig, asciiConfig.ASCIIVariants[variantIndex])
 
 								beamColors, finalColors := getThemeColorsForBeams(m.currentTheme)
 								if m.config.Debug {
@@ -2359,23 +2284,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					if m.selectedBackground != "pour" {
 						m.selectedBackground = "pour"
 						if m.selectedSession != nil {
-							sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
-
-							var configFileName string
-							switch sessionName {
-							case "gnome":
-								configFileName = "gnome_desktop"
-							case "i3":
-								configFileName = "i3wm"
-							case "bspwm":
-								configFileName = "bspwm_manager"
-							case "plasma":
-								configFileName = "kde"
-							case "xmonad":
-								configFileName = "xmonad"
-							default:
-								configFileName = sessionName
-							}
+							configFileName := asciiConfigFileName(m.selectedSession.Name)
 
 							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
@@ -2383,7 +2292,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 								if variantIndex >= len(asciiConfig.ASCIIVariants) {
 									variantIndex = 0
 								}
-								ascii := asciiConfig.ASCIIVariants[variantIndex]
+								ascii := asciiTextForEffect(asciiConfig, asciiConfig.ASCIIVariants[variantIndex])
 
 								pourColors := getThemeColorsForPour(m.currentTheme)
 								if m.config.Debug {
@@ -2821,6 +2730,15 @@ func (m model) renderMainView(termWidth, termHeight int) string {
 	}
 	form = lipgloss.JoinVertical(lipgloss.Left, strings.Join(lines, "\n"), "", lipgloss.NewStyle().Foreground(FgMuted).Width(width).Render(help))
 	frame := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(BorderDefault).Background(BgBase).Padding(0, 2).Render(form)
+	if m.selectedSession != nil {
+		if art := m.getSessionArt(m.selectedSession.Name); art != "" {
+			compact := lipgloss.JoinVertical(lipgloss.Center, art, "", frame)
+			// ponytail: show the full ANSI art only when it fits; clipping needs per-line ANSI-aware handling.
+			if lipgloss.Width(compact) <= termWidth && lipgloss.Height(compact) <= termHeight {
+				return compact
+			}
+		}
+	}
 	if lipgloss.Width(frame) <= termWidth && lipgloss.Height(frame) <= termHeight {
 		return frame
 	}
@@ -2972,6 +2890,7 @@ func main() {
 	flag.BoolVar(&showVersion, "v", false, "Show version information (shorthand)")
 	flag.BoolVar(&startWallpaperDaemon, "wallpaper-daemon", false, "Start gSlapper with the cached greeter wallpaper")
 	flag.BoolVar(&config.TestMode, "test", false, "Enable test mode (no actual authentication)")
+	flag.StringVar(&config.TestSession, "test-session", "", "Display an ASCII profile by session/profile name in test mode")
 	flag.BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	flag.BoolVar(&screensaverTestMode, "screensaver", false, "Start directly in screensaver mode for testing")
 	flag.BoolVar(&followShell, "follow-shell", true, "Follow the installed shell account theme by default")
@@ -3014,6 +2933,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "    	Start directly in screensaver mode for testing\n")
 		fmt.Fprintf(os.Stderr, "  -test\n")
 		fmt.Fprintf(os.Stderr, "    	Enable test mode (no actual authentication)\n")
+		fmt.Fprintf(os.Stderr, "  -test-session PROFILE\n")
+		fmt.Fprintf(os.Stderr, "    Display a session ASCII profile in test mode\n")
 		fmt.Fprintf(os.Stderr, "  -theme string\n")
 		fmt.Fprintf(os.Stderr, "    	Theme name (dracula, gruvbox, material, nord, tokyo-night, catppuccin, solarized, monochrome, transishardjob, eldritch)\n")
 		fmt.Fprintf(os.Stderr, "  -v	Show version information (shorthand)\n")
@@ -3034,6 +2955,15 @@ func main() {
 	}
 
 	flag.Parse()
+	if config.TestSession != "" {
+		name := strings.TrimSpace(config.TestSession)
+		if name == "" || filepath.Base(name) != name || name == "." || name == ".." {
+			fmt.Fprintln(os.Stderr, "invalid --test-session profile: use a name without path separators")
+			os.Exit(2)
+		}
+		config.TestSession = name
+		config.TestMode = true
+	}
 	flag.Visit(func(f *flag.Flag) {
 		if f.Name == "follow-shell" {
 			config.FollowShell = &followShell

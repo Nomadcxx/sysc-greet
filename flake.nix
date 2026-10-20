@@ -72,7 +72,7 @@
             # Install compositor configs with corrected paths
             # Replace hardcoded /usr/local/bin/sysc-greet with Nix store path
             cp config/niri-greeter-config.kdl $out/etc/greetd/
-            cp config/hyprland-greeter-config.conf $out/etc/greetd/
+            cp config/hyprland-greeter-config.lua $out/etc/greetd/
             cp config/sway-greeter-config $out/etc/greetd/
 
             # Substitute all hardcoded paths with Nix store paths
@@ -81,7 +81,7 @@
               --replace 'kitty ' "${pkgs.kitty}/bin/kitty " \
               --replace 'niri msg' "${pkgs.niri}/bin/niri msg"
             
-            substituteInPlace $out/etc/greetd/hyprland-greeter-config.conf \
+            substituteInPlace $out/etc/greetd/hyprland-greeter-config.lua \
               --replace '/usr/local/bin/sysc-greet' "$out/bin/sysc-greet" \
               --replace 'kitty ' "${pkgs.kitty}/bin/kitty " \
               --replace 'hyprctl ' "${pkgs.hyprland}/bin/hyprctl "
@@ -168,7 +168,7 @@ EOF
             if cfg.compositor == "niri" then
               "${compositorExecutable cfg.niriPackage "niri"} -c /etc/greetd/niri-greeter-config.kdl"
             else if cfg.compositor == "hyprland" then
-              "${compositorExecutable cfg.hyprlandPackage "start-hyprland"} -- -c /etc/greetd/hyprland-greeter-config.conf"
+              "${compositorExecutable cfg.hyprlandPackage "start-hyprland"} -- --config /etc/greetd/hyprland-greeter-config.lua"
             else if cfg.compositor == "cagebreak" then
               "${compositorExecutable cfg.cagebreakPackage "cagebreak"} -e -c /etc/greetd/cagebreak-greeter-config"
             else if cfg.compositor == "mango" then
@@ -183,14 +183,14 @@ EOF
             compositor = mkOption {
               type = types.enum [ "niri" "hyprland" "sway" "cagebreak" "mango" ];
               default = "niri";
-              description = "Wayland compositor to use with sysc-greet. cagebreak replaces hyprland for the greeter session.";
+              description = "Wayland compositor to use with sysc-greet. Hyprland requires explicit opt-in and its Lua launcher.";
             };
 
             compositorCommand = mkOption {
               type = types.nullOr types.str;
               default = null;
               defaultText = literalExpression "null";
-              example = "/run/current-system/sw/bin/start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf";
+              example = "/run/current-system/sw/bin/start-hyprland -- --config /etc/greetd/hyprland-greeter-config.lua";
               description = "Full greetd command used to start the greeter compositor. When null, sysc-greet builds the command from the selected compositor and package options.";
             };
 
@@ -288,7 +288,7 @@ EOF
             environment.etc = {
               "greetd/kitty.conf".source = "${package}/etc/greetd/kitty.conf";
               "greetd/niri-greeter-config.kdl".source = "${package}/etc/greetd/niri-greeter-config.kdl";
-              "greetd/hyprland-greeter-config.conf".source = "${package}/etc/greetd/hyprland-greeter-config.conf";
+              "greetd/hyprland-greeter-config.lua".source = "${package}/etc/greetd/hyprland-greeter-config.lua";
               "greetd/sway-greeter-config".source = "${package}/etc/greetd/sway-greeter-config";
               "greetd/cagebreak-greeter-config".source = "${package}/etc/greetd/cagebreak-greeter-config";
               "greetd/mango-greeter-config.conf".source = "${package}/etc/greetd/mango-greeter-config.conf";

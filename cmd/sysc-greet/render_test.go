@@ -38,7 +38,8 @@ func TestReleaseNotesDescribeGreeterSupport(t *testing.T) {
 		"Ayu, Amber, Blue, Purple, Green, Orange themes (same names as sysc-shell)",
 		"Mango greeter compositor",
 		"Supported greeter backends: niri (default), cagebreak, sway, mango",
-		"Hyprland greeter support deprecated (login sessions unaffected)",
+		"Hyprland greeter path awaits physical startup, login, and quit verification",
+		"ansi_style=true maps ANSI header colors through the active theme",
 	} {
 		if !strings.Contains(notes, text) {
 			t.Errorf("release notes omit %q", text)
