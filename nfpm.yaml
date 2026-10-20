@@ -57,7 +57,13 @@ contents:
     file_info:
       mode: 0644
 
-  # Hyprland legacy config (for stable distros)
+  # Opt-in Hyprland 0.55+ Lua config
+  - src: ./config/hyprland-greeter-config.lua
+    dst: /etc/greetd/hyprland-greeter-config.lua
+    file_info:
+      mode: 0644
+
+  # Hyprland legacy config (for older distros)
   - src: ./config/hyprland-greeter-config-legacy.conf
     dst: /etc/greetd/hyprland-greeter-config.conf
     file_info:

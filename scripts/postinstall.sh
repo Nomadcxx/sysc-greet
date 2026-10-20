@@ -31,7 +31,14 @@ chmod 755 /var/lib/greeter
 echo "==> Detecting greeter backend..."
 
 COMPOSITOR=""
-if command -v niri &>/dev/null; then
+if [ "${SYSC_COMPOSITOR:-}" = "hyprland" ]; then
+    if ! command -v start-hyprland &>/dev/null; then
+        echo "ERROR: SYSC_COMPOSITOR=hyprland requires the start-hyprland launcher (Hyprland 0.55+)."
+        exit 1
+    fi
+    COMPOSITOR="hyprland"
+    GREETD_COMMAND="start-hyprland -- --config /etc/greetd/hyprland-greeter-config.lua"
+elif command -v niri &>/dev/null; then
     COMPOSITOR="niri"
     GREETD_COMMAND="niri -c /etc/greetd/niri-greeter-config.kdl"
 elif command -v cagebreak &>/dev/null; then
@@ -43,10 +50,6 @@ elif command -v sway &>/dev/null; then
 elif command -v mango &>/dev/null; then
     COMPOSITOR="mango"
     GREETD_COMMAND="mango -c /etc/greetd/mango-greeter-config.conf -s /etc/greetd/mango-greeter-session.sh"
-elif command -v Hyprland &>/dev/null || command -v hyprland &>/dev/null; then
-    COMPOSITOR="hyprland"
-    # Use legacy hyprland command (not start-hyprland) for compatibility
-    GREETD_COMMAND="Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
 fi
 
 if [ -z "$COMPOSITOR" ]; then
@@ -56,11 +59,7 @@ else
     echo "Detected backend: $COMPOSITOR"
 
     if [ "$COMPOSITOR" = "hyprland" ]; then
-        echo ""
-        echo "WARNING: Hyprland greeter support is deprecated, unmaintained, and will be removed in a future release."
-        echo "         Migrate to cagebreak: sudo SYSC_COMPOSITOR=cagebreak ./install.sh"
-        echo "         See https://nomadcxx.github.io/sysc-greet/docs/compositors/cagebreak/"
-        echo ""
+        echo "WARNING: Hyprland greeter is opt-in and requires physical startup, login, and quit verification."
     fi
 
     # Only create greetd config if it doesn't exist or is empty
