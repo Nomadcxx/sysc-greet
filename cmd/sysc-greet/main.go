@@ -285,6 +285,9 @@ type Config struct {
 	ThemeName        string
 	RememberUsername bool
 	BorderLayout     string
+	FormMode         string
+	FormHalo         int
+	FormDim          float64
 	Ambient          ambientConfig
 	Secondary        secondaryConfig
 }
@@ -358,6 +361,7 @@ type model struct {
 	selectedBorderStyle string
 	borderEffect        string
 	formMode            string
+	formLayerCache      *layerCache
 	selectedBackground  string
 	currentTheme        string
 	availableThemes     []string // Built-in + custom theme names
@@ -668,7 +672,8 @@ func initialModel(config Config, screensaverMode bool) model {
 		// Set Dracula as default theme and disable border animation
 		selectedBorderStyle: "classic",
 		borderEffect:        "off",
-		formMode:            "auto",
+		formMode:            config.FormMode,
+		formLayerCache:      &layerCache{},
 		selectedBackground:  "none",
 		currentTheme:        startupThemeName(config.ThemeName, "", availableThemes),
 		followShell:         config.FollowShell == nil || *config.FollowShell,
@@ -2066,6 +2071,14 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.borderEffect = "shimmer"
 				case "Effect: Off":
 					m.borderEffect = "off"
+				case "Form: Auto":
+					m.formMode = "auto"
+				case "Form: Opaque":
+					m.formMode = "opaque"
+				case "Form: See-through":
+					m.formMode = "seethrough"
+				case "Form: Frosted":
+					m.formMode = "frosted"
 				}
 				// CHANGED 2025-10-03 - Save border preference
 				// CHANGED 2025-10-03 - Skip saving in test mode
@@ -2430,7 +2443,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: fire at bottom, UI centered on top
-		view.Layer = m.composeLayer(backgroundContent, 0, fireY, content, uiX, uiY, termWidth, termHeight)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, fireY, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if hasRainBackground {
@@ -2445,7 +2458,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: rain as background, UI centered on top
-		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "matrix" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2459,7 +2472,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: matrix as background, UI centered on top
-		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "fireworks" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2473,7 +2486,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: fireworks as background, UI centered on top
-		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "sonar" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2487,7 +2500,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: sonar as background, UI centered on top
-		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "cracktro" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2501,7 +2514,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: cracktro as background, UI centered on top
-		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "plasma" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2515,7 +2528,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: plasma as background, UI centered on top
-		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "aquarium" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2529,7 +2542,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: aquarium as background, UI centered on top
-		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "ak-47" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2540,18 +2553,18 @@ func (m model) View() tea.View {
 		uiX := (termWidth - contentWidth) / 2
 		uiY := (termHeight - contentHeight) / 2
 
-		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
-	} else if m.selectedBackground == "l2a1-sar" && (m.mode == ModeLogin || m.mode == ModePassword) {
-		backgroundContent := m.addL2A1SAREffect("")
+	}
 
+	if m.selectedBackground == "l2a1-sar" && (m.mode == ModeLogin || m.mode == ModePassword) {
+		backgroundContent := m.addL2A1SAREffect("")
 		contentWidth := lipgloss.Width(content)
 		contentHeight := lipgloss.Height(content)
 		uiX := (termWidth - contentWidth) / 2
 		uiY := (termHeight - contentHeight) / 2
-
-		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	}
@@ -2819,6 +2832,9 @@ func main() {
 	flag.BoolVar(&config.RememberUsername, "remember-username", true, "Remember last logged in username")
 	flag.BoolVar(&config.ShowTime, "time", false, "") // Hidden flag - not shown in help
 	flag.StringVar(&config.BorderLayout, "border-layout", "hug", "Outer frame layout: hug keeps fixed margins, fill grows to terminal edges")
+	flag.StringVar(&config.FormMode, "form-mode", "auto", "Login form mode: auto, opaque, seethrough or frosted")
+	flag.IntVar(&config.FormHalo, "form-halo", 1, "Halo width in columns around form text (0-2)")
+	flag.Float64Var(&config.FormDim, "form-dim", 0.55, "Frosted form dim strength (0-1)")
 	flag.StringVar(&widgetConfigPath, "widget-config", "", "Widget JSON configuration file (overrides default paths)")
 	flag.StringVar(&config.Ambient.ShellConfig, "weather-shell-config", "", "sysc-shell config path when weather-location is sysc-shell")
 	flag.BoolVar(&config.Ambient.Metrics, "metrics", false, "Show CPU/Memory usage in the login panel")

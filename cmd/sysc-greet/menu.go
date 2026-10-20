@@ -48,6 +48,10 @@ func (m model) navigateToBordersSubmenu() (tea.Model, tea.Cmd) {
 		formatCheckbox("Style: ASCII-2", m.selectedBorderStyle == "ascii2"),
 		formatCheckbox("Effect: Shimmer", m.borderEffect == "shimmer"),
 		formatCheckbox("Effect: Off", m.borderEffect != "shimmer"),
+		formatCheckbox("Form: Auto", m.formMode == "auto" || m.formMode == ""),
+		formatCheckbox("Form: Opaque", m.formMode == "opaque"),
+		formatCheckbox("Form: See-through", m.formMode == "seethrough"),
+		formatCheckbox("Form: Frosted", m.formMode == "frosted"),
 	}
 	m.mode = ModeBordersSubmenu
 	m.menuIndex = 0
