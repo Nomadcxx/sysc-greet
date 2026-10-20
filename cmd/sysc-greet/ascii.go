@@ -7,9 +7,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/Nomadcxx/sysc-greet/internal/animations"
 	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 )
 
 // ascii.go - ASCII art configuration, loading, rendering, and animations
@@ -28,9 +30,31 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 
 	var currentVariantLines []string
 	inASCII := false
+	inTripleASCII := false
+	saveVariant := func() {
+		if len(currentVariantLines) == 0 {
+			return
+		}
+		variant := strings.TrimRight(strings.Join(currentVariantLines, "\n"), "\n")
+		config.ASCIIVariants = append(config.ASCIIVariants, variant)
+		if height := len(strings.Split(variant, "\n")); height > config.MaxASCIIHeight {
+			config.MaxASCIIHeight = height
+		}
+		currentVariantLines = nil
+	}
 
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
+		if inTripleASCII {
+			if trimmedLine == `"""` {
+				saveVariant()
+				inASCII = false
+				inTripleASCII = false
+				continue
+			}
+			currentVariantLines = append(currentVariantLines, line)
+			continue
+		}
 
 		// Skip comments and empty lines
 		if strings.HasPrefix(trimmedLine, "#") || trimmedLine == "" {
@@ -44,42 +68,22 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 
 			// Check if this is a new ASCII variant (ascii_1, ascii_2, etc.)
 			if strings.HasPrefix(key, "ascii_") || key == "ascii" {
-				// Save previous variant if exists
-				if inASCII && len(currentVariantLines) > 0 {
-					variant := strings.Join(currentVariantLines, "\n")
-					// Trim trailing newlines for height consistency
-					variant = strings.TrimRight(variant, "\n")
-					config.ASCIIVariants = append(config.ASCIIVariants, variant)
-
-					// Track max height
-					variantLines := strings.Split(variant, "\n")
-					height := len(variantLines)
-					if height > config.MaxASCIIHeight {
-						config.MaxASCIIHeight = height
-					}
+				if inASCII {
+					saveVariant()
 				}
 
 				// Start new variant
 				currentVariantLines = []string{}
 				inASCII = true
+				inTripleASCII = value == `"""`
 
-				if value != "" && value != `"""` {
+				if value != "" && !inTripleASCII {
 					currentVariantLines = append(currentVariantLines, value)
 				}
 			} else {
 				// Save any pending ASCII variant before switching to other keys
-				if inASCII && len(currentVariantLines) > 0 {
-					variant := strings.Join(currentVariantLines, "\n")
-					variant = strings.TrimRight(variant, "\n")
-					config.ASCIIVariants = append(config.ASCIIVariants, variant)
-
-					variantLines := strings.Split(variant, "\n")
-					height := len(variantLines)
-					if height > config.MaxASCIIHeight {
-						config.MaxASCIIHeight = height
-					}
-
-					currentVariantLines = []string{}
+				if inASCII {
+					saveVariant()
 					inASCII = false
 				}
 
@@ -89,6 +93,8 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 					config.Name = value
 				case "color":
 					config.Color = strings.TrimSpace(value)
+				case "ansi_style":
+					config.ANSIStyle = strings.EqualFold(value, "true")
 				case "animation_style":
 					config.AnimationStyle = value
 				case "animation_speed":
@@ -104,18 +110,7 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 		} else if inASCII {
 			if trimmedLine == `"""` {
 				// End ASCII section and save variant
-				if len(currentVariantLines) > 0 {
-					variant := strings.Join(currentVariantLines, "\n")
-					variant = strings.TrimRight(variant, "\n")
-					config.ASCIIVariants = append(config.ASCIIVariants, variant)
-
-					variantLines := strings.Split(variant, "\n")
-					height := len(variantLines)
-					if height > config.MaxASCIIHeight {
-						config.MaxASCIIHeight = height
-					}
-				}
-				currentVariantLines = []string{}
+				saveVariant()
 				inASCII = false
 				continue
 			}
@@ -124,16 +119,8 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 	}
 
 	// Save final variant if exists
-	if inASCII && len(currentVariantLines) > 0 {
-		variant := strings.Join(currentVariantLines, "\n")
-		variant = strings.TrimRight(variant, "\n")
-		config.ASCIIVariants = append(config.ASCIIVariants, variant)
-
-		variantLines := strings.Split(variant, "\n")
-		height := len(variantLines)
-		if height > config.MaxASCIIHeight {
-			config.MaxASCIIHeight = height
-		}
+	if inASCII {
+		saveVariant()
 	}
 
 	// Fallback: if no variants found, use old "ascii=" format
@@ -154,6 +141,154 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 	}
 
 	return config, nil
+}
+
+func asciiConfigFileName(sessionName string) string {
+	fields := strings.Fields(sessionName)
+	if len(fields) == 0 {
+		return ""
+	}
+
+	name := strings.ToLower(fields[0])
+	switch name {
+	case "gnome":
+		return "gnome_desktop"
+	case "i3":
+		return "i3wm"
+	case "bspwm":
+		return "bspwm_manager"
+	case "plasma":
+		return "kde"
+	case "xmonad":
+		return "xmonad"
+	case "miracle":
+		return "miracle-wm"
+	default:
+		return name
+	}
+}
+
+func renderANSIASCII(art string) (string, bool) {
+	// TheDraw's shell/Python exports spell the ESC byte as readable \\033.
+	art = strings.ReplaceAll(art, `\033`, "\x1b")
+
+	var output, run strings.Builder
+	foreground, background := FgPrimary, BgBase
+	parser := ansi.NewParser()
+	state := byte(ansi.NormalState)
+	sawControl := false
+
+	flush := func() {
+		if run.Len() == 0 {
+			return
+		}
+		output.WriteString(lipgloss.NewStyle().Foreground(foreground).Background(background).Render(run.String()))
+		run.Reset()
+	}
+
+	input := []byte(art)
+	for len(input) > 0 {
+		if input[0] == '\n' {
+			flush()
+			output.WriteByte('\n')
+			input = input[1:]
+			state = ansi.NormalState
+			parser.Reset()
+			continue
+		}
+
+		sequence, _, consumed, nextState := ansi.DecodeSequence(input, state, parser)
+		if consumed <= 0 || consumed > len(input) {
+			input = input[1:]
+			state = ansi.NormalState
+			parser.Reset()
+			continue
+		}
+		input = input[consumed:]
+		state = nextState
+
+		if len(sequence) > 0 && unicode.IsControl(rune(sequence[0])) {
+			sawControl = true
+			command := ansi.Cmd(parser.Command())
+			isCSI := sequence[0] == 0x9b || (sequence[0] == 0x1b && len(sequence) > 1 && sequence[1] == '[')
+			if isCSI && command.Final() == 'm' && command.Prefix() == 0 && command.Intermediate() == 0 {
+				if nextForeground, nextBackground, changed := applyANSIStyle(parser.Params(), foreground, background); changed {
+					flush()
+					foreground, background = nextForeground, nextBackground
+				}
+			}
+			continue
+		}
+
+		run.Write(sequence)
+	}
+
+	flush()
+	return output.String(), sawControl
+}
+
+func asciiTextForEffect(config ASCIIConfig, art string) string {
+	if !config.ANSIStyle {
+		return art
+	}
+	if rendered, hasControls := renderANSIASCII(art); hasControls {
+		return stripAnsi(rendered)
+	}
+	return art
+}
+
+func applyANSIStyle(params ansi.Params, foreground, background color.Color) (color.Color, color.Color, bool) {
+	for _, param := range params {
+		if param.HasMore() {
+			// Colon-delimited extended SGR is outside this profile format.
+			return foreground, background, false
+		}
+	}
+
+	changed := false
+	for i := 0; i < len(params); i++ {
+		code := params[i].Param(0)
+		switch {
+		case code == 0:
+			foreground, background = FgPrimary, BgBase
+			changed = true
+		case code == 39:
+			foreground = FgPrimary
+			changed = true
+		case code == 49:
+			background = BgBase
+			changed = true
+		case code >= 30 && code <= 37:
+			foreground = asciiANSIColor(code - 30)
+			changed = true
+		case code >= 90 && code <= 97:
+			foreground = asciiANSIColor(code - 90 + 8)
+			changed = true
+		case code >= 40 && code <= 47:
+			background = asciiANSIColor(code - 40)
+			changed = true
+		case code == 38 || code == 48:
+			// Ignore extended-color values and their payload, keeping subsequent SGR parsing aligned.
+			if i+1 >= len(params) {
+				return foreground, background, false
+			}
+			switch params[i+1].Param(-1) {
+			case 2:
+				if i+4 >= len(params) {
+					return foreground, background, false
+				}
+				i += 4
+			case 5:
+				if i+2 >= len(params) {
+					return foreground, background, false
+				}
+				i += 2
+			default:
+				return foreground, background, false
+			}
+		}
+	}
+	return foreground, background, changed
 }
 
 func asciiANSIColor(index int) color.Color {
@@ -188,25 +323,13 @@ func (m model) getSessionASCII() string {
 		return ""
 	}
 
-	// Extract and map session name to config file
-	sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
-
-	// Map session names to config file names - CHANGED 2025-10-02 04:45 - Add plasma->kde, xmonad mappings
-	var configFileName string
-	switch sessionName {
-	case "gnome":
-		configFileName = "gnome_desktop"
-	case "i3":
-		configFileName = "i3wm"
-	case "bspwm":
-		configFileName = "bspwm_manager"
-	case "plasma":
-		configFileName = "kde"
-	case "xmonad":
-		configFileName = "xmonad"
-	default:
-		configFileName = sessionName
+	// Extract and map session name to config file.
+	fields := strings.Fields(m.selectedSession.Name)
+	if len(fields) == 0 {
+		return ""
 	}
+	sessionName := strings.ToLower(fields[0])
+	configFileName := asciiConfigFileName(m.selectedSession.Name)
 
 	// Try to load ASCII config for this session
 	// Fixed path to use sysc-greet instead of bubble-greet
@@ -234,6 +357,13 @@ func (m model) getSessionASCII() string {
 	currentASCII := asciiConfig.ASCIIVariants[variantIndex]
 
 	// Use print effect if enabled
+	if asciiConfig.ANSIStyle && m.selectedBackground == "print" {
+		if rendered, hasControls := renderANSIASCII(currentASCII); hasControls {
+			// ponytail: PrintEffect reveals raw runes and would split SGR sequences; render opted-in ANSI art whole.
+			return rendered
+		}
+	}
+
 	if m.selectedBackground == "print" && m.printEffect != nil {
 		// Get visible lines from print effect
 		visibleLines := m.printEffect.GetVisibleLines()
@@ -253,6 +383,12 @@ func (m model) getSessionASCII() string {
 	if m.selectedBackground == "pour" && m.pourEffect != nil {
 		// Pour effect renders with its own colors
 		return m.pourEffect.Render()
+	}
+
+	if asciiConfig.ANSIStyle {
+		if rendered, hasControls := renderANSIASCII(currentASCII); hasControls {
+			return rendered
+		}
 	}
 
 	// CHANGED 2025-10-11 - Removed height normalization padding to ensure consistent 2-line spacing
@@ -721,25 +857,12 @@ func (m model) getSessionASCIIMonochrome() string {
 		return ""
 	}
 
-	// Extract and map session name to config file
-	sessionName := strings.ToLower(strings.Fields(m.selectedSession.Name)[0])
-
-	// Map session names to config file names - CHANGED 2025-10-02 04:46 - Add plasma->kde, xmonad mappings
-	var configFileName string
-	switch sessionName {
-	case "gnome":
-		configFileName = "gnome_desktop"
-	case "i3":
-		configFileName = "i3wm"
-	case "bspwm":
-		configFileName = "bspwm_manager"
-	case "plasma":
-		configFileName = "kde"
-	case "xmonad":
-		configFileName = "xmonad"
-	default:
-		configFileName = sessionName
+	fields := strings.Fields(m.selectedSession.Name)
+	if len(fields) == 0 {
+		return ""
 	}
+	sessionName := strings.ToLower(fields[0])
+	configFileName := asciiConfigFileName(m.selectedSession.Name)
 
 	// Try to load ASCII config for this session
 	// FIXED 2025-10-15 - Corrected path from bubble-greet to sysc-greet
@@ -784,23 +907,7 @@ func (m *model) resetPrintEffectForSession(sessionName string) {
 		return
 	}
 
-	// Map session names to config file names
-	sessionLower := strings.ToLower(strings.Fields(sessionName)[0])
-	var configFileName string
-	switch sessionLower {
-	case "gnome":
-		configFileName = "gnome_desktop"
-	case "i3":
-		configFileName = "i3wm"
-	case "bspwm":
-		configFileName = "bspwm_manager"
-	case "plasma":
-		configFileName = "kde"
-	case "xmonad":
-		configFileName = "xmonad"
-	default:
-		configFileName = sessionLower
-	}
+	configFileName := asciiConfigFileName(sessionName)
 
 	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 	if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
@@ -808,7 +915,7 @@ func (m *model) resetPrintEffectForSession(sessionName string) {
 		if variantIndex >= len(asciiConfig.ASCIIVariants) {
 			variantIndex = 0
 		}
-		ascii := asciiConfig.ASCIIVariants[variantIndex]
+		ascii := asciiTextForEffect(asciiConfig, asciiConfig.ASCIIVariants[variantIndex])
 		m.printEffect.Reset(ascii)
 	}
 }
@@ -819,22 +926,7 @@ func (m *model) resetPourEffectForSession(sessionName string) {
 		return
 	}
 
-	sessionLower := strings.ToLower(strings.Fields(sessionName)[0])
-	var configFileName string
-	switch sessionLower {
-	case "gnome":
-		configFileName = "gnome_desktop"
-	case "i3":
-		configFileName = "i3wm"
-	case "bspwm":
-		configFileName = "bspwm_manager"
-	case "plasma":
-		configFileName = "kde"
-	case "xmonad":
-		configFileName = "xmonad"
-	default:
-		configFileName = sessionLower
-	}
+	configFileName := asciiConfigFileName(sessionName)
 
 	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 	if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
@@ -842,7 +934,7 @@ func (m *model) resetPourEffectForSession(sessionName string) {
 		if variantIndex >= len(asciiConfig.ASCIIVariants) {
 			variantIndex = 0
 		}
-		ascii := asciiConfig.ASCIIVariants[variantIndex]
+		ascii := asciiTextForEffect(asciiConfig, asciiConfig.ASCIIVariants[variantIndex])
 
 		// Recalculate dimensions for the new ASCII
 		lines := strings.Split(ascii, "\n")
@@ -881,22 +973,7 @@ func (m *model) resetBeamsEffectForSession(sessionName string) {
 		return
 	}
 
-	sessionLower := strings.ToLower(strings.Fields(sessionName)[0])
-	var configFileName string
-	switch sessionLower {
-	case "gnome":
-		configFileName = "gnome_desktop"
-	case "i3":
-		configFileName = "i3wm"
-	case "bspwm":
-		configFileName = "bspwm_manager"
-	case "plasma":
-		configFileName = "kde"
-	case "xmonad":
-		configFileName = "xmonad"
-	default:
-		configFileName = sessionLower
-	}
+	configFileName := asciiConfigFileName(sessionName)
 
 	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 	if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
@@ -904,7 +981,7 @@ func (m *model) resetBeamsEffectForSession(sessionName string) {
 		if variantIndex >= len(asciiConfig.ASCIIVariants) {
 			variantIndex = 0
 		}
-		ascii := asciiConfig.ASCIIVariants[variantIndex]
+		ascii := asciiTextForEffect(asciiConfig, asciiConfig.ASCIIVariants[variantIndex])
 
 		// Recalculate dimensions for the new ASCII
 		lines := strings.Split(ascii, "\n")
@@ -933,22 +1010,7 @@ func (m *model) resetBeamsEffectForSession(sessionName string) {
 // getCustomRoastsForSession loads custom roasts from the session's ASCII config file
 // Returns empty string if no custom roasts are configured (falls back to defaults)
 func getCustomRoastsForSession(sessionName string) string {
-	sessionLower := strings.ToLower(strings.Fields(sessionName)[0])
-	var configFileName string
-	switch sessionLower {
-	case "gnome":
-		configFileName = "gnome_desktop"
-	case "i3":
-		configFileName = "i3wm"
-	case "bspwm":
-		configFileName = "bspwm_manager"
-	case "plasma":
-		configFileName = "kde"
-	case "xmonad":
-		configFileName = "xmonad"
-	default:
-		configFileName = sessionLower
-	}
+	configFileName := asciiConfigFileName(sessionName)
 
 	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 	if asciiConfig, err := loadASCIIConfig(configPath); err == nil {

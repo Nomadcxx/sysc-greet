@@ -244,14 +244,19 @@ type greeterCompositor struct {
 	installable bool // installCompositor can install it when missing
 }
 
-// greeterCompositors is the picker. Hyprland is deliberately absent: it is
-// deprecated and only reachable through SYSC_COMPOSITOR=hyprland.
+// greeterCompositors is the picker. Hyprland is deliberately absent until its
+// opt-in Lua startup, login, and quit handoff pass physical verification.
 var greeterCompositors = []greeterCompositor{
 	{name: "niri", label: "Tiling compositor with scrollable workspaces (default)", binaries: []string{"niri"}},
-	{name: "cagebreak", label: "Minimal tiling kiosk; replaces Hyprland for the greeter", binaries: []string{"cagebreak"}, installable: true},
+	{name: "cagebreak", label: "Minimal tiling kiosk", binaries: []string{"cagebreak"}, installable: true},
 	{name: "sway", label: "Stable i3-compatible tiling compositor", binaries: []string{"sway"}},
 	{name: "mango", label: "dwl-based tiling compositor (Arch, Debian 13, Ubuntu 26.04, Fedora 43/44)", binaries: []string{"mango"}, installable: true},
 }
+
+const (
+	hyprlandGreeterConfigPath = "/etc/greetd/hyprland-greeter-config.lua"
+	hyprlandGreetdCommand     = "start-hyprland -- --config /etc/greetd/hyprland-greeter-config.lua"
+)
 
 const mangoUnsupported = "no mango package for this distro (Arch, Debian 13, Ubuntu 26.04, Fedora 43/44 only) — use niri, cagebreak, or sway"
 
@@ -263,7 +268,7 @@ func mangoAvailable(packageManager string) bool {
 // compositorBinaries returns the executables that indicate name is installed
 func compositorBinaries(name string) []string {
 	if name == "hyprland" {
-		return []string{"Hyprland", "hyprland"}
+		return []string{"start-hyprland"}
 	}
 	for _, c := range greeterCompositors {
 		if c.name == name {
@@ -348,7 +353,7 @@ func newModel(debugMode bool, logFile *os.File) model {
 	detectPackageManager(&m)
 
 	// Check for pre-selected compositor from environment variable
-	// Preselect its picker row so Enter confirms it rather than resetting to niri
+	// Preserve explicit environment selection; Hyprland remains hidden at index -1.
 	if comp := os.Getenv("SYSC_COMPOSITOR"); comp != "" {
 		m.step = stepCompositorSelect
 		m.compositorIndex = -1
@@ -629,10 +634,10 @@ func (m model) renderCompositorSelect() string {
 		b.WriteString("    " + comp.label + "\n\n")
 	}
 
-	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Hyprland greeter support was removed from this installer; use cagebreak or niri"))
+	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Hyprland stays opt-in; it requires start-hyprland and the Lua config"))
 	if m.compositorIndex == -1 {
 		b.WriteString("\n")
-		b.WriteString(lipgloss.NewStyle().Foreground(ErrorColor).Render("⚠ SYSC_COMPOSITOR=hyprland: Hyprland is unmaintained and will be removed in a future release. Enter continues anyway; ↓ picks another compositor."))
+		b.WriteString(lipgloss.NewStyle().Foreground(ErrorColor).Render("⚠ SYSC_COMPOSITOR=hyprland: experimental opt-in; verify startup, login, and quit on hardware. Enter continues; ↓ picks another compositor."))
 	}
 
 	// Show errors if any
@@ -2051,70 +2056,13 @@ binds {
 		greetdCommand = "niri -c /etc/greetd/niri-greeter-config.kdl"
 
 	case "hyprland":
-		compositorConfig = `# SYSC-Greet Hyprland config for greetd greeter session
-# Monitors auto-detected by Hyprland at runtime
-
-# No animations for faster greeter startup
-animations {
-    enabled = false
-}
-
-# Minimal decorations
-decoration {
-    rounding = 0
-    blur {
-        enabled = false
-    }
-}
-
-# Greeter doesn't need gaps
-general {
-    gaps_in = 0
-    gaps_out = 0
-    border_size = 0
-}
-
-# CHANGED 2025-10-18 - Disable Hyprland wallpaper/logo for greeter
-misc {
-    disable_hyprland_logo = true
-    disable_splash_rendering = true
-    background_color = rgb(000000)
-    # Suppress watchdog warning - greetd doesn't pass fd properly to start-hyprland
-    disable_watchdog_warning = true
-}
-
-# Suppress annoying update/donation popups
-ecosystem {
-    no_update_news = true
-    no_donation_nag = true
-}
-
-# Input configuration
-input {
-    kb_layout = us
-    repeat_delay = 400
-    repeat_rate = 40
-
-    touchpad {
-        tap-to-click = true
-    }
-}
-
-# Disable all keybindings (security for greeter)
-# No binds = no user control
-
-# Window rules for kitty greeter
-windowrule = match:class ^(kitty)$, fullscreen on, opacity 1.0
-
-# Layer rules for wallpaper daemon
-layerrule = match:namespace wallpaper, blur on
-
-# Startup applications
-exec-once = cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state /usr/local/bin/sysc-greet --wallpaper-daemon
-exec-once = cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
-`
-		configPath = "/etc/greetd/hyprland-greeter-config.conf"
-		greetdCommand = "start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
+		data, err := os.ReadFile("config/hyprland-greeter-config.lua")
+		if err != nil {
+			return fmt.Errorf("hyprland greeter config missing: %w", err)
+		}
+		compositorConfig = string(data)
+		configPath = hyprlandGreeterConfigPath
+		greetdCommand = hyprlandGreetdCommand
 
 	case "sway":
 		compositorConfig = `# SYSC-Greet Sway config for greetd greeter session
@@ -2281,6 +2229,7 @@ func removeConfigs(m *model) error {
 		"/etc/greetd/kitty.conf",
 		"/etc/greetd/niri-greeter-config.kdl",
 		"/etc/greetd/hyprland-greeter-config.conf",
+		"/etc/greetd/hyprland-greeter-config.lua",
 		"/etc/greetd/sway-greeter-config",
 		"/etc/greetd/cagebreak-greeter-config",
 		"/etc/greetd/mango-greeter-config.conf",
