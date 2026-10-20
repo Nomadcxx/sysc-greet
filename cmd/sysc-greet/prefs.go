@@ -2,6 +2,14 @@ package main
 
 import "github.com/Nomadcxx/sysc-greet/internal/cache"
 
+func migrateBorderStyle(style string) string {
+	switch style {
+	case "ascii3", "ascii4":
+		return "ascii2"
+	}
+	return style
+}
+
 func (m model) currentPreferences() cache.UserPreferences {
 	p := cache.UserPreferences{
 		FollowShell:  &m.followShell,

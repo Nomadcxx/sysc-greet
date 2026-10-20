@@ -744,7 +744,7 @@ func initialModel(config Config, screensaverMode bool) model {
 				logDebug("Loaded cached wallpaper: %s", prefs.Wallpaper)
 			}
 			if prefs.BorderStyle != "" {
-				m.selectedBorderStyle = prefs.BorderStyle
+				m.selectedBorderStyle = migrateBorderStyle(prefs.BorderStyle)
 			}
 			if prefs.BorderEffect != "" {
 				m.borderEffect = prefs.BorderEffect
@@ -2066,10 +2066,6 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.selectedBorderStyle = "ascii1"
 				case "Style: ASCII-2":
 					m.selectedBorderStyle = "ascii2"
-				case "Style: ASCII-3":
-					m.selectedBorderStyle = "ascii3"
-				case "Style: ASCII-4":
-					m.selectedBorderStyle = "ascii4"
 				case "Animation: Wave":
 					m.borderAnimationEnabled = true
 					m.selectedBorderStyle = "wave"
@@ -2979,4 +2975,4 @@ func main() {
 	}
 }
 
-// ASCII-2, ASCII-3, ASCII-4 border rendering functions moved to borders.go
+// ASCII-2 border rendering function moved to borders.go
