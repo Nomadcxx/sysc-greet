@@ -188,7 +188,7 @@ For detailed docs, configuration guides, troubleshooting, and usage instructions
 
 ## License
 
-GPL-3.0
+The sysc-greet source is GPL-3.0. The optional AK-47 background embeds model data under CC BY-NC 4.0. Third-party code and model notices are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ---
 
