@@ -79,7 +79,7 @@ func (m model) persistPreferences(p cache.UserPreferences) {
 	if m.config.TestMode {
 		return
 	}
-	if err := cache.SavePreferences(p); err != nil && m.config.Debug {
-		logDebug("Failed to save preferences: %v", err)
+	if err := cache.SavePreferences(p); err != nil {
+		logDebug("failed to save sysc-greet preferences: %v", err)
 	}
 }
