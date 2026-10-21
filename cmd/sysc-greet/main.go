@@ -418,6 +418,7 @@ type model struct {
 	cracktroEffect    *animations.CracktroAnimation // Cracktro background effect
 	plasmaEffect      *animations.PlasmaAnimation   // Plasma background effect
 	ak47Effect        *syscgoanimations.AK47Animation
+	l2a1SAREffect     *syscgoanimations.L2A1SARAnimation
 	selectedWallpaper string // gslapper video wallpaper (separate from background effect)
 	gslapperLaunched  bool   // Track if gslapper was launched from cache
 }
@@ -513,7 +514,7 @@ func (m model) backgroundEffectActive() bool {
 		return true
 	}
 	switch m.selectedBackground {
-	case "fire", "fire+rain", "ascii-rain", "matrix", "fireworks", "sonar", "cracktro", "plasma", "aquarium", "ak-47":
+	case "fire", "fire+rain", "ascii-rain", "matrix", "fireworks", "sonar", "cracktro", "plasma", "aquarium", "ak-47", "l2a1-sar":
 		return true
 	}
 	return false
@@ -990,6 +991,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.ak47Effect != nil {
 			m.ak47Effect.Resize(msg.Width, msg.Height)
 		}
+		if m.l2a1SAREffect != nil {
+			m.l2a1SAREffect.Resize(msg.Width, msg.Height)
+		}
 		return m, nil
 
 	case tickMsg:
@@ -1109,6 +1113,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selectedBackground == "ak-47" && m.ak47Effect == nil {
 			m.ak47Effect = m.newAK47Effect()
 		}
+		if m.selectedBackground == "l2a1-sar" && m.l2a1SAREffect == nil {
+			m.l2a1SAREffect = m.newL2A1SAREffect()
+		}
 
 		if (m.enableFire || m.selectedBackground == "fire" || m.selectedBackground == "fire+rain") && m.fireEffect != nil {
 			m.fireEffect.UpdatePalette(animations.GetFirePalette(m.currentTheme))
@@ -1153,6 +1160,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.selectedBackground == "ak-47" && m.ak47Effect != nil {
 			m.ak47Effect.Update()
+		}
+		if m.selectedBackground == "l2a1-sar" && m.l2a1SAREffect != nil {
+			m.l2a1SAREffect.Update()
 		}
 
 		cmds = append(cmds, doBgTick(m.animSpeed))
@@ -1989,6 +1999,15 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.selectedBackground = "none"
 					m.ak47Effect = nil
 				}
+			case "L2A1 SAR":
+				m.enableFire = false
+				if m.selectedBackground != "l2a1-sar" {
+					m.selectedBackground = "l2a1-sar"
+					m.l2a1SAREffect = m.newL2A1SAREffect()
+				} else {
+					m.selectedBackground = "none"
+					m.l2a1SAREffect = nil
+				}
 			case "Aquarium":
 				m.enableFire = false
 				if m.selectedBackground != "aquarium" {
@@ -2022,7 +2041,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 
 			if m.enableFire {
 				m.selectedBackground = "fire"
-			} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" && m.selectedBackground != "sonar" && m.selectedBackground != "cracktro" && m.selectedBackground != "plasma" && m.selectedBackground != "aquarium" && m.selectedBackground != "ak-47" && m.selectedBackground != "ticker" {
+			} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" && m.selectedBackground != "sonar" && m.selectedBackground != "cracktro" && m.selectedBackground != "plasma" && m.selectedBackground != "aquarium" && m.selectedBackground != "ak-47" && m.selectedBackground != "l2a1-sar" && m.selectedBackground != "ticker" {
 				m.selectedBackground = "none"
 			}
 
@@ -2118,6 +2137,9 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.applyInputTheme()
 					if m.selectedBackground == "ak-47" {
 						m.ak47Effect = m.newAK47Effect()
+					}
+					if m.selectedBackground == "l2a1-sar" {
+						m.l2a1SAREffect = m.newL2A1SAREffect()
 					}
 					// CHANGED 2025-10-03 - Save theme preference
 					// CHANGED 2025-10-03 - Skip saving in test mode
@@ -2700,6 +2722,20 @@ func (m model) View() tea.View {
 		return view
 	} else if m.selectedBackground == "ak-47" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		backgroundContent := m.addAK47Effect("")
+
+		contentWidth := lipgloss.Width(content)
+		contentHeight := lipgloss.Height(content)
+		uiX := (termWidth - contentWidth) / 2
+		uiY := (termHeight - contentHeight) / 2
+
+		view.Layer = lipgloss.NewCanvas(
+			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
+			lipgloss.NewLayer(content).X(uiX).Y(uiY),
+		)
+		view.BackgroundColor = BgBase
+		return view
+	} else if m.selectedBackground == "l2a1-sar" && (m.mode == ModeLogin || m.mode == ModePassword) {
+		backgroundContent := m.addL2A1SAREffect("")
 
 		contentWidth := lipgloss.Width(content)
 		contentHeight := lipgloss.Height(content)
