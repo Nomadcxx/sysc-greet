@@ -188,7 +188,7 @@ Classic is the default. Open **F1 → Borders** to choose Classic, Modern, Minim
 
 The border effect starts Off. Shimmer starts after ten seconds without input, travels at 24 cells per second, pauses four seconds after each lap, and stops after one minute idle.
 
-Auto form mode uses see-through for AK-47, L2A1 SAR, Sonar, Cracktro, and Plasma; frosted for Matrix, Fire, ASCII Rain, Fireworks, and Aquarium; and opaque for None, Pattern, and Typewriter. Set the form mode and choose the Theme, VGA, or Terminal palette in F1 → Borders.
+Auto form mode uses see-through for AK-47, Australian SLR, Sonar, Cracktro, and Plasma; frosted for Matrix, Fire, ASCII Rain, Fireworks, and Aquarium; and opaque for None, Pattern, and Typewriter. Set the form mode and choose the Theme, VGA, or Terminal palette in F1 → Borders.
 
 Built-in `.ans` assets live in `cmd/sysc-greet/assets/borders/` and ship inside the binary. The greeter also loads system assets from `/usr/share/sysc-greet/borders/`. Add a SAUCE `nineslice` comment with the border insets and asset name. Preview an asset at several sizes with:
 
@@ -204,7 +204,7 @@ For detailed docs, configuration guides, troubleshooting, and usage instructions
 
 ## License
 
-The sysc-greet source is GPL-3.0. The optional AK-47 background embeds model data under CC BY-NC 4.0, and the L2A1 SAR background embeds model data under CC BY 4.0. Third-party code and model notices are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+The sysc-greet source is GPL-3.0. The optional AK-47 background embeds model data under CC BY-NC 4.0, and the Australian SLR background uses the L2A1 SAR model under CC BY 4.0. Third-party code and model notices are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ---
 

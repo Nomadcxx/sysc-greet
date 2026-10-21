@@ -53,17 +53,60 @@ func initDebugLog() {
 	logPaths := []string{"/tmp/sysc-greet-debug.log"}
 	if home, err := os.UserHomeDir(); err == nil {
 		cacheDir := filepath.Join(home, ".cache", "sysc-greet")
-		os.MkdirAll(cacheDir, 0755)
-		logPaths = append([]string{filepath.Join(cacheDir, "debug.log")}, logPaths...)
+		if err := os.MkdirAll(cacheDir, 0o700); err == nil {
+			if info, err := os.Lstat(cacheDir); err == nil && info.IsDir() && info.Mode()&os.ModeSymlink == 0 {
+				if err := os.Chmod(cacheDir, 0o700); err == nil {
+					logPaths = append([]string{filepath.Join(cacheDir, "debug.log")}, logPaths...)
+				}
+			}
+		}
 	}
 
 	for _, logPath := range logPaths {
-		logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		logFile, err := openPrivateLog(logPath)
 		if err == nil {
 			debugLog = log.New(logFile, "[DEBUG] ", log.Ldate|log.Ltime|log.Lshortfile)
 			return
 		}
 	}
+}
+
+func openPrivateLog(path string) (*os.File, error) {
+	fd, err := syscall.Open(path, syscall.O_CREAT|syscall.O_WRONLY|syscall.O_APPEND|syscall.O_CLOEXEC|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	file := os.NewFile(uintptr(fd), path)
+	info, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		file.Close()
+		return nil, fmt.Errorf("debug log path %q is not a regular file", path)
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		file.Close()
+		return nil, fmt.Errorf("cannot verify owner of debug log path %q", path)
+	}
+	if err := validatePrivateLogOwner(path, stat.Uid); err != nil {
+		file.Close()
+		return nil, err
+	}
+	if err := file.Chmod(0o600); err != nil {
+		file.Close()
+		return nil, err
+	}
+	return file, nil
+}
+
+func validatePrivateLogOwner(path string, ownerUID uint32) error {
+	if ownerUID != uint32(os.Geteuid()) {
+		return fmt.Errorf("debug log path %q is not owned by effective uid", path)
+	}
+	return nil
 }
 
 func logDebug(format string, args ...interface{}) {
@@ -736,7 +779,9 @@ func initialModel(config Config, screensaverMode bool) model {
 	// Apply the explicit CLI theme before restoring cached effects.
 	themeApplied := false
 	if !m.config.TestMode {
-		if prefs, err := cache.LoadPreferences(); err == nil && prefs != nil {
+		if prefs, err := cache.LoadPreferences(); err != nil {
+			logDebug("failed to load sysc-greet preferences: %v", err)
+		} else if prefs != nil {
 			if config.FollowShell == nil && prefs.FollowShell != nil {
 				m.followShell = *prefs.FollowShell
 			}
@@ -1230,7 +1275,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Load cached username for NEW session if available
 			if !m.config.TestMode {
-				if prefs, err := cache.LoadPreferences(); err == nil && prefs != nil {
+				if prefs, err := cache.LoadPreferences(); err != nil {
+					logDebug("failed to load sysc-greet preferences: %v", err)
+				} else if prefs != nil {
 					if m.config.RememberUsername && prefs.Username != "" && prefs.Session == session.Name {
 						m.usernameInput.SetValue(prefs.Username)
 						logDebug("Loaded cached username for new session: %s", session.Name)
@@ -1910,7 +1957,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.selectedBackground = "none"
 					m.ak47Effect = nil
 				}
-			case "L2A1 SAR":
+			case "Australian SLR":
 				m.enableFire = false
 				if m.selectedBackground != "l2a1-sar" {
 					m.selectedBackground = "l2a1-sar"

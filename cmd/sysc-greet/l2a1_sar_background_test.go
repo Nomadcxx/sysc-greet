@@ -17,21 +17,21 @@ func renderLayer(view tea.View, width, height int) string {
 	return screen.String()
 }
 
-func TestBackgroundsMenuIncludesL2A1SAR(t *testing.T) {
+func TestBackgroundsMenuIncludesAustralianSLR(t *testing.T) {
 	got, _ := (model{}).navigateToBackgroundsSubmenu()
 	menu := got.(model)
-	if !slices.Contains(menu.menuOptions, "[ ] L2A1 SAR") {
-		t.Fatalf("background menu = %v, want L2A1 SAR option", menu.menuOptions)
+	if !slices.Contains(menu.menuOptions, "[ ] Australian SLR") {
+		t.Fatalf("background menu = %v, want Australian SLR option", menu.menuOptions)
 	}
 }
 
-func TestL2A1SARBackgroundCanBeSelectedFromMenu(t *testing.T) {
+func TestAustralianSLRBackgroundCanBeSelectedFromMenu(t *testing.T) {
 	m := model{mode: ModeBackgroundsSubmenu, config: Config{TestMode: true}}
 	updated, _ := m.navigateToBackgroundsSubmenu()
 	m = updated.(model)
-	m.menuIndex = slices.Index(m.menuOptions, "[ ] L2A1 SAR")
+	m.menuIndex = slices.Index(m.menuOptions, "[ ] Australian SLR")
 	if m.menuIndex < 0 {
-		t.Fatal("L2A1 SAR menu option not found")
+		t.Fatal("Australian SLR menu option not found")
 	}
 
 	m, _ = m.handleKeyInput(tea.KeyPressMsg{Code: tea.KeySpace})

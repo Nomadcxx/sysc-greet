@@ -1,14 +1,49 @@
 package main
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/Nomadcxx/sysc-greet/internal/cache"
 	"github.com/Nomadcxx/sysc-greet/internal/wallpaper"
 )
+
+func TestLoadStartupWallpaperPreferencesReportsErrors(t *testing.T) {
+	home := filepath.Join(t.TempDir(), "home-file")
+	if err := os.WriteFile(home, []byte("not a directory"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", home)
+
+	readEnd, writeEnd, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	previousStderr := os.Stderr
+	os.Stderr = writeEnd
+	prefs := loadStartupWallpaperPreferences()
+	os.Stderr = previousStderr
+	if err := writeEnd.Close(); err != nil {
+		t.Fatal(err)
+	}
+	output, err := io.ReadAll(readEnd)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := readEnd.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if prefs != nil {
+		t.Fatalf("preferences = %#v, want nil after load failure", prefs)
+	}
+	if !strings.Contains(string(output), "failed to load sysc-greet preferences for startup wallpaper") {
+		t.Fatalf("startup preference load error was not reported: %q", output)
+	}
+}
 
 func TestResolveStartupWallpaperPrefersCachedCustomWallpaper(t *testing.T) {
 	home := t.TempDir()

@@ -91,16 +91,22 @@ func gSlapperStartupArgs(path string, isVideo bool) []string {
 	return []string{"-f", "-I", wallpaper.GSlapperSocket, "*", path}
 }
 
+func loadStartupWallpaperPreferences() *cache.UserPreferences {
+	prefs, err := cache.LoadPreferences()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to load sysc-greet preferences for startup wallpaper: %v\n", err)
+		return nil
+	}
+	return prefs
+}
+
 func runStartupWallpaperDaemon(config Config) error {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
 		home = "/var/lib/greeter"
 	}
 
-	prefs, err := cache.LoadPreferences()
-	if err != nil {
-		prefs = nil
-	}
+	prefs := loadStartupWallpaperPreferences()
 
 	available := append(themes.GetAvailableThemes(), themes.ScanCustomThemes([]string{filepath.Join(home, ".config", "sysc-greet", "themes"), filepath.Join(dataDir, "themes")})...)
 	prefs = startupThemePreferences(prefs, config, available)

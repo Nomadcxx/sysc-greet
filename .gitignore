@@ -10,6 +10,7 @@ test-*
 !*testing.md
 !cmd/sysc-greet/border_registry_test.go
 !cmd/sysc-greet/border_golden_test.go
+!cmd/sysc-greet/prefs_test.go
 !internal/ansiart/upscale_test.go
 !internal/cache/cache_test.go
 !cmd/sysc-greet/testdata/
