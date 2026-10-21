@@ -24,6 +24,11 @@ contents:
     dst: /usr/share/sysc-greet/ascii_configs/
     type: tree
 
+  # Border assets (also embedded in the binary)
+  - src: ./cmd/sysc-greet/assets/borders/
+    dst: /usr/share/sysc-greet/borders/
+    type: tree
+
   # Third-party license notices for embedded animation assets
   - src: ./THIRD_PARTY_NOTICES.md
     dst: /usr/share/sysc-greet/THIRD_PARTY_NOTICES.md

@@ -31,6 +31,34 @@ func TestBorderPrefsMigration(t *testing.T) {
 	}
 }
 
+func TestBuiltInThemeResetsDefaultBorderColor(t *testing.T) {
+	useBorderGoldenTheme(t)
+	BorderDefault = lipgloss.Color("#21215f")
+	applyTheme("dracula", true)
+	want := complete(lipgloss.Color("8"), lipgloss.Color("238"), lipgloss.Color("#374151"))
+	if !sameColor(BorderDefault, want) {
+		t.Fatalf("built-in theme left stale default border color %v, want %v", BorderDefault, want)
+	}
+}
+
+func TestFormModePreferencePrecedence(t *testing.T) {
+	for _, tc := range []struct {
+		name, flagMode, savedMode, want string
+		flagSet                         bool
+	}{
+		{"explicit flag wins", "opaque", "frosted", "opaque", true},
+		{"saved preference wins by default", "auto", "frosted", "frosted", false},
+		{"invalid preference keeps default", "auto", "invalid", "auto", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := preferredFormMode(tc.flagMode, tc.savedMode, tc.flagSet); got != tc.want {
+				t.Fatalf("preferredFormMode(%q, %q, %t) = %q, want %q",
+					tc.flagMode, tc.savedMode, tc.flagSet, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestMigratedBorderStyleRendersWithoutPanic(t *testing.T) {
 	for _, size := range [][2]int{{40, 12}, {60, 20}, {80, 24}} {
 		for _, removed := range []string{"ascii3", "ascii4"} {
@@ -68,7 +96,10 @@ func TestBorderPrefsRoundTrip(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	m := layoutModel(80, 24)
 	m.borderEffect = "shimmer"
+	m.borderPaletteMode = "terminal"
 	m.formMode = "frosted"
+	m.config.RememberUsername = true
+	m.usernameInput.SetValue("saved-user")
 	if err := cache.SavePreferences(m.currentPreferences()); err != nil {
 		t.Fatal(err)
 	}
@@ -81,6 +112,41 @@ func TestBorderPrefsRoundTrip(t *testing.T) {
 	}
 	if prefs.FormMode != "frosted" {
 		t.Errorf("FormMode = %q, want frosted", prefs.FormMode)
+	}
+	if prefs.BorderPaletteMode != "terminal" {
+		t.Errorf("BorderPaletteMode = %q, want terminal", prefs.BorderPaletteMode)
+	}
+	if prefs.Username != "saved-user" {
+		t.Errorf("Username = %q, want saved-user", prefs.Username)
+	}
+}
+
+func TestAuthSuccessPersistsSubmittedUsernameAndSession(t *testing.T) {
+	for _, tc := range []struct {
+		name, wantUsername string
+		remember           bool
+	}{
+		{name: "remember enabled", remember: true, wantUsername: "submitted-user"},
+		{name: "remember disabled", remember: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("HOME", t.TempDir())
+			m := layoutModel(80, 24)
+			m.config.RememberUsername = tc.remember
+			m.usernameInput.SetValue("changed-while-authenticating")
+			_, _ = m.Update(authSuccessMsg{Username: "submitted-user", Session: "submitted-session"})
+
+			prefs, err := cache.LoadPreferences()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if prefs == nil {
+				t.Fatal("authentication success did not save preferences")
+			}
+			if prefs.Session != "submitted-session" || prefs.Username != tc.wantUsername {
+				t.Fatalf("saved identity = (%q, %q), want (%q, %q)", prefs.Session, prefs.Username, "submitted-session", tc.wantUsername)
+			}
+		})
 	}
 }
 
@@ -148,6 +214,7 @@ func TestAscii1ResponsiveWidths(t *testing.T) {
 }
 
 func FuzzBorderRender(f *testing.F) {
+	registry := newBorderRegistry("")
 	for _, seed := range [][2]int{{1, 1}, {40, 12}, {60, 20}, {80, 24}, {132, 40}, {200, 55}, {600, 300}} {
 		f.Add(seed[0], seed[1])
 	}
@@ -160,6 +227,16 @@ func FuzzBorderRender(f *testing.F) {
 			m.selectedBorderStyle = style
 			_ = m.renderDualBorderLayout(w, h)
 			_ = m.renderMainView(w, h)
+		}
+		for _, renderer := range registry.styles() {
+			m := layoutModel(w, h)
+			m.selectedSession = nil
+			m.borderRegistry = registry
+			m.selectedBorderStyle = renderer.ID()
+			m.config = Config{BorderLayout: "hug"}
+			if canvas, ok := m.borderedLoginCanvas(w, h); ok {
+				_ = canvas.Render()
+			}
 		}
 	})
 }

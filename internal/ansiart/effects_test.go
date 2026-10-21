@@ -1,6 +1,8 @@
 package ansiart
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestPerimeterDist(t *testing.T) {
 	d, p := PerimeterDist(0, 0, 10, 6)
@@ -29,7 +31,7 @@ func TestShimmerFlashSafety(t *testing.T) {
 	}
 	_, p := PerimeterDist(0, 0, w, h)
 	speed, band := 24.0, 6.0
-	lap := float64(p) / speed
+	lap := float64(p)/speed + 4
 
 	brightens := make([]int, w*h)
 	prev := make([]bool, w*h)
@@ -38,7 +40,7 @@ func TestShimmerFlashSafety(t *testing.T) {
 	for f := 0; f < 10*fps; f++ {
 		g := NewGrid(w, h)
 		copy(g.Cells, src.Cells)
-		g.Shimmer(float64(f)/fps, speed, band)
+		g.Shimmer(f, speed, band, 4)
 		changed := 0
 		for i := range g.Cells {
 			lit := g.Cells[i].Fg >= 8
@@ -65,15 +67,13 @@ func TestShimmerFlashSafety(t *testing.T) {
 	}
 }
 
-func TestShimmerOffAndCycleIdentity(t *testing.T) {
+func TestShimmerOffIdentity(t *testing.T) {
 	g := NewGrid(10, 5)
 	for i := range g.Cells {
 		g.Cells[i] = Cell{Ch: 'x', Fg: 3, Bg: 0}
 	}
 	before := append([]Cell(nil), g.Cells...)
-	g.Shimmer(5, 0, 6)
-	g.Cycle(nil, 3)
-	g.Cycle([]int8{3, 11}, 0)
+	g.Shimmer(100, 0, 6, 4)
 	for i := range g.Cells {
 		if g.Cells[i] != before[i] {
 			t.Fatalf("cell %d changed with effect off: %+v vs %+v", i, g.Cells[i], before[i])
@@ -81,18 +81,15 @@ func TestShimmerOffAndCycleIdentity(t *testing.T) {
 	}
 }
 
-func TestCyclePureColor(t *testing.T) {
-	g := NewGrid(4, 1)
-	for x := 0; x < 4; x++ {
-		*g.At(x, 0) = Cell{Ch: 'x', Fg: 4, Bg: 0}
+func TestShimmerLapRest(t *testing.T) {
+	const w, h = 10, 6
+	d, p := PerimeterDist(0, 0, w, h)
+	base := int8(4)
+	lapFrames := int(float64(p)/24*20) + 1
+	if got := ShimmerFG(base, d, p, lapFrames+20, 24, 6, 4); got != base {
+		t.Fatalf("cell brightened during rest: fg %d, want %d", got, base)
 	}
-	g.Cycle([]int8{4, 6, 14, 6}, 1)
-	for x := 0; x < 4; x++ {
-		if c := g.At(x, 0); c.Ch != 'x' {
-			t.Errorf("glyph changed at %d: %+v", x, *c)
-		}
-	}
-	if c := g.At(0, 0); c.Fg != 6 {
-		t.Errorf("ramp step fg = %d, want 6", c.Fg)
+	if got := ShimmerFG(base, d, p, 0, 24, 6, 4); got != base|8 {
+		t.Fatalf("head cell fg = %d, want %d", got, base|8)
 	}
 }

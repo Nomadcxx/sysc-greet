@@ -3,11 +3,25 @@ package main
 import (
 	"fmt"
 	"image/color"
+	"math"
 	"testing"
 
 	lipgloss "github.com/charmbracelet/lipgloss/v2"
 	uv "github.com/charmbracelet/ultraviolet"
 )
+
+func TestValidFormDim(t *testing.T) {
+	for _, dim := range []float64{0, 0.55, 1} {
+		if !validFormDim(dim) {
+			t.Errorf("validFormDim(%v) = false, want true", dim)
+		}
+	}
+	for _, dim := range []float64{-0.01, 1.01, math.NaN(), math.Inf(1), math.Inf(-1)} {
+		if validFormDim(dim) {
+			t.Errorf("validFormDim(%v) = true, want false", dim)
+		}
+	}
+}
 
 func seethroughTestModel(form string, opts seeThroughOpts) *seeThroughLayer {
 	return newSeeThroughLayer(form, opts)
@@ -167,15 +181,19 @@ func TestEffectiveFormModeDefaults(t *testing.T) {
 	m := layoutModel(80, 24)
 	m.formMode = "auto"
 	cases := map[string]formMode{
-		"none":      formOpaque,
-		"pattern":   formOpaque,
-		"ak-47":     formSeeThrough,
-		"sonar":     formSeeThrough,
-		"cracktro":  formSeeThrough,
-		"plasma":    formSeeThrough,
-		"matrix":    formFrosted,
-		"fire":      formFrosted,
-		"fireworks": formFrosted,
+		"none":       formOpaque,
+		"pattern":    formOpaque,
+		"ticker":     formOpaque,
+		"ak-47":      formSeeThrough,
+		"l2a1-sar":   formSeeThrough,
+		"sonar":      formSeeThrough,
+		"cracktro":   formSeeThrough,
+		"plasma":     formSeeThrough,
+		"matrix":     formFrosted,
+		"fire":       formFrosted,
+		"ascii-rain": formFrosted,
+		"fireworks":  formFrosted,
+		"aquarium":   formFrosted,
 	}
 	for bg, want := range cases {
 		m.selectedBackground = bg

@@ -188,11 +188,26 @@ func (m model) effectiveFormMode() formMode {
 	switch m.selectedBackground {
 	case "none", "pattern", "":
 		return formOpaque
-	case "ak-47", "sonar", "cracktro", "plasma", "ticker":
+	case "ak-47", "l2a1-sar", "sonar", "cracktro", "plasma":
 		return formSeeThrough
-	default:
+	case "matrix", "fire", "ascii-rain", "fireworks", "aquarium":
 		return formFrosted
+	default:
+		return formOpaque
 	}
+}
+
+func validFormMode(mode string) bool {
+	switch mode {
+	case "", "auto", "opaque", "seethrough", "frosted":
+		return true
+	default:
+		return false
+	}
+}
+
+func validFormDim(dim float64) bool {
+	return dim >= 0 && dim <= 1
 }
 
 func (m model) loginContentLayer(content string) any {

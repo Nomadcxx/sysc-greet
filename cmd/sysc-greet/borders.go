@@ -26,6 +26,9 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	// Use reasonable max width like installer
 	innerWidth := min(100, termWidth-8) // Reasonable width for content area
 	var innerSections []string
+	if ticker := m.renderTypewriterLine(innerWidth - 6); ticker != "" {
+		innerSections = append(innerSections, ticker)
+	}
 
 	// WM/Session ASCII art - prominent display
 	// Fix centering, art is already colored
@@ -65,39 +68,7 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	// Simplified border title as first line
 	// Create inner border container with user-selected style
 	innerBorderColor := m.getInnerBorderColor()
-
-	// TypewriterTicker replaces SESSIONS title when enabled
-	var titleLine string
-
-	// Show typewriter text if ticker is enabled as background
-	if m.selectedBackground == "ticker" && m.typewriterTicker != nil {
-		tickerText := m.typewriterTicker.GetTypewriterText(innerWidth - 6)
-		titleLine = lipgloss.NewStyle().
-			Foreground(innerBorderColor).
-			Bold(true).
-			Width(innerWidth - 6).
-			Align(lipgloss.Center).
-			Render(tickerText)
-	} else {
-		// Standard SESSIONS title
-		titleText := "SESSIONS"
-		slashes := strings.Repeat("/", 7)
-		dashCount := min(30, (innerWidth-6-22)/2)
-		if m.selectedBorderStyle == "minimal" {
-			dashCount = 4
-		}
-		if dashCount < 4 {
-			dashCount = 4
-		}
-		dashes := strings.Repeat("─", dashCount)
-
-		titleLine = lipgloss.NewStyle().
-			Foreground(innerBorderColor).
-			Bold(true).
-			Width(innerWidth - 6).
-			Align(lipgloss.Center).
-			Render(dashes + slashes + titleText + slashes + dashes)
-	}
+	titleLine := m.renderSessionsHeading(innerWidth)
 
 	// Add title as first element
 	contentWithTitle := []string{titleLine}
@@ -214,6 +185,27 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 
 	// CHANGED 2025-10-06 - Return content without Place(), let View() handle centering
 	return contentWithHelp
+}
+
+func (m model) renderSessionsHeading(innerWidth int) string {
+	width := max(1, innerWidth-6)
+	style := lipgloss.NewStyle().Foreground(m.getInnerBorderColor()).Bold(true).Width(width).Align(lipgloss.Center)
+	dashCount := max(4, min(30, (width-22)/2))
+	if m.selectedBorderStyle == "minimal" {
+		dashCount = 4
+	}
+	dashes := strings.Repeat("─", dashCount)
+	slashes := strings.Repeat("/", 7)
+	return style.Render(dashes + slashes + "SESSIONS" + slashes + dashes)
+}
+
+func (m model) renderTypewriterLine(width int) string {
+	if m.selectedBackground != "ticker" || m.typewriterTicker == nil {
+		return ""
+	}
+	width = max(1, width)
+	return lipgloss.NewStyle().Foreground(m.getInnerBorderColor()).Bold(true).Width(width).Align(lipgloss.Center).
+		Render(m.typewriterTicker.GetTypewriterText(width))
 }
 
 // ASCII-1: Just a border style, uses current theme colors

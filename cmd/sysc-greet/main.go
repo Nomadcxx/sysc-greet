@@ -286,6 +286,7 @@ type Config struct {
 	RememberUsername bool
 	BorderLayout     string
 	FormMode         string
+	FormModeExplicit bool
 	FormHalo         int
 	FormDim          float64
 	Ambient          ambientConfig
@@ -360,6 +361,8 @@ type model struct {
 	customASCIIText     string
 	selectedBorderStyle string
 	borderEffect        string
+	borderPaletteMode   string
+	borderRegistry      *borderRegistry
 	formMode            string
 	formLayerCache      *layerCache
 	selectedBackground  string
@@ -377,7 +380,8 @@ type model struct {
 	focusState FocusState
 
 	// Authentication tracking
-	failedAttempts int
+	failedAttempts  int
+	borderFailureAt time.Time
 
 	// Animation state
 	animationFrame   int
@@ -430,6 +434,10 @@ type model struct {
 
 type sessionSelectedMsg sessions.Session
 type powerSelectedMsg string
+type authSuccessMsg struct {
+	Username string
+	Session  string
+}
 type tickMsg time.Time
 
 func doTick() tea.Cmd {
@@ -672,6 +680,8 @@ func initialModel(config Config, screensaverMode bool) model {
 		// Set Dracula as default theme and disable border animation
 		selectedBorderStyle: "classic",
 		borderEffect:        "off",
+		borderPaletteMode:   "theme",
+		borderRegistry:      newBorderRegistry(dataDir + "/borders"),
 		formMode:            config.FormMode,
 		formLayerCache:      &layerCache{},
 		selectedBackground:  "none",
@@ -745,13 +755,16 @@ func initialModel(config Config, screensaverMode bool) model {
 			}
 			if prefs.BorderStyle != "" || prefs.BorderEffect != "" {
 				style, effect := migrateBorderPrefs(prefs.BorderStyle, prefs.BorderEffect)
-				if style != "" {
+				if m.borderRegistry.has(style) {
 					m.selectedBorderStyle = style
 				}
-				m.borderEffect = effect
+				if effect == "shimmer" || effect == "off" {
+					m.borderEffect = effect
+				}
 			}
-			if prefs.FormMode != "" {
-				m.formMode = prefs.FormMode
+			m.formMode = preferredFormMode(m.config.FormMode, prefs.FormMode, m.config.FormModeExplicit)
+			if validBorderPalette(prefs.BorderPaletteMode) {
+				m.borderPaletteMode = prefs.BorderPaletteMode
 			}
 			if prefs.Session != "" {
 				// Find matching session in m.sessions
@@ -1277,37 +1290,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, textinput.Blink)
 		}
 
+	case authSuccessMsg:
+		m.failedAttempts = 0
+		m.saveSuccessfulLogin(msg.Username, msg.Session)
+		fmt.Println("Session started successfully")
+		return m, tea.Quit
+
 	case string:
-		if msg == "success" {
-			// Removed delay workaround
-			// Now we properly wait for greetd's success response in StartSession() before returning
-			// This ensures greetd has finished session initialization regardless of hardware speed
-
-			m.failedAttempts = 0 // Reset failed attempts on successful login
-
-			// FIXED 2025-10-17 - Save username to cache on successful login
-			if m.selectedSession != nil {
-				p := m.currentPreferences()
-				cache.SavePreferences(p)
-				logDebug("Saved username '%s' for session: %s", p.Username, p.Session)
-			}
-
-			fmt.Println("Session started successfully")
-			return m, tea.Quit
-		} else {
-			// FIXED 2025-10-17 - Return to login mode (not password mode) so user can fix username
-			m.errorMessage = msg
-			m.mode = ModeLogin
-			m.usernameInput.SetValue("") // Clear username field
-			m.passwordInput.SetValue("") // Clear password field
-			m.usernameInput.Focus()
-			m.passwordInput.Blur()
-			m.focusState = FocusUsername
-			return m, textinput.Blink
-		}
+		// FIXED 2025-10-17 - Return to login mode (not password mode) so user can fix username
+		m.errorMessage = msg
+		m.borderFailureAt = time.Now()
+		m.mode = ModeLogin
+		m.usernameInput.SetValue("") // Clear username field
+		m.passwordInput.SetValue("") // Clear password field
+		m.usernameInput.Focus()
+		m.passwordInput.Blur()
+		m.focusState = FocusUsername
+		return m, textinput.Blink
 	case error:
 		// FIXED 2025-10-17 - Return to password mode so user can retry
 		m.errorMessage = msg.Error()
+		m.borderFailureAt = time.Now()
 		m.failedAttempts++ // Track failed authentication attempts
 		m.mode = ModePassword
 		// Keep username, only clear password
@@ -2053,32 +2056,49 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				return m, nil
 
 			case ModeBordersSubmenu:
-				// Restored ASCII border handling
 				optionName := strings.TrimPrefix(selectedOption, "[✓] ")
 				optionName = strings.TrimPrefix(optionName, "[ ] ")
-				switch optionName {
-				case "Style: Classic":
-					m.selectedBorderStyle = "classic"
-				case "Style: Modern":
-					m.selectedBorderStyle = "modern"
-				case "Style: Minimal":
-					m.selectedBorderStyle = "minimal"
-				case "Style: ASCII-1":
-					m.selectedBorderStyle = "ascii1"
-				case "Style: ASCII-2":
-					m.selectedBorderStyle = "ascii2"
-				case "Effect: Shimmer":
-					m.borderEffect = "shimmer"
-				case "Effect: Off":
-					m.borderEffect = "off"
-				case "Form: Auto":
-					m.formMode = "auto"
-				case "Form: Opaque":
-					m.formMode = "opaque"
-				case "Form: See-through":
-					m.formMode = "seethrough"
-				case "Form: Frosted":
-					m.formMode = "frosted"
+				if strings.HasPrefix(optionName, "Style: ") && m.borderRegistry != nil {
+					label := strings.TrimPrefix(optionName, "Style: ")
+					for _, renderer := range m.borderRegistry.styles() {
+						if renderer.Label() == label {
+							m.selectedBorderStyle = renderer.ID()
+							break
+						}
+					}
+				} else {
+					switch optionName {
+					case "Style: Classic":
+						m.selectedBorderStyle = "classic"
+					case "Style: Modern":
+						m.selectedBorderStyle = "modern"
+					case "Style: Minimal":
+						m.selectedBorderStyle = "minimal"
+					case "Style: ASCII-1":
+						m.selectedBorderStyle = "ascii1"
+					case "Style: ASCII-2":
+						m.selectedBorderStyle = "ascii2"
+					case "Effect: Shimmer":
+						if renderer := m.borderRegistry.get(m.selectedBorderStyle); renderer != nil && renderer.SupportsEffect("shimmer") {
+							m.borderEffect = "shimmer"
+						}
+					case "Effect: Off":
+						m.borderEffect = "off"
+					case "Palette: Theme":
+						m.borderPaletteMode = "theme"
+					case "Palette: VGA":
+						m.borderPaletteMode = "vga"
+					case "Palette: Terminal":
+						m.borderPaletteMode = "terminal"
+					case "Form: Auto":
+						m.formMode = "auto"
+					case "Form: Opaque":
+						m.formMode = "opaque"
+					case "Form: See-through":
+						m.formMode = "seethrough"
+					case "Form: Frosted":
+						m.formMode = "frosted"
+					}
 				}
 				// CHANGED 2025-10-03 - Save border preference
 				// CHANGED 2025-10-03 - Skip saving in test mode
@@ -2397,6 +2417,15 @@ func (m model) View() tea.View {
 	if termHeight == 0 {
 		termHeight = 24
 	}
+	view := tea.View{AltScreen: m.altScreen, UniformKeyLayout: true}
+	if m.altScreen && !m.config.TestMode {
+		view.MouseMode = tea.MouseModeCellMotion
+	}
+	if canvas, ok := m.borderedLoginCanvas(termWidth, termHeight); ok {
+		view.Layer = canvas
+		view.BackgroundColor = BgBase
+		return view
+	}
 
 	var content string
 	switch m.mode {
@@ -2413,11 +2442,6 @@ func (m model) View() tea.View {
 		content = renderScreensaverView(m, termWidth, termHeight)
 	default:
 		content = m.renderMainView(termWidth, termHeight)
-	}
-
-	view := tea.View{AltScreen: m.altScreen, UniformKeyLayout: true}
-	if m.altScreen && !m.config.TestMode {
-		view.MouseMode = tea.MouseModeCellMotion
 	}
 
 	// Check if fire background is enabled
@@ -2787,7 +2811,7 @@ func (m model) authenticate(username, password string) tea.Cmd {
 					m.ipcClient.CancelSession()
 					return err
 				}
-				return "success"
+				return authSuccessMsg{Username: username, Session: m.selectedSession.Name}
 			} else {
 				// Cancel session on unexpected response
 				m.ipcClient.CancelSession()
@@ -2819,6 +2843,8 @@ func main() {
 	var startWallpaperDaemon bool
 	var widgetConfigPath string
 	var followShell bool
+	var borderPreviewPath string
+	var borderPreviewSizes string
 
 	flag.BoolVar(&showVersion, "version", false, "Show version information")
 	flag.BoolVar(&showVersion, "v", false, "Show version information (shorthand)")
@@ -2835,6 +2861,8 @@ func main() {
 	flag.StringVar(&config.FormMode, "form-mode", "auto", "Login form mode: auto, opaque, seethrough or frosted")
 	flag.IntVar(&config.FormHalo, "form-halo", 1, "Halo width in columns around form text (0-2)")
 	flag.Float64Var(&config.FormDim, "form-dim", 0.55, "Frosted form dim strength (0-1)")
+	flag.StringVar(&borderPreviewPath, "border-preview", "", "Render a .ans border around a sample login form (requires --test)")
+	flag.StringVar(&borderPreviewSizes, "size", "80x24,132x40,200x55", "Comma-separated sizes for --border-preview")
 	flag.StringVar(&widgetConfigPath, "widget-config", "", "Widget JSON configuration file (overrides default paths)")
 	flag.StringVar(&config.Ambient.ShellConfig, "weather-shell-config", "", "sysc-shell config path when weather-location is sysc-shell")
 	flag.BoolVar(&config.Ambient.Metrics, "metrics", false, "Show CPU/Memory usage in the login panel")
@@ -2863,6 +2891,12 @@ func main() {
 		fmt.Fprintln(os.Stderr, "  -secondary-effect string\n    \tsysc-terminal effect (default matrix)")
 		fmt.Fprintln(os.Stderr, "  -weather-location LAT,LON\n    \tShow weather at LAT,LON or reuse sysc-shell coordinates")
 		fmt.Fprintln(os.Stderr, "  -weather-units string\n    \tWeather units: celsius (default) or fahrenheit")
+		fmt.Fprintln(os.Stderr, "  -border-preview FILE.ans\n    Render a border asset at --size values; requires -test")
+		fmt.Fprintln(os.Stderr, "  -size 80x24,132x40,200x55\n    Terminal sizes for -border-preview")
+		fmt.Fprintln(os.Stderr, "  -border-layout hug|fill\n    Outer frame layout (default hug)")
+		fmt.Fprintln(os.Stderr, "  -form-mode auto|opaque|seethrough|frosted\n    Login form compositing mode")
+		fmt.Fprintln(os.Stderr, "  -form-halo 0|1|2\n    Halo width in columns around form text")
+		fmt.Fprintln(os.Stderr, "  -form-dim 0..1\n    Frosted form dim strength")
 		// Manually print flags (excluding hidden ones)
 		fmt.Fprintf(os.Stderr, "  -debug\n")
 		fmt.Fprintf(os.Stderr, "    	Enable debug output\n")
@@ -2893,6 +2927,8 @@ func main() {
 	flag.Visit(func(f *flag.Flag) {
 		if f.Name == "follow-shell" {
 			config.FollowShell = &followShell
+		} else if f.Name == "form-mode" {
+			config.FormModeExplicit = true
 		}
 	})
 
@@ -2911,6 +2947,22 @@ func main() {
 		}
 		return
 	}
+	if config.BorderLayout != "hug" && config.BorderLayout != "fill" {
+		fmt.Fprintf(os.Stderr, "invalid --border-layout %q: expected hug or fill\n", config.BorderLayout)
+		os.Exit(2)
+	}
+	if !validFormMode(config.FormMode) {
+		fmt.Fprintf(os.Stderr, "invalid --form-mode %q: expected auto, opaque, seethrough or frosted\n", config.FormMode)
+		os.Exit(2)
+	}
+	if config.FormHalo < 0 || config.FormHalo > 2 {
+		fmt.Fprintf(os.Stderr, "invalid --form-halo %d: expected 0, 1 or 2\n", config.FormHalo)
+		os.Exit(2)
+	}
+	if !validFormDim(config.FormDim) {
+		fmt.Fprintf(os.Stderr, "invalid --form-dim %v: expected a number from 0 to 1\n", config.FormDim)
+		os.Exit(2)
+	}
 
 	// SECURITY: Prevent test mode in production environment
 	// Test mode bypasses authentication and should only be used for development
@@ -2918,6 +2970,30 @@ func main() {
 		fmt.Fprintf(os.Stderr, "SECURITY ERROR: Test mode cannot be enabled in production (GREETD_SOCK is set)\n")
 		fmt.Fprintf(os.Stderr, "Test mode bypasses authentication and should only be used for development.\n")
 		os.Exit(1)
+	}
+	if borderPreviewPath != "" {
+		if !config.TestMode {
+			fmt.Fprintln(os.Stderr, "--border-preview requires --test")
+			os.Exit(2)
+		}
+		sizes, err := parseBorderPreviewSizes(borderPreviewSizes)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "invalid --size: %v\n", err)
+			os.Exit(2)
+		}
+		data, err := loadBorderPreviewFile(borderPreviewPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "border preview: %v\n", err)
+			os.Exit(1)
+		}
+		applyTheme(config.ThemeName, true)
+		preview, err := renderBorderPreview(data, sizes)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "border preview: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Print(preview)
+		return
 	}
 
 	// CHANGED 2025-10-06 - Initialize debug logging

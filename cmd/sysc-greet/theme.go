@@ -78,6 +78,12 @@ func applyThemeWithWallpaper(themeName string, testMode bool, setWallpaper bool)
 		return
 	}
 
+	BorderDefault = complete(
+		lipgloss.Color("8"),
+		lipgloss.Color("238"),
+		lipgloss.Color("#374151"),
+	)
+
 	switch strings.ToLower(themeName) {
 	case "gruvbox":
 		// Gruvbox Dark theme

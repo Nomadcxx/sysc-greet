@@ -23,17 +23,28 @@ func migrateBorderPrefs(style, effect string) (string, string) {
 	return style, effect
 }
 
+func preferredFormMode(flagMode, savedMode string, flagSet bool) string {
+	if flagSet {
+		return flagMode
+	}
+	if validFormMode(savedMode) {
+		return savedMode
+	}
+	return flagMode
+}
+
 func (m model) currentPreferences() cache.UserPreferences {
 	p := cache.UserPreferences{
-		FollowShell:  &m.followShell,
-		Theme:        m.currentTheme,
-		Background:   m.selectedBackground,
-		Wallpaper:    m.selectedWallpaper,
-		BorderStyle:  m.selectedBorderStyle,
-		BorderEffect: m.borderEffect,
-		ASCIIIndex:   m.asciiArtIndex,
-		AnimSpeed:    m.animSpeed,
-		FormMode:     m.formMode,
+		FollowShell:       &m.followShell,
+		Theme:             m.currentTheme,
+		Background:        m.selectedBackground,
+		Wallpaper:         m.selectedWallpaper,
+		BorderStyle:       m.selectedBorderStyle,
+		BorderEffect:      m.borderEffect,
+		BorderPaletteMode: m.borderPaletteMode,
+		ASCIIIndex:        m.asciiArtIndex,
+		AnimSpeed:         m.animSpeed,
+		FormMode:          m.formMode,
 	}
 	if m.selectedSession != nil {
 		p.Session = m.selectedSession.Name
@@ -48,5 +59,27 @@ func (m model) savePreferences() {
 	if m.config.TestMode {
 		return
 	}
-	cache.SavePreferences(m.currentPreferences())
+	m.persistPreferences(m.currentPreferences())
+}
+
+func (m model) saveSuccessfulLogin(username, session string) {
+	if m.config.TestMode {
+		return
+	}
+	p := m.currentPreferences()
+	p.Session = session
+	p.Username = ""
+	if m.config.RememberUsername {
+		p.Username = username
+	}
+	m.persistPreferences(p)
+}
+
+func (m model) persistPreferences(p cache.UserPreferences) {
+	if m.config.TestMode {
+		return
+	}
+	if err := cache.SavePreferences(p); err != nil && m.config.Debug {
+		logDebug("Failed to save preferences: %v", err)
+	}
 }

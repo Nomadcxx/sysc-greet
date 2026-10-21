@@ -1,6 +1,7 @@
 package ansiart
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 )
@@ -13,6 +14,20 @@ import (
 func DecodeANSI(body []byte, width int, ice bool) *Grid {
 	if width < 1 {
 		width = 1
+	}
+	if width > maxGridWidth {
+		width = maxGridWidth
+	}
+	g, err := decodeANSI(body, width, maxGridHeight, ice)
+	if err != nil {
+		return NewGrid(width, 1)
+	}
+	return g
+}
+
+func decodeANSI(body []byte, width, maxHeight int, ice bool) (*Grid, error) {
+	if width < 1 || width > maxGridWidth || maxHeight < 1 || maxHeight > maxGridHeight {
+		return nil, errors.New("ansiart: invalid ANSI decode bounds")
 	}
 	type pos struct{ x, y int }
 	cells := map[pos]Cell{}
@@ -50,11 +65,18 @@ func DecodeANSI(body []byte, width int, ice bool) *Grid {
 				j++
 			}
 			if j >= len(body) {
-				break
+				return nil, errors.New("ansiart: unterminated ANSI sequence")
 			}
 			var ps []int
 			for _, p := range strings.Split(strings.TrimPrefix(string(body[i+2:j]), "?"), ";") {
-				n, _ := strconv.Atoi(p)
+				if p == "" {
+					ps = append(ps, 0)
+					continue
+				}
+				n, err := strconv.Atoi(p)
+				if err != nil || n < 0 || n > maxGridWidth {
+					return nil, errors.New("ansiart: invalid ANSI parameter")
+				}
 				ps = append(ps, n)
 			}
 			p0 := 1
@@ -96,7 +118,7 @@ func DecodeANSI(body []byte, width int, ice bool) *Grid {
 			case 'A':
 				y = max(0, y-p0)
 			case 'B':
-				y += p0
+				y = min(maxHeight, y+p0)
 			case 'C':
 				x = min(width-1, x+p0)
 			case 'D':
@@ -109,11 +131,18 @@ func DecodeANSI(body []byte, width int, ice bool) *Grid {
 				if len(ps) > 1 && ps[1] > 0 {
 					x = ps[1] - 1
 				}
+				if y > maxHeight {
+					return nil, errors.New("ansiart: ANSI cursor exceeds grid height")
+				}
+				x = min(width-1, x)
 			case 's':
 				saved = pos{x, y}
 			case 'u':
 				x, y = saved.x, saved.y
 			case 'J':
+				if y >= maxHeight {
+					return nil, errors.New("ansiart: ANSI erase exceeds grid height")
+				}
 				switch {
 				case len(ps) > 0 && ps[0] == 2:
 					cells, x, y = map[pos]Cell{}, 0, 0
@@ -128,6 +157,9 @@ func DecodeANSI(body []byte, width int, ice bool) *Grid {
 					}
 				}
 			case 'K':
+				if y >= maxHeight {
+					return nil, errors.New("ansiart: ANSI erase exceeds grid height")
+				}
 				switch {
 				case len(ps) > 0 && ps[0] == 2:
 					for xx := 0; xx < width; xx++ {
@@ -152,7 +184,7 @@ func DecodeANSI(body []byte, width int, ice bool) *Grid {
 			x, pendingWrap = 0, false
 			continue
 		case '\n':
-			x, y, pendingWrap = 0, y+1, false
+			x, y, pendingWrap = 0, min(maxHeight, y+1), false
 			continue
 		case '\t':
 			x = min(width-1, (x/8+1)*8)
@@ -161,7 +193,10 @@ func DecodeANSI(body []byte, width int, ice bool) *Grid {
 			continue
 		}
 		if pendingWrap {
-			x, y, pendingWrap = 0, y+1, false
+			x, y, pendingWrap = 0, min(maxHeight, y+1), false
+		}
+		if y >= maxHeight {
+			return nil, errors.New("ansiart: ANSI output exceeds grid height")
 		}
 		f, b := fg, bg
 		if bold {
@@ -190,7 +225,7 @@ func DecodeANSI(body []byte, width int, ice bool) *Grid {
 			g.Cells[i].Bg = 0
 		}
 	}
-	return g
+	return g, nil
 }
 
 // ToCP437ANS writes the grid as a classic 16-colour .ans (CP437, CRLF)

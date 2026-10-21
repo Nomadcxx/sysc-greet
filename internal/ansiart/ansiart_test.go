@@ -3,8 +3,6 @@ package ansiart
 import (
 	"strings"
 	"testing"
-
-	"github.com/charmbracelet/x/ansi"
 )
 
 func TestCP437RoundTrip(t *testing.T) {
@@ -82,7 +80,7 @@ func TestSauceRoundTrip(t *testing.T) {
 		Title: "sysc nfo frame 01", Author: "tester", Group: "sysc", Date: "20261020",
 		DataType: 1, FileType: 1, TInfo1: 24, TInfo2: 9,
 		Flags: 0, TInfoS: "IBM VGA",
-		Comments: []string{"nineslice l=8 t=3 r=8 b=3 anchor=center title=1"},
+		Comments: []string{"nineslice l=8 t=3 r=8 b=3 anchor=center"},
 	}
 	raw := EncodeSAUCE(in)
 	body, out := ParseSAUCE(raw)
@@ -138,13 +136,13 @@ func symmetricBorder(t *testing.T) *Border {
 			*g.At(x, y) = Cell{Ch: pattern[x], Fg: 7, Bg: 0}
 		}
 	}
-	return &Border{Art: g, Left: 2, Top: 1, Right: 2, Bottom: 1, CenterAnchor: true, TitleRow: -1, BlackIsClear: true, Scale: 1}
+	return &Border{Art: g, Left: 2, Top: 1, Right: 2, Bottom: 1, CenterAnchor: true, BlackIsClear: true, Scale: 1}
 }
 
 func TestBorderRenderSymmetry(t *testing.T) {
 	b := symmetricBorder(t)
 	for w := 21; w <= 81; w++ {
-		g := b.Render(w, 9, "")
+		g := b.Render(w, 9)
 		for y := 0; y < g.H; y++ {
 			for x := 0; x < g.W/2; x++ {
 				if g.At(x, y).Ch != g.At(g.W-1-x, y).Ch {
@@ -161,11 +159,11 @@ func TestBorderRenderClampAndInterior(t *testing.T) {
 	if minW != 5 || minH != 3 {
 		t.Fatalf("MinSize = %dx%d, want 5x3", minW, minH)
 	}
-	g := b.Render(1, 1, "")
+	g := b.Render(1, 1)
 	if g.W < minW || g.H < minH {
 		t.Fatalf("clamped render = %dx%d, want >= %dx%d", g.W, g.H, minW, minH)
 	}
-	g = b.Render(21, 9, "")
+	g = b.Render(21, 9)
 	for y := 1; y < 8; y++ {
 		for x := 2; x < 19; x++ {
 			if c := g.At(x, y); c.Bg != -1 {
@@ -175,76 +173,15 @@ func TestBorderRenderClampAndInterior(t *testing.T) {
 	}
 }
 
-func TestTitleCap(t *testing.T) {
-	b := symmetricBorder(t)
-	b.TitleRow = 0
-
-	g := b.Render(41, 9, "SYSC-GREET")
-	row := ""
-	for x := 0; x < g.W; x++ {
-		row += string(g.At(x, 0).Ch)
-	}
-	want := "▐▓▒░ SYSC-GREET ░▒▓▌"
-	if !strings.Contains(ansi.Strip(row), want) {
-		t.Fatalf("cap %q not centred in %q", want, row)
-	}
-	x0 := strings.Index(row, "▐")
-	if x0 != (41-ansi.StringWidth(want))/2 {
-		t.Fatalf("cap at %d, want %d", x0, (41-ansi.StringWidth(want))/2)
-	}
-
-	g = b.Render(21, 9, "ABCDEFGHIJKLMNOP")
-	var drawn string
-	for x := 0; x < g.W; x++ {
-		drawn += string(g.At(x, 0).Ch)
-	}
-	if !strings.Contains(drawn, "…") {
-		t.Fatalf("long title not truncated: %q", drawn)
-	}
-	if strings.Contains(drawn, "ABCDEFGHIJKLMNOP") {
-		t.Fatalf("title not truncated: %q", drawn)
-	}
-
-	wide := strings.Repeat("界", 20)
-	g = b.Render(31, 9, wide)
-	var wideRow string
-	for x := 0; x < g.W; x++ {
-		wideRow += string(g.At(x, 0).Ch)
-	}
-	start, end := -1, -1
-	for i, r := range []rune(wideRow) {
-		if r == '▐' && start < 0 {
-			start = i
-		}
-		if r == '▌' {
-			end = i
-		}
-	}
-	if start < 0 || end < start {
-		t.Fatalf("cap missing on wide-rune row: %q", wideRow)
-	}
-	if end-start+1 > 31-2-2 {
-		t.Fatalf("wide-rune cap spans %d cells, interior is %d: %q", end-start+1, 31-2-2, wideRow)
-	}
-
-	tiny := symmetricBorder(t)
-	tiny.TitleRow = 0
-	tiny.Left, tiny.Right = 2, 2
-	g = tiny.Render(5, 3, "SYSC-GREET")
-	if c := g.At(2, 0); c.Ch != 'C' {
-		t.Fatalf("cap drawn without room: %+v", *c)
-	}
-}
-
 func TestLoadBorderValidation(t *testing.T) {
 	good := symmetricBorder(t)
-	ans := good.Art.ToCP437ANS(Sauce{Title: "t", Comments: []string{"nineslice l=2 t=1 r=2 b=1 anchor=center title=0"}})
+	ans := good.Art.ToCP437ANS(Sauce{Title: "t", Comments: []string{"nineslice l=2 t=1 r=2 b=1 anchor=center name=test"}})
 
 	b, err := LoadBorder(ans)
 	if err != nil {
 		t.Fatalf("valid asset rejected: %v", err)
 	}
-	if b.Left != 2 || b.Top != 1 || !b.CenterAnchor || b.TitleRow != 0 {
+	if b.Left != 2 || b.Top != 1 || !b.CenterAnchor || b.Name != "test" || b.Scale != 1 {
 		t.Fatalf("metadata: %+v", b)
 	}
 
@@ -257,9 +194,28 @@ func TestLoadBorderValidation(t *testing.T) {
 		t.Error("missing nineslice accepted")
 	}
 
-	badInsets := good.Art.ToCP437ANS(Sauce{Title: "t", Comments: []string{"nineslice l=100 t=1 r=100 b=1"}})
+	badInsets := good.Art.ToCP437ANS(Sauce{Title: "t", Comments: []string{"nineslice l=100 t=1 r=100 b=1 anchor=center"}})
 	if _, err := LoadBorder(badInsets); err == nil {
 		t.Error("oversized insets accepted")
+	}
+	for _, meta := range []string{
+		"nineslice l=-1 t=1 r=2 b=1 anchor=center",
+		"nineslice l=x t=1 r=2 b=1 anchor=center",
+		"nineslice l=2 t=1 r=2 b=1 anchor=sideways",
+		"nineslice l=2 t=1 r=2 b=1 anchor=center scale=4",
+		"nineslice l=2 t=1 r=2 b=1 anchor=center title=1",
+	} {
+		raw := good.Art.ToCP437ANS(Sauce{Title: "t", Comments: []string{meta}})
+		if _, err := LoadBorder(raw); err == nil {
+			t.Errorf("invalid metadata accepted: %q", meta)
+		}
+	}
+
+	badCursor := []byte("\x1b[999;1HX")
+	meta := Sauce{Title: "t", DataType: 1, FileType: 1, TInfo1: 6, TInfo2: 3, Comments: []string{"nineslice l=2 t=1 r=2 b=1 anchor=center"}}
+	badCursor = append(badCursor, EncodeSAUCE(meta)...)
+	if _, err := LoadBorder(badCursor); err == nil {
+		t.Error("out-of-bounds cursor accepted")
 	}
 
 	if _, err := LoadBorder(make([]byte, maxANSIFile+1)); err == nil {
@@ -267,15 +223,68 @@ func TestLoadBorderValidation(t *testing.T) {
 	}
 }
 
-func TestLoadBorderTitleRowClamped(t *testing.T) {
-	good := symmetricBorder(t)
-	ans := good.Art.ToCP437ANS(Sauce{Title: "t", Comments: []string{"nineslice l=2 t=1 r=2 b=1 anchor=center title=5"}})
-	b, err := LoadBorder(ans)
-	if err != nil {
-		t.Fatal(err)
+func TestBorderTitleCapUsesMetadataAndCellWidths(t *testing.T) {
+	b := symmetricBorder(t)
+	b.Art = NewGrid(24, 9)
+	for i := range b.Art.Cells {
+		b.Art.Cells[i] = Cell{Ch: '-', Fg: 7, Bg: -1}
 	}
-	if b.TitleRow != -1 {
-		t.Fatalf("TitleRow = %d, want -1 when outside the top band", b.TitleRow)
+	data := b.Art.ToCP437ANS(Sauce{
+		DataType: 1, FileType: 1, Comments: []string{
+			"nineslice l=3 t=3 r=3 b=3 anchor=center title=0",
+		},
+	})
+
+	border, err := LoadBorder(data)
+	if err != nil {
+		t.Fatalf("load titled border: %v", err)
+	}
+	if border.TitleRow != 0 {
+		t.Fatalf("TitleRow = %d, want 0", border.TitleRow)
+	}
+	grid := border.RenderWithTitle(24, 9, "NIRI")
+	if got := grid.At(5, 0).Ch; got != '▐' {
+		t.Fatalf("title cap starts with %q, want ▐", got)
+	}
+	if got := grid.At(10, 0); got.Ch != 'N' || got.Fg != 15 {
+		t.Fatalf("title text cell = %+v, want N in fg 15", *got)
+	}
+	if got := grid.At(18, 0).Ch; got != '▌' {
+		t.Fatalf("title cap ends with %q, want ▌", got)
+	}
+	if got := border.RenderWithTitle(24, 9, "界").At(5, 0).Ch; got != '-' {
+		t.Fatalf("wide title rune corrupted the frame: got %q, want original edge", got)
+	}
+
+	truncated := border.RenderWithTitle(24, 9, "12345678901234567890")
+	var title strings.Builder
+	for x := 8; x < 16; x++ {
+		title.WriteRune(truncated.At(x, 0).Ch)
+	}
+	if got, want := title.String(), "1234567…"; got != want {
+		t.Fatalf("truncated title = %q, want %q", got, want)
+	}
+}
+
+func TestLoadBorderRejectsAmbiguousAndUnsafeMetadata(t *testing.T) {
+	good := symmetricBorder(t)
+	for _, meta := range []string{
+		"nineslice l=2 l=3 t=1 r=2 b=1 anchor=center",
+		"nineslice l=2 t=1 r=2 b=1 anchor=center label=\x1b[31m",
+	} {
+		data := good.Art.ToCP437ANS(Sauce{Comments: []string{meta}})
+		if _, err := LoadBorder(data); err == nil {
+			t.Errorf("accepted unsafe metadata: %q", meta)
+		}
+	}
+}
+
+func TestLoadBorderRejectsDuplicateMetadata(t *testing.T) {
+	good := symmetricBorder(t)
+	meta := "nineslice l=2 t=1 r=2 b=1 anchor=center"
+	data := good.Art.ToCP437ANS(Sauce{Comments: []string{meta, meta}})
+	if _, err := LoadBorder(data); err == nil || !strings.Contains(err.Error(), "duplicate nineslice metadata") {
+		t.Fatalf("duplicate nineslice metadata error = %v", err)
 	}
 }
 

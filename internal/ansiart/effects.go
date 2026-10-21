@@ -28,60 +28,78 @@ func PerimeterDist(x, y, w, h int) (d, p int) {
 	return d, p
 }
 
-// Shimmer brightens a band travelling clockwise around the frame. t is
-// active time in seconds; speed is cells per second; band is the half
-// width in cells. Cells brighten by having their fg raised to the bright
-// twin (index | 8) when the wrapped distance to the head is within band,
-// scaled by the smooth falloff (1-delta/B)^2.
-// Flash safety: each cell brightens at most once per lap; callers must
-// keep speed <= P (at most one lap per second per cell) and band <= P/8.
-func (g *Grid) Shimmer(t, speed, band float64) {
-	if speed <= 0 || band <= 0 {
-		return
+// ShimmerWave holds the phase and falloff for one frame across a perimeter.
+type ShimmerWave struct {
+	p      int
+	head   float64
+	band   float64
+	active bool
+}
+
+// NewShimmerWave computes the frame's wave position once. frame is quantized
+// to 20 fps; rest is the pause after each lap. Speed and band are capped to
+// one lap/s and P/8 for flash safety.
+func NewShimmerWave(frame, p int, speed, band, rest float64) ShimmerWave {
+	if p < 1 || frame < 0 || speed <= 0 || band <= 0 || math.IsNaN(speed) || math.IsNaN(band) {
+		return ShimmerWave{}
 	}
-	for y := 0; y < g.H; y++ {
-		for x := 0; x < g.W; x++ {
-			c := g.At(x, y)
-			if c.Bg == -1 && c.Ch == ' ' {
-				continue
-			}
-			d, p := PerimeterDist(x, y, g.W, g.H)
-			v := math.Min(speed, float64(p))
-			b := math.Min(band, float64(p)/8)
-			head := math.Mod(v*t, float64(p))
-			dd := math.Abs(float64(d) - head)
-			dd = math.Min(dd, float64(p)-dd)
-			if dd >= b {
-				continue
-			}
-			gain := 1 - dd/b
-			if gain*gain <= 0.5 {
-				continue
-			}
-			if c.Fg >= 0 && c.Fg < 8 {
-				c.Fg += 8
-			}
-		}
+	v := math.Min(speed, float64(p))
+	b := math.Min(band, float64(p)/8)
+	if b <= 0 {
+		return ShimmerWave{}
+	}
+	lap := float64(p) / v
+	if rest < 0 || math.IsNaN(rest) || math.IsInf(rest, 0) {
+		rest = 0
+	}
+	elapsed := math.Mod(float64(frame)/20, lap+rest)
+	if elapsed >= lap {
+		return ShimmerWave{}
+	}
+	return ShimmerWave{
+		p: p, head: math.Mod(v*elapsed, float64(p)), band: b, active: true,
 	}
 }
 
-// Cycle rotates palette slots along a ramp: fg slot ramp[i] becomes
-// ramp[(i+step) mod len(ramp)]. Pure colour; glyphs never change.
-func (g *Grid) Cycle(ramp []int8, step int) {
-	if len(ramp) == 0 {
-		return
+// Gain returns the smooth falloff for one perimeter cell.
+func (w ShimmerWave) Gain(d int) float64 {
+	if !w.active {
+		return 0
 	}
-	idx := map[int8]int{}
-	for i, v := range ramp {
-		idx[v] = i
+	dd := math.Abs(float64(d) - w.head)
+	dd = math.Min(dd, float64(w.p)-dd)
+	if dd >= w.band {
+		return 0
 	}
-	step %= len(ramp)
-	if step < 0 {
-		step += len(ramp)
+	gain := 1 - dd/w.band
+	return gain * gain
+}
+
+// ShimmerGain returns the smooth falloff for one perimeter cell.
+func ShimmerGain(d, p, frame int, speed, band, rest float64) float64 {
+	return NewShimmerWave(frame, p, speed, band, rest).Gain(d)
+}
+
+// ShimmerFG returns the 16-colour bright twin for a cell lit by the shimmer.
+func ShimmerFG(fg int8, d, p, frame int, speed, band, rest float64) int8 {
+	if fg >= 0 && fg < 8 && ShimmerGain(d, p, frame, speed, band, rest) > 0.5 {
+		return fg | 8
 	}
+	return fg
+}
+
+func (g *Grid) Shimmer(frame int, speed, band, rest float64) {
+	_, p := PerimeterDist(0, 0, g.W, g.H)
+	wave := NewShimmerWave(frame, p, speed, band, rest)
 	for i := range g.Cells {
-		if k, ok := idx[g.Cells[i].Fg]; ok {
-			g.Cells[i].Fg = ramp[(k+step)%len(ramp)]
+		c := &g.Cells[i]
+		if c.Bg == -1 && c.Ch == ' ' {
+			continue
+		}
+		x, y := i%g.W, i/g.W
+		d, _ := PerimeterDist(x, y, g.W, g.H)
+		if c.Fg >= 0 && c.Fg < 8 && wave.Gain(d) > 0.5 {
+			c.Fg |= 8
 		}
 	}
 }
