@@ -1,0 +1,184 @@
+package main
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestGreeterAccount(t *testing.T) {
+	cases := []struct {
+		distro string
+		user   string
+		home   string
+	}{
+		{"void", "_greeter", "/var/lib/_greeter"},
+		{"arch", "greeter", "/var/lib/greeter"},
+		{"debian", "greeter", "/var/lib/greeter"},
+		{"fedora", "greeter", "/var/lib/greeter"},
+		{"", "greeter", "/var/lib/greeter"},
+	}
+	for _, tc := range cases {
+		user, home := greeterAccount(tc.distro)
+		if user != tc.user || home != tc.home {
+			t.Errorf("greeterAccount(%q) = %q, %q; want %q, %q", tc.distro, user, home, tc.user, tc.home)
+		}
+	}
+}
+
+func TestSubstituteGreeterPaths(t *testing.T) {
+	const config = `cd /var/lib/greeter && HOME=/var/lib/greeter
+user = "greeter"
+subject.user == "greeter"
+`
+	got := substituteGreeterPaths(config, "_greeter", "/var/lib/_greeter")
+	want := `cd /var/lib/_greeter && HOME=/var/lib/_greeter
+user = "_greeter"
+subject.user == "_greeter"
+`
+	if got != want {
+		t.Errorf("substituteGreeterPaths =\n%s\nwant\n%s", got, want)
+	}
+
+	// The default account must not change.
+	same := substituteGreeterPaths(config, "greeter", "/var/lib/greeter")
+	if same != config {
+		t.Errorf("substituteGreeterPaths rewrote the default account:\n%s", same)
+	}
+}
+
+func TestXbpsInstallArgs(t *testing.T) {
+	got := xbpsInstallArgs("greetd", "kitty")
+	want := []string{"-Sy", "greetd", "kitty"}
+	if len(got) != len(want) {
+		t.Fatalf("xbpsInstallArgs = %v; want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("xbpsInstallArgs = %v; want %v", got, want)
+		}
+	}
+}
+
+func TestXbpsQueryArgs(t *testing.T) {
+	local := xbpsQueryArgs("greetd", false)
+	if len(local) != 2 || local[0] != "-s" || local[1] != "^greetd$" {
+		t.Errorf("xbpsQueryArgs local = %v; want [-s ^greetd$]", local)
+	}
+	remote := xbpsQueryArgs("greetd", true)
+	if len(remote) != 3 || remote[0] != "-R" || remote[1] != "-s" || remote[2] != "^greetd$" {
+		t.Errorf("xbpsQueryArgs remote = %v; want [-R -s ^greetd$]", remote)
+	}
+}
+
+// writeServiceTree builds a runit tree under root: the service directory in
+// /etc/sv and the live service links in the given directories.
+func writeServiceTree(t *testing.T, root string, service string, liveDirs ...string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Join(root, "etc/sv", service), 0755); err != nil {
+		t.Fatalf("mkdir service dir: %v", err)
+	}
+	for _, dir := range liveDirs {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0755); err != nil {
+			t.Fatalf("mkdir live dir %s: %v", dir, err)
+		}
+	}
+}
+
+func TestLiveRunitDirs(t *testing.T) {
+	root := t.TempDir()
+	writeServiceTree(t, root, "greetd", "etc/runit/runsvdir/default")
+
+	dirs := liveRunitDirs(root)
+	if len(dirs) != 1 || dirs[0] != filepath.Join(root, "etc/runit/runsvdir/default") {
+		t.Fatalf("liveRunitDirs = %v; want the void service tree", dirs)
+	}
+}
+
+func TestLiveRunitDirsFollowsServiceSymlink(t *testing.T) {
+	root := t.TempDir()
+	writeServiceTree(t, root, "greetd", "etc/service")
+	if err := os.MkdirAll(filepath.Join(root, "var"), 0755); err != nil {
+		t.Fatalf("mkdir var: %v", err)
+	}
+	if err := os.Symlink(filepath.Join(root, "etc/service"), filepath.Join(root, "var/service")); err != nil {
+		t.Fatalf("symlink var/service: %v", err)
+	}
+
+	dirs := liveRunitDirs(root)
+	// /var/service is a link to /etc/service here, so both paths are live.
+	if len(dirs) != 2 {
+		t.Fatalf("liveRunitDirs = %v; want the var/service link and etc/service", dirs)
+	}
+	found := false
+	for _, dir := range dirs {
+		if dir == filepath.Join(root, "var/service") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("liveRunitDirs = %v; want the var/service link", dirs)
+	}
+}
+
+func TestLinkRunitService(t *testing.T) {
+	root := t.TempDir()
+	writeServiceTree(t, root, "greetd", "etc/runit/runsvdir/default")
+
+	if err := linkRunitService(root, "greetd"); err != nil {
+		t.Fatalf("linkRunitService: %v", err)
+	}
+	link := filepath.Join(root, "etc/runit/runsvdir/default/greetd")
+	target, err := os.Readlink(link)
+	if err != nil {
+		t.Fatalf("readlink %s: %v", link, err)
+	}
+	if want := filepath.Join(root, "etc/sv/greetd"); target != want {
+		t.Errorf("link target = %q; want %q", target, want)
+	}
+
+	// Linking twice must not fail.
+	if err := linkRunitService(root, "greetd"); err != nil {
+		t.Fatalf("linkRunitService again: %v", err)
+	}
+}
+
+func TestLinkRunitServiceWithoutServiceTree(t *testing.T) {
+	root := t.TempDir()
+	if err := linkRunitService(root, "greetd"); err == nil {
+		t.Fatal("linkRunitService succeeded without a runit service directory")
+	}
+}
+
+func TestUnlinkRunitService(t *testing.T) {
+	root := t.TempDir()
+	writeServiceTree(t, root, "agetty-tty1", "etc/runit/runsvdir/default")
+	if err := linkRunitService(root, "agetty-tty1"); err != nil {
+		t.Fatalf("linkRunitService: %v", err)
+	}
+	if err := unlinkRunitService(root, "agetty-tty1"); err != nil {
+		t.Fatalf("unlinkRunitService: %v", err)
+	}
+	link := filepath.Join(root, "etc/runit/runsvdir/default/agetty-tty1")
+	if _, err := os.Lstat(link); !os.IsNotExist(err) {
+		t.Errorf("%s still exists", link)
+	}
+}
+
+func TestMarkServiceDown(t *testing.T) {
+	root := t.TempDir()
+	writeServiceTree(t, root, "agetty-tty1")
+
+	if err := markServiceDown(root, "agetty-tty1"); err != nil {
+		t.Fatalf("markServiceDown: %v", err)
+	}
+	down := filepath.Join(root, "etc/sv/agetty-tty1/down")
+	if _, err := os.Stat(down); err != nil {
+		t.Errorf("down file missing: %v", err)
+	}
+
+	// A service the system does not have is not an error.
+	if err := markServiceDown(root, "agetty-tty9"); err != nil {
+		t.Errorf("markServiceDown for a missing service: %v", err)
+	}
+}

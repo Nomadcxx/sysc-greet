@@ -20,6 +20,14 @@ The interactive installer will prompt you to:
 
 > The installer no longer offers Hyprland, which is deprecated and unmaintained. Migrate to [cagebreak](../compositors/cagebreak) or [niri](../compositors/niri).
 
+### Void Linux
+
+Void is supported through the Go installer (xbps packages, runit service). See the [Void Linux guide](../getting-started/void-linux).
+
+```bash
+SYSC_COMPOSITOR=cagebreak sudo ./install.sh
+```
+
 ## Manual Build
 
 ### Prerequisites
