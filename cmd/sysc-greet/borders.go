@@ -12,15 +12,9 @@ import (
 // Extracted from main.go on 2025-10-11 for better code organization
 
 func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
-	// Route ASCII-1, ASCII-2, ASCII-3, ASCII-4 styles
+	// Route ASCII-1, ASCII-2 styles
 	if m.selectedBorderStyle == "ascii1" {
 		return m.renderASCII1BorderLayout(termWidth, termHeight)
-	}
-	if m.selectedBorderStyle == "ascii3" {
-		return m.renderASCII3BorderLayout(termWidth, termHeight)
-	}
-	if m.selectedBorderStyle == "ascii4" {
-		return m.renderASCII4BorderLayout(termWidth, termHeight)
 	}
 	if m.selectedBorderStyle == "ascii2" {
 		return m.renderASCII2BorderLayout(termWidth, termHeight)
@@ -32,10 +26,13 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	// Use reasonable max width like installer
 	innerWidth := min(100, termWidth-8) // Reasonable width for content area
 	var innerSections []string
+	if ticker := m.renderTypewriterLine(innerWidth - 6); ticker != "" {
+		innerSections = append(innerSections, ticker)
+	}
 
 	// WM/Session ASCII art - prominent display
 	// Fix centering, art is already colored
-	if m.selectedSession != nil {
+	if m.selectedSession != nil && termHeight >= 26 {
 		art := m.getSessionArt(m.selectedSession.Name)
 		if art != "" {
 			// JoinVertical(Center) handles centering, just add art
@@ -47,7 +44,9 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	}
 
 	// Ensure exactly 2 lines of spacing after ASCII art
-	innerSections = append(innerSections, "", "")
+	if termHeight >= 30 {
+		innerSections = append(innerSections, "", "")
+	}
 
 	// Main form (session selector, username, password) in bordered box
 	// Wrap form in border for left alignment
@@ -66,58 +65,21 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	formBorder := formBorderStyle.Render(fixedFormContent)
 	innerSections = append(innerSections, formBorder)
 
-	// Simplified border title as first line
 	// Create inner border container with user-selected style
 	innerBorderColor := m.getInnerBorderColor()
-
-	// TypewriterTicker replaces SESSIONS title when enabled
-	var titleLine string
-
-	// Show typewriter text if ticker is enabled as background
-	if m.selectedBackground == "ticker" && m.typewriterTicker != nil {
-		tickerText := m.typewriterTicker.GetTypewriterText(innerWidth - 6)
-		titleLine = lipgloss.NewStyle().
-			Foreground(innerBorderColor).
-			Bold(true).
-			Width(innerWidth - 6).
-			Align(lipgloss.Center).
-			Render(tickerText)
-	} else {
-		// Standard SESSIONS title
-		titleText := "SESSIONS"
-		slashes := strings.Repeat("/", 7)
-		dashCount := 30
-		if m.selectedBorderStyle == "minimal" {
-			dashCount = 4
-		}
-		dashes := strings.Repeat("─", dashCount)
-
-		titleLine = lipgloss.NewStyle().
-			Foreground(innerBorderColor).
-			Bold(true).
-			Width(innerWidth - 6).
-			Align(lipgloss.Center).
-			Render(dashes + slashes + titleText + slashes + dashes)
-	}
-
-	// Add title as first element
-	contentWithTitle := []string{titleLine}
-
-	// Add spacing
-	contentWithTitle = append(contentWithTitle, "")
-
-	contentWithTitle = append(contentWithTitle, innerSections...)
-
-	// Revert to Center, ASCII already has explicit centering
-	innerContent := lipgloss.JoinVertical(lipgloss.Center, contentWithTitle...)
+	innerContent := lipgloss.JoinVertical(lipgloss.Center, innerSections...)
 
 	// Reverted: always use normal styling since fire is now inside
+	innerPadV, innerPadH := 2, 3
+	if termHeight < 30 {
+		innerPadV, innerPadH = 1, 2
+	}
 	innerBorderStyle := lipgloss.NewStyle().
 		Border(m.getInnerBorderStyle()).
 		BorderForeground(innerBorderColor).
 		Width(innerWidth).
 		Background(BgBase).
-		Padding(2, 3)
+		Padding(innerPadV, innerPadH)
 
 	innerBox := innerBorderStyle.Render(innerContent)
 
@@ -127,8 +89,8 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	// Add matrix to backgrounds that remove outer border
 	// Add fireworks to backgrounds that remove outer border
 	// Add aquarium to backgrounds that remove outer border
-	if m.selectedBackground == "fire" || m.selectedBackground == "ascii-rain" || m.selectedBackground == "matrix" || m.selectedBackground == "ticker" || m.selectedBackground == "fire+rain" || m.selectedBackground == "fireworks" || m.selectedBackground == "sonar" || m.selectedBackground == "cracktro" || m.selectedBackground == "aquarium" || m.selectedBackground == "plasma" || m.selectedBackground == "ak-47" {
-		helpText := m.renderMainHelp()
+	if m.selectedBackground == "fire" || m.selectedBackground == "ascii-rain" || m.selectedBackground == "matrix" || m.selectedBackground == "ticker" || m.selectedBackground == "fire+rain" || m.selectedBackground == "fireworks" || m.selectedBackground == "sonar" || m.selectedBackground == "cracktro" || m.selectedBackground == "aquarium" || m.selectedBackground == "plasma" || m.selectedBackground == "ak-47" || m.selectedBackground == "l2a1-sar" {
+		helpText := m.renderMainHelpFit(termWidth - 2)
 		helpStyle := lipgloss.NewStyle().
 			Foreground(FgMuted).
 			Align(lipgloss.Center)
@@ -177,16 +139,18 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	innerBoxWidth := lipgloss.Width(innerBox)
 	innerBoxHeight := lipgloss.Height(outerContent)
 
-	// Calculate padding to make outer border reach near terminal edges
-	horizontalPadding := (termWidth - innerBoxWidth - 10) / 2 // Leave 10 chars total margin (5 per side)
-	if horizontalPadding < 2 {
-		horizontalPadding = 2 // Minimum padding
-	}
-
-	// CHANGED 2025-10-06 - Increased vertical padding to push border closer to edges, leaving room for help text at bottom
-	verticalPadding := (termHeight - innerBoxHeight - 6) / 2 // Leave 6 lines total margin (3 per side) for help text
-	if verticalPadding < 2 {
-		verticalPadding = 2 // Minimum padding
+	// Outer padding: hug keeps fixed margins around the inner box, fill
+	// grows the outer border toward the terminal edges.
+	horizontalPadding, verticalPadding := 2, 1
+	if m.config.BorderLayout == "fill" {
+		horizontalPadding = (termWidth - innerBoxWidth - 10) / 2 // Leave 10 chars total margin (5 per side)
+		if horizontalPadding < 1 {
+			horizontalPadding = 1
+		}
+		verticalPadding = (termHeight - innerBoxHeight - 6) / 2 // Leave 6 lines total margin (3 per side) for help text
+		if verticalPadding < 0 {
+			verticalPadding = 0
+		}
 	}
 
 	outerBorderStyle := lipgloss.NewStyle().
@@ -199,7 +163,7 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 
 	// Move help text BELOW outer border
 	// Help text at bottom, below outer border
-	helpText := m.renderMainHelp()
+	helpText := m.renderMainHelpFit(termWidth - 2)
 	helpStyle := lipgloss.NewStyle().
 		Foreground(FgMuted).
 		Align(lipgloss.Center)
@@ -209,6 +173,15 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 
 	// CHANGED 2025-10-06 - Return content without Place(), let View() handle centering
 	return contentWithHelp
+}
+
+func (m model) renderTypewriterLine(width int) string {
+	if m.selectedBackground != "ticker" || m.typewriterTicker == nil {
+		return ""
+	}
+	width = max(1, width)
+	return lipgloss.NewStyle().Foreground(m.getInnerBorderColor()).Bold(true).Width(width).Align(lipgloss.Center).
+		Render(m.typewriterTicker.GetTypewriterText(width))
 }
 
 // ASCII-1: Just a border style, uses current theme colors
@@ -226,27 +199,33 @@ func (m model) renderASCII1BorderLayout(termWidth, termHeight int) string {
 	}
 
 	// THE GOODS container style - uses theme colors
-	goodsWidth := 100
+	goodsWidth := min(100, termWidth-4)
+	if goodsWidth < 40 {
+		goodsWidth = 40
+	}
+	goodsPadV, goodsPadH := 2, 4
+	if termHeight < 30 {
+		goodsPadV, goodsPadH = 1, 2
+	}
+	goodsContentWidth := goodsWidth - 2*goodsPadH
 
-	// CHANGED 2025-10-06 - Reduced vertical padding
-	// Use fixed smaller vertical padding instead of calculated
 	goodsStyle := lipgloss.NewStyle().
 		Border(asciiBorder).
 		BorderForeground(BorderDefault). // Use theme border color
-		Padding(2, 4).                   // Fixed vertical and horizontal padding
+		Padding(goodsPadV, goodsPadH).
 		Background(BgBase)
 
 	// Build THE GOODS content
 	var sections []string
 
 	// WM/Session ASCII art - use theme colors
-	if m.selectedSession != nil {
+	if m.selectedSession != nil && termHeight >= 26 {
 		art := m.getSessionASCII() // Use normal colored ASCII, not monochrome
 		if art != "" {
 			// Center ASCII art within border
 			// Center the ASCII art within the available width
 			artStyle := lipgloss.NewStyle().
-				Width(goodsWidth - 8).
+				Width(goodsContentWidth).
 				Align(lipgloss.Center)
 			sections = append(sections, artStyle.Render(art))
 			// Control spacing explicitly - remove old spacing and add exactly 2 lines
@@ -255,11 +234,13 @@ func (m model) renderASCII1BorderLayout(termWidth, termHeight int) string {
 	}
 
 	// Ensure exactly 2 lines of spacing after ASCII art
-	sections = append(sections, "", "")
+	if termHeight >= 30 {
+		sections = append(sections, "", "")
+	}
 
 	// Session selector - use theme colors
 	if len(m.sessions) > 0 && m.selectedSession != nil {
-		sections = append(sections, lipgloss.PlaceHorizontal(goodsWidth-8, lipgloss.Center, m.renderSessionSelector(goodsWidth-8)))
+		sections = append(sections, lipgloss.PlaceHorizontal(goodsContentWidth, lipgloss.Left, m.renderSessionSelector(goodsContentWidth)))
 		sections = append(sections, "")
 	}
 
@@ -288,7 +269,7 @@ func (m model) renderASCII1BorderLayout(termWidth, termHeight int) string {
 		sections = append(sections, errorStyle.Render("✗ "+m.errorMessage))
 	}
 
-	if row := m.renderAmbientRow(goodsWidth - 8); row != "" {
+	if row := m.renderAmbientRow(goodsContentWidth); row != "" {
 		sections = append(sections, "", row)
 	}
 
@@ -300,7 +281,7 @@ func (m model) renderASCII1BorderLayout(termWidth, termHeight int) string {
 
 	// Help text
 	// CHANGED 2025-10-06 - Removed Width(termWidth)
-	helpText := m.renderMainHelp()
+	helpText := m.renderMainHelpFit(termWidth - 2)
 	helpStyle := lipgloss.NewStyle().
 		Foreground(FgMuted) // Theme muted color
 
@@ -316,21 +297,6 @@ func (m model) renderASCII1BorderLayout(termWidth, termHeight int) string {
 	return finalContent
 }
 
-// Fallback ASCII border if file not found
-func (m model) renderASCIIBorderFallback(termWidth, termHeight int) string {
-	// Simple ASCII box as fallback
-	monoMedium := lipgloss.Color("#888888")
-
-	content := "┌" + strings.Repeat("─", 60) + "┐\n"
-	for i := 0; i < 20; i++ {
-		content += "│" + strings.Repeat(" ", 60) + "│\n"
-	}
-	content += "└" + strings.Repeat("─", 60) + "┘"
-
-	// CHANGED 2025-10-06 - Return content without Place(), let View() handle centering
-	style := lipgloss.NewStyle().Foreground(monoMedium)
-	return style.Render(content)
-}
 func (m model) getInnerBorderStyle() lipgloss.Border {
 	switch m.selectedBorderStyle {
 	case "classic":
@@ -344,21 +310,6 @@ func (m model) getInnerBorderStyle() lipgloss.Border {
 			Left:   " ",
 			Right:  " ",
 		} // Use single space border for truly minimal look
-	case "ascii":
-		return lipgloss.HiddenBorder() // ASCII borders handle their own rendering
-	case "wave":
-		return lipgloss.Border{
-			Top:         "~",
-			Bottom:      "~",
-			Left:        "│",
-			Right:       "│",
-			TopLeft:     "╭",
-			TopRight:    "╮",
-			BottomLeft:  "╰",
-			BottomRight: "╯",
-		} // Use wavy characters for wave border
-	case "pulse":
-		return lipgloss.DoubleBorder() // Use double border for pulse
 	default:
 		return lipgloss.RoundedBorder() // Default
 	}
@@ -373,65 +324,19 @@ func (m model) getOuterBorderStyle() lipgloss.Border {
 		return lipgloss.HiddenBorder() // Hide outer border for clean modern look
 	case "minimal":
 		return lipgloss.HiddenBorder() // Hide outer for clean minimal look
-	case "ascii":
-		return lipgloss.HiddenBorder() // ASCII style uses only custom border
-	case "wave":
-		return lipgloss.RoundedBorder() // Rounded outer for wave
-	case "pulse":
-		return lipgloss.ThickBorder() // Thick outer for pulse
 	default:
 		return lipgloss.DoubleBorder() // Default
 	}
 }
 
-// Get inner border color with animation support
+// Get inner border color
 func (m model) getInnerBorderColor() color.Color {
-	if !m.borderAnimationEnabled {
-		// Static color based on current theme
-		return Primary
-	}
-
-	switch m.selectedBorderStyle {
-	case "wave":
-		// Wave cycles through all theme colors smoothly
-		// Wave animation - smooth color transitions through full palette
-		colors := []color.Color{Primary, Secondary, Accent, Warning}
-		return colors[(m.animationFrame/2)%len(colors)]
-	case "pulse":
-		// Pulse alternates between bright and dim
-		// Pulse animation - brightness oscillation (bright/dim/bright/dim)
-		if m.animationFrame%8 < 4 {
-			return Primary // Bright phase
-		}
-		return FgMuted // Dim phase
-	default:
-		// Default animated border
-		return m.getAnimatedBorderColor()
-	}
+	return Primary
 }
 
-// Get outer border color with animation support
+// Get outer border color
 func (m model) getOuterBorderColor() color.Color {
-	if !m.borderAnimationEnabled {
-		// Static muted color for outer border
-		return FgSubtle
-	}
-
-	switch m.selectedBorderStyle {
-	case "wave":
-		// Complementary wave offset from inner
-		// Complementary wave for outer border (offset from inner)
-		colors := []color.Color{Secondary, Accent, Warning, Primary}
-		return colors[(m.animationFrame/2+2)%len(colors)] // Offset by 2 for complementary effect
-	case "pulse":
-		// Outer stays subtle during pulse
-		// Subtle static color for outer border during pulse
-		return FgSecondary // Keep outer border constant while inner pulses
-	default:
-		// Default secondary animation
-		colors := []color.Color{FgSubtle, FgSecondary, Primary}
-		return colors[m.animationFrame%len(colors)]
-	}
+	return FgSubtle
 }
 
 func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
@@ -445,7 +350,7 @@ func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
 	// Split ASCII art into lines to prevent border corruption
 	// Enforce mandatory 2-line gap between ASCII and input fields
 	// WM/Session ASCII art
-	if m.selectedSession != nil {
+	if m.selectedSession != nil && termHeight >= 26 {
 		art := m.getSessionASCII()
 		if art != "" {
 			// Split multi-line ASCII art into separate lines
@@ -454,8 +359,10 @@ func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
 				contentLines = append(contentLines, line)
 			}
 			// MANDATORY 2-line gap after ASCII art
-			contentLines = append(contentLines, "")
-			contentLines = append(contentLines, "")
+			if termHeight >= 30 {
+				contentLines = append(contentLines, "")
+				contentLines = append(contentLines, "")
+			}
 		}
 	}
 
@@ -495,8 +402,12 @@ func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
 	if borderWidth < 80 {
 		borderWidth = 80 // Minimum width
 	}
-	if borderWidth > min(120, termWidth-20) {
-		borderWidth = min(120, termWidth-20) // Maximum width
+	maxBorderWidth := min(120, termWidth-20)
+	if maxBorderWidth < 20 {
+		maxBorderWidth = 20
+	}
+	if borderWidth > maxBorderWidth {
+		borderWidth = maxBorderWidth
 	}
 
 	// Now render borders and content
@@ -568,7 +479,7 @@ func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
 
 	// Add help text below border
 	// CHANGED 2025-10-06 - Removed Width(termWidth)
-	helpText := m.renderMainHelp()
+	helpText := m.renderMainHelpFit(termWidth - 2)
 	helpStyle := lipgloss.NewStyle().
 		Foreground(FgMuted)
 
@@ -577,352 +488,4 @@ func (m model) renderASCII2BorderLayout(termWidth, termHeight int) string {
 
 	// CHANGED 2025-10-06 - Return content without Place(), let View() handle centering
 	return contentWithHelp
-}
-
-// ASCII-3: Complex multi-layer border with decorative elements
-// WM ASCII art sits ABOVE the border as a heading, border contains only session info + login fields
-func (m model) renderASCII3BorderLayout(termWidth, termHeight int) string {
-	// Build WM ASCII art SEPARATELY (goes above border)
-	var wmAsciiLines []string
-	if m.selectedSession != nil {
-		art := m.getSessionASCII()
-		if art != "" {
-			artLines := strings.Split(art, "\n")
-			wmAsciiLines = artLines
-		}
-	}
-
-	// Build content section for INSIDE the border (session info + login fields only)
-	var contentLines []string
-
-	// Session display
-	if len(m.sessions) > 0 && m.selectedSession != nil {
-		contentLines = append(contentLines, strings.Split(m.renderSessionSelector(termWidth-20), "\n")...)
-		contentLines = append(contentLines, "")
-	}
-
-	// Username input
-	usernameLabel := lipgloss.NewStyle().Foreground(Primary).Bold(true).Render("Username:")
-	usernameRow := lipgloss.JoinHorizontal(lipgloss.Left, usernameLabel, " ", m.usernameInput.View())
-	contentLines = append(contentLines, usernameRow)
-	contentLines = append(contentLines, "")
-
-	// Password input
-	passwordLabel := lipgloss.NewStyle().Foreground(Primary).Bold(true).Render("Password:")
-	passwordRow := lipgloss.JoinHorizontal(lipgloss.Left, passwordLabel, " ", m.passwordInput.View())
-	contentLines = append(contentLines, passwordRow)
-	if row := m.renderAmbientRow(min(72, termWidth-36)); row != "" {
-		contentLines = append(contentLines, "", row)
-	}
-
-	// Calculate border width based on content
-	maxContentWidth := 0
-	for _, line := range contentLines {
-		width := lipgloss.Width(line)
-		if width > maxContentWidth {
-			maxContentWidth = width
-		}
-	}
-
-	// Set border width with padding
-	innerPadding := 8
-	borderWidth := maxContentWidth + (innerPadding * 2)
-	if borderWidth < 70 {
-		borderWidth = 70
-	}
-	if borderWidth > min(120, termWidth-20) {
-		borderWidth = min(120, termWidth-20)
-	}
-
-	// Calculate inner content width (border width - side decorations)
-	innerWidth := borderWidth - 6 // Account for │▓│ on each side (3 chars each)
-
-	var lines []string
-
-	// Line 1: Outer top edge
-	// "   ┌── ─────...──┐   "
-	topEdge := "   ┌── " + strings.Repeat("─", innerWidth-4) + "  ──┐   "
-	lines = append(lines, lipgloss.NewStyle().Foreground(Primary).Render(topEdge))
-
-	// Line 2: Inner frame top
-	// "   │  ┌──────...┐  │   "
-	innerFrameTop := "   │  ┌" + strings.Repeat("─", innerWidth) + "┐  │   "
-	lines = append(lines, lipgloss.NewStyle().Foreground(Primary).Render(innerFrameTop))
-
-	// Line 3: Title bar with gradient
-	// "   ||░│ Greetings ██▓▓▒▒░░ ░...│░||   "
-	titleText := " Greetings "
-	gradientDecor := "██▓▓▒▒░░ ░"
-	titlePadding := innerWidth - len(titleText) - len(gradientDecor)
-	if titlePadding < 0 {
-		titlePadding = 0
-	}
-	titleBar := "   ||░│" + titleText + gradientDecor + strings.Repeat(" ", titlePadding) + "│░||   "
-	lines = append(lines, lipgloss.NewStyle().Foreground(Secondary).Render(titleBar))
-
-	// Line 4: Separator
-	// "   :│▒├──────...┤▒│:   "
-	separator := "   :│▒├" + strings.Repeat("─", innerWidth) + "┤▒│:   "
-	lines = append(lines, lipgloss.NewStyle().Foreground(Accent).Render(separator))
-
-	// Line 5: First content line with ▓ gradient
-	// "    │▓│...│▓│    "
-	firstContent := "    │▓│" + strings.Repeat(" ", innerWidth) + "│▓│    "
-	lines = append(lines, lipgloss.NewStyle().Foreground(Secondary).Render(firstContent))
-
-	// Line 6: Second content line with █ and colons
-	// "   :│█│...│█│:   "
-	secondContent := "   :│█│" + strings.Repeat(" ", innerWidth) + "│█│:   "
-	lines = append(lines, lipgloss.NewStyle().Foreground(Primary).Render(secondContent))
-
-	// Content lines (7-20): Main content area with │█│ borders
-	// "    │█│...│█│    "
-	for i, contentLine := range contentLines {
-		visibleWidth := lipgloss.Width(contentLine)
-		leftPad := (innerWidth - visibleWidth) / 2
-		if leftPad < 0 {
-			leftPad = 0
-		}
-
-		centeredContent := strings.Repeat(" ", leftPad) + contentLine
-		rightPad := innerWidth - lipgloss.Width(centeredContent)
-		if rightPad > 0 {
-			centeredContent += strings.Repeat(" ", rightPad)
-		}
-
-		// Last content line uses different end decoration
-		if i == len(contentLines)-1 {
-			// Line 21: Last content line with pipe end
-			// "    │█│...│█│|   "
-			contentRow := "    │█│" + centeredContent + "│█│|   "
-			lines = append(lines, lipgloss.NewStyle().Foreground(Primary).Render(contentRow))
-		} else {
-			// Regular content line
-			contentRow := "    │█│" + centeredContent + "│█│    "
-			lines = append(lines, lipgloss.NewStyle().Foreground(Primary).Render(contentRow))
-		}
-	}
-
-	// Line 22: Bottom transition with ▓ and double pipes
-	// "   ││▓│...│▓││   "
-	bottomTransition1 := "   ││▓│" + strings.Repeat(" ", innerWidth) + "│▓││   "
-	lines = append(lines, lipgloss.NewStyle().Foreground(Secondary).Render(bottomTransition1))
-
-	// Line 23: Bottom transition with ▒ and mixed pipes
-	// "   │|▒│...│▒|│   "
-	bottomTransition2 := "   │|▒│" + strings.Repeat(" ", innerWidth) + "│▒|│   "
-	lines = append(lines, lipgloss.NewStyle().Foreground(Accent).Render(bottomTransition2))
-
-	// Line 24: Inner frame bottom
-	// "   │:░└──────...┘░:│   "
-	innerFrameBottom := "   │:░└" + strings.Repeat("─", innerWidth) + "┘░:│   "
-	lines = append(lines, lipgloss.NewStyle().Foreground(Accent).Render(innerFrameBottom))
-
-	// Line 25: Outer bottom edge
-	// "   └──...───┘   "
-	bottomEdge := "   └──" + strings.Repeat(" ", innerWidth+4) + "───┘   "
-	lines = append(lines, lipgloss.NewStyle().Foreground(Primary).Render(bottomEdge))
-
-	// Build bordered content
-	borderedContent := strings.Join(lines, "\n")
-
-	// Add help text below border
-	helpText := m.renderMainHelp()
-	helpStyle := lipgloss.NewStyle().Foreground(FgMuted)
-
-	// Combine WM ASCII art (above) + border + help text
-	var finalParts []string
-
-	// Add WM ASCII art at top if present
-	if len(wmAsciiLines) > 0 {
-		wmAscii := strings.Join(wmAsciiLines, "\n")
-		// Add exactly 2 blank lines for consistent spacing
-		finalParts = append(finalParts, wmAscii, "", "")
-	}
-
-	// Add border with content
-	finalParts = append(finalParts, borderedContent)
-
-	// Add help text at bottom
-	finalParts = append(finalParts, "", helpStyle.Render(helpText))
-
-	// Join everything vertically
-	finalContent := lipgloss.JoinVertical(lipgloss.Center, finalParts...)
-
-	return finalContent
-}
-
-// ASCII-4: Top and bottom decorative borders with NO side borders
-// WM ASCII art sits ABOVE the border as a heading, border contains only session info + login fields
-func (m model) renderASCII4BorderLayout(termWidth, termHeight int) string {
-	// Build WM ASCII art SEPARATELY (goes above border)
-	var wmAsciiLines []string
-	if m.selectedSession != nil {
-		art := m.getSessionASCII()
-		if art != "" {
-			artLines := strings.Split(art, "\n")
-			wmAsciiLines = artLines
-		}
-	}
-
-	// Build content section for INSIDE the border (session info + login fields only)
-	var contentLines []string
-
-	// Session display
-	if len(m.sessions) > 0 && m.selectedSession != nil {
-		contentLines = append(contentLines, strings.Split(m.renderSessionSelector(termWidth-20), "\n")...)
-		contentLines = append(contentLines, "")
-	}
-
-	// Username input
-	usernameLabel := lipgloss.NewStyle().Foreground(Primary).Bold(true).Render("Username:")
-	usernameRow := lipgloss.JoinHorizontal(lipgloss.Left, usernameLabel, " ", m.usernameInput.View())
-	contentLines = append(contentLines, usernameRow)
-	contentLines = append(contentLines, "")
-
-	// Password input
-	passwordLabel := lipgloss.NewStyle().Foreground(Primary).Bold(true).Render("Password:")
-	passwordRow := lipgloss.JoinHorizontal(lipgloss.Left, passwordLabel, " ", m.passwordInput.View())
-	contentLines = append(contentLines, passwordRow)
-	if row := m.renderAmbientRow(min(72, termWidth-36)); row != "" {
-		contentLines = append(contentLines, "", row)
-	}
-
-	// Calculate border width based on content
-	maxContentWidth := 0
-	for _, line := range contentLines {
-		width := lipgloss.Width(line)
-		if width > maxContentWidth {
-			maxContentWidth = width
-		}
-	}
-
-	// Set border width with padding
-	innerPadding := 8
-	borderWidth := maxContentWidth + (innerPadding * 2)
-	if borderWidth < 70 {
-		borderWidth = 70
-	}
-	if borderWidth > min(120, termWidth-20) {
-		borderWidth = min(120, termWidth-20)
-	}
-
-	var lines []string
-
-	// TOP BORDER (4 lines from template)
-	// Line 1: "     ▄▄█▄...▄█▄         "
-	topLine1Left := "     ▄▄█▄"
-	topLine1Right := "▄█▄         "
-	topLine1Middle := strings.Repeat(" ", borderWidth-len(topLine1Left)-len(topLine1Right))
-	topLine1 := topLine1Left + topLine1Middle + topLine1Right
-	lines = append(lines, lipgloss.NewStyle().Foreground(Primary).Render(topLine1))
-
-	// Line 2: "   ▄▀▀███...██▀▀▄       "
-	topLine2Left := "   ▄▀▀███"
-	topLine2Right := "██▀▀▄       "
-	topLine2Middle := strings.Repeat(" ", borderWidth-len(topLine2Left)-len(topLine2Right))
-	topLine2 := topLine2Left + topLine2Middle + topLine2Right
-	lines = append(lines, lipgloss.NewStyle().Foreground(Primary).Render(topLine2))
-
-	// Line 3: "  ▀   ███...██  ▄▄      "
-	topLine3Left := "  ▀   ███"
-	topLine3Right := "██  ▄▄      "
-	topLine3Middle := strings.Repeat(" ", borderWidth-len(topLine3Left)-len(topLine3Right))
-	topLine3 := topLine3Left + topLine3Middle + topLine3Right
-	lines = append(lines, lipgloss.NewStyle().Foreground(Primary).Render(topLine3))
-
-	// Line 4: Main decorative line with ░ gradient pattern
-	// " ▀ ░ ▐███▌ ░░ ▀█  ░░░░░░░░ ▀█ ░░░  ▄█▄  ░ ░░░░░  ░ █▀░░░ ████ ▐█ ░░░ █"
-	topLine4Left := " ▀ ░ ▐███▌ ░░ ▀█  ░░░░░░░░ ▀█ ░░░  ▄█▄  ░ ░░░░░  ░ █▀░░░"
-	topLine4Right := "████ ▐█ ░░░ █"
-	topLine4MiddleLen := borderWidth - len(topLine4Left) - len(topLine4Right)
-	if topLine4MiddleLen < 0 {
-		topLine4MiddleLen = 0
-	}
-	topLine4Middle := strings.Repeat(" ", topLine4MiddleLen)
-	topLine4 := topLine4Left + topLine4Middle + topLine4Right
-	lines = append(lines, lipgloss.NewStyle().Foreground(Secondary).Render(topLine4))
-
-	// CONTENT AREA - NO SIDE BORDERS, just centered content
-	for _, contentLine := range contentLines {
-		visibleWidth := lipgloss.Width(contentLine)
-		leftPad := (borderWidth - visibleWidth) / 2
-		if leftPad < 0 {
-			leftPad = 0
-		}
-
-		centeredContent := strings.Repeat(" ", leftPad) + contentLine
-		rightPad := borderWidth - lipgloss.Width(centeredContent)
-		if rightPad > 0 {
-			centeredContent += strings.Repeat(" ", rightPad)
-		}
-
-		// No border characters, just content
-		lines = append(lines, centeredContent)
-	}
-
-	// Add some spacing before bottom border
-	lines = append(lines, strings.Repeat(" ", borderWidth))
-
-	// BOTTOM BORDER (4 lines from template)
-	// Line 21: Main decorative line (mirrors top line 4)
-	// "▀ ░ ▐███▌ ░░ ▀█  ░░░░░░░░ ▀█ ░░░  ▄▄▄  ░ ░░░░░  ░   ░░░ ████ ▐█ ░░░ █▀"
-	bottomLine1Left := "▀ ░ ▐███▌ ░░ ▀█  ░░░░░░░░ ▀█ ░░░  ▄▄▄  ░ ░░░░░  ░   ░░░"
-	bottomLine1Right := "████ ▐█ ░░░ █▀"
-	bottomLine1MiddleLen := borderWidth - len(bottomLine1Left) - len(bottomLine1Right)
-	if bottomLine1MiddleLen < 0 {
-		bottomLine1MiddleLen = 0
-	}
-	bottomLine1Middle := strings.Repeat(" ", bottomLine1MiddleLen)
-	bottomLine1 := bottomLine1Left + bottomLine1Middle + bottomLine1Right
-	lines = append(lines, lipgloss.NewStyle().Foreground(Secondary).Render(bottomLine1))
-
-	// Line 22: "  ▄  ███...██▀ ▀▀     ▀ "
-	bottomLine2Left := "  ▄  ███"
-	bottomLine2Right := "██▀ ▀▀     ▀ "
-	bottomLine2Middle := strings.Repeat(" ", borderWidth-len(bottomLine2Left)-len(bottomLine2Right))
-	bottomLine2 := bottomLine2Left + bottomLine2Middle + bottomLine2Right
-	lines = append(lines, lipgloss.NewStyle().Foreground(Primary).Render(bottomLine2))
-
-	// Line 23: "   ▀▄██▌...██▄▄▀        "
-	bottomLine3Left := "   ▀▄██▌"
-	bottomLine3Right := "██▄▄▀        "
-	bottomLine3Middle := strings.Repeat(" ", borderWidth-len(bottomLine3Left)-len(bottomLine3Right))
-	bottomLine3 := bottomLine3Left + bottomLine3Middle + bottomLine3Right
-	lines = append(lines, lipgloss.NewStyle().Foreground(Primary).Render(bottomLine3))
-
-	// Line 24: "     ▀█...█           "
-	bottomLine4Left := "     ▀█"
-	bottomLine4Right := "█           "
-	bottomLine4Middle := strings.Repeat(" ", borderWidth-len(bottomLine4Left)-len(bottomLine4Right))
-	bottomLine4 := bottomLine4Left + bottomLine4Middle + bottomLine4Right
-	lines = append(lines, lipgloss.NewStyle().Foreground(Primary).Render(bottomLine4))
-
-	// Build bordered content
-	borderedContent := strings.Join(lines, "\n")
-
-	// Add help text below border
-	helpText := m.renderMainHelp()
-	helpStyle := lipgloss.NewStyle().Foreground(FgMuted)
-
-	// Combine WM ASCII art (above) + border + help text
-	var finalParts []string
-
-	// Add WM ASCII art at top if present
-	if len(wmAsciiLines) > 0 {
-		wmAscii := strings.Join(wmAsciiLines, "\n")
-		// Add exactly 2 blank lines for consistent spacing
-		finalParts = append(finalParts, wmAscii, "", "")
-	}
-
-	// Add border with content
-	finalParts = append(finalParts, borderedContent)
-
-	// Add help text at bottom
-	finalParts = append(finalParts, "", helpStyle.Render(helpText))
-
-	// Join everything vertically
-	finalContent := lipgloss.JoinVertical(lipgloss.Center, finalParts...)
-
-	return finalContent
 }

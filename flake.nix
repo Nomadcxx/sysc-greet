@@ -46,6 +46,8 @@
             # Install ASCII configs
             mkdir -p $out/share/sysc-greet/ascii_configs
             cp -r ascii_configs/* $out/share/sysc-greet/ascii_configs/
+            mkdir -p $out/share/sysc-greet/borders
+            cp -r cmd/sysc-greet/assets/borders/* $out/share/sysc-greet/borders/
             cp THIRD_PARTY_NOTICES.md $out/share/sysc-greet/
 
             # Install fonts

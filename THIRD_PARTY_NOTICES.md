@@ -2,7 +2,7 @@
 
 ## sysc-Go animation code
 
-The AK-47 background uses `github.com/Nomadcxx/sysc-Go/animations` v1.0.8.
+The AK-47 and L2A1 SAR backgrounds use `github.com/Nomadcxx/sysc-Go/animations` `v1.0.9-0.20261021034114-dfa0edf5fa0f`.
 The animation code is Copyright (c) 2025 Nomadcxx and is licensed under the
 MIT License. The library source and license are available at
 <https://github.com/Nomadcxx/sysc-Go>.
@@ -39,3 +39,12 @@ shading, and a particle transition. The animation displays the credit
 “AK-47 / Lokeig / CC BY-NC 4.0”. No endorsement by Lokeig is implied.
 
 The CC BY-NC 4.0 noncommercial restriction applies to the model data.
+
+## Australian L2A1 SAR model data
+
+“low-poly Australian L2A1 SAR” by notcplkerry, <https://skfb.ly/oErMB>, is
+licensed under [Creative Commons Attribution 4.0 International](https://creativecommons.org/licenses/by/4.0/).
+The model data is embedded by the sysc-Go animation dependency, represented as
+sampled mesh points and normals, and rendered with rotation, shading, and a
+particle transition. The animation displays the credit
+“L2A1 SAR / notcplkerry / CC BY 4.0”. No endorsement by notcplkerry is implied.

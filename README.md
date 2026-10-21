@@ -182,13 +182,29 @@ In Niri, sysc-greet starts a native `sysc-terminal` background on each active ou
 
 Use `--secondary-backgrounds=false` to disable them, `--secondary-exclude DP-3,HDMI-A-1` to exclude outputs, or `--secondary-effect pour` to choose a renderer effect. The default is Matrix. Helpers overlay existing wallpapers; closing them reveals the wallpaper again. Other compositors do not run these helpers.
 
+## Border styles
+
+Classic is the default. Open **F1 → Borders** to choose Classic, Modern, Minimal, ASCII-1, ASCII-2, NFO 01–03, or Braille Hairline. Sextant Bevel appears in Kitty, the terminal used by greetd for sysc-greet. The hug layout keeps the frame around the form; `--border-layout=fill` grows it toward the terminal edges.
+
+The border effect starts Off. Shimmer starts after ten seconds without input, travels at 24 cells per second, pauses four seconds after each lap, and stops after one minute idle.
+
+Auto form mode uses see-through for AK-47, Australian SLR, Sonar, Cracktro, and Plasma; frosted for Matrix, Fire, ASCII Rain, Fireworks, and Aquarium; and opaque for None, Pattern, and Typewriter. Set the form mode and choose the Theme, VGA, or Terminal palette in F1 → Borders.
+
+Built-in `.ans` assets live in `cmd/sysc-greet/assets/borders/` and ship inside the binary. The greeter also loads system assets from `/usr/share/sysc-greet/borders/`. Add a SAUCE `nineslice` comment with the border insets and asset name. Preview an asset at several sizes with:
+
+```sh
+sysc-greet --test --border-preview path/to/border.ans --size 80x24,132x40,200x55
+```
+
+The preview prints ANSI output to the terminal. The greeter rejects test mode when greetd sets `GREETD_SOCK`.
+
 ## Documentation
 
 For detailed docs, configuration guides, troubleshooting, and usage instructions, check out the [full documentation site](https://nomadcxx.github.io/sysc-greet/).
 
 ## License
 
-The sysc-greet source is GPL-3.0. The optional AK-47 background embeds model data under CC BY-NC 4.0. Third-party code and model notices are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+The sysc-greet source is GPL-3.0. The optional AK-47 background embeds model data under CC BY-NC 4.0, and the Australian SLR background uses the L2A1 SAR model under CC BY 4.0. Third-party code and model notices are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ---
 
