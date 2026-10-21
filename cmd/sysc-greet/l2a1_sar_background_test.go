@@ -1,13 +1,14 @@
 package main
 
 import (
+	"image"
 	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
-	"github.com/charmbracelet/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 )
 
 func TestBackgroundsMenuIncludesL2A1SAR(t *testing.T) {
@@ -46,11 +47,9 @@ func TestL2A1SARBackgroundInitializesAndRendersCreditInTestMode(t *testing.T) {
 	if view.Layer == nil {
 		t.Fatal("L2A1 SAR background was not placed behind the login view")
 	}
-	canvas, ok := view.Layer.(*lipgloss.Canvas)
-	if !ok {
-		t.Fatalf("view layer = %T, want *lipgloss.Canvas", view.Layer)
-	}
-	if !strings.Contains(canvas.Render(), "L2A1 SAR / notcplkerry / CC BY 4.0") {
+	screen := uv.NewScreenBuffer(m.width, m.height)
+	view.Layer.Draw(screen, screen.Bounds())
+	if !strings.Contains(screen.String(), "L2A1 SAR / notcplkerry / CC BY 4.0") {
 		t.Fatal("rendered background is missing its model credit")
 	}
 }
@@ -67,14 +66,16 @@ func TestL2A1SARBackgroundResizesWithTerminal(t *testing.T) {
 	if view.Layer == nil {
 		t.Fatal("L2A1 SAR background layer missing after resize")
 	}
-	canvas, ok := view.Layer.(*lipgloss.Canvas)
-	if !ok {
-		t.Fatalf("view layer = %T, want *lipgloss.Canvas", view.Layer)
-	}
-	if !strings.Contains(canvas.Render(), "L2A1 SAR / notcplkerry / CC BY 4.0") {
+	screen := uv.NewScreenBuffer(40, 12)
+	view.Layer.Draw(screen, screen.Bounds())
+	if !strings.Contains(screen.String(), "L2A1 SAR / notcplkerry / CC BY 4.0") {
 		t.Fatal("resized background is missing its model credit")
 	}
-	if got := lipgloss.Width(canvas.Render()); got != 40 {
+	bounded, ok := view.Layer.(interface{ Bounds() image.Rectangle })
+	if !ok {
+		t.Fatal("resized background layer does not expose bounds")
+	}
+	if got := bounded.Bounds().Dx(); got != 40 {
 		t.Fatalf("rendered width after resize = %d, want 40", got)
 	}
 }

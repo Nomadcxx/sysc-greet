@@ -337,9 +337,10 @@ type model struct {
 	startTime       time.Time
 
 	// Terminal dimensions
-	width     int
-	height    int
-	altScreen bool
+	width      int
+	height     int
+	altScreen  bool
+	frameCache *frameCache
 
 	// Power menu
 	powerOptions []string
@@ -655,6 +656,7 @@ func initialModel(config Config, screensaverMode bool) model {
 		startTime:           time.Now(),
 		width:               80,
 		height:              24,
+		frameCache:          &frameCache{},
 		powerOptions:        []string{"Reboot", "Shutdown", "Cancel"},
 		powerIndex:          0,
 		sessionDropdownOpen: false,
@@ -2594,10 +2596,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: fire at bottom, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(fireY),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLayer(backgroundContent, 0, fireY, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if hasRainBackground {
@@ -2612,10 +2611,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: rain as background, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "matrix" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2629,10 +2625,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: matrix as background, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "fireworks" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2646,10 +2639,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: fireworks as background, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "sonar" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2663,10 +2653,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: sonar as background, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "cracktro" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2680,10 +2667,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: cracktro as background, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "plasma" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2697,10 +2681,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: plasma as background, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "aquarium" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2714,10 +2695,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: aquarium as background, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "ak-47" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2728,10 +2706,7 @@ func (m model) View() tea.View {
 		uiX := (termWidth - contentWidth) / 2
 		uiY := (termHeight - contentHeight) / 2
 
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "l2a1-sar" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2742,10 +2717,7 @@ func (m model) View() tea.View {
 		uiX := (termWidth - contentWidth) / 2
 		uiY := (termHeight - contentHeight) / 2
 
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	}
@@ -2766,10 +2738,7 @@ func (m model) View() tea.View {
 
 	// Keep a full-terminal backing layer so small popups clear stale cells even
 	// when Bubble Tea is running without alt-screen.
-	view.Layer = lipgloss.NewCanvas(
-		lipgloss.NewLayer(blankTerminalContent(termWidth, termHeight)).X(0).Y(0),
-		lipgloss.NewLayer(content).X(x).Y(y),
-	)
+	view.Layer = m.composeLayer(blankTerminalContent(termWidth, termHeight), 0, 0, content, x, y, termWidth, termHeight)
 	view.BackgroundColor = BgBase
 	return view
 }
