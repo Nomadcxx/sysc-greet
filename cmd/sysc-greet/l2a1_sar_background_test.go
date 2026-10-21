@@ -8,7 +8,14 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 )
+
+func renderLayer(view tea.View, width, height int) string {
+	screen := uv.NewScreenBuffer(width, height)
+	view.Layer.Draw(screen, screen.Bounds())
+	return screen.String()
+}
 
 func TestBackgroundsMenuIncludesL2A1SAR(t *testing.T) {
 	got, _ := (model{}).navigateToBackgroundsSubmenu()
@@ -46,11 +53,7 @@ func TestL2A1SARBackgroundInitializesAndRendersCreditInTestMode(t *testing.T) {
 	if view.Layer == nil {
 		t.Fatal("L2A1 SAR background was not placed behind the login view")
 	}
-	canvas, ok := view.Layer.(*lipgloss.Canvas)
-	if !ok {
-		t.Fatalf("view layer = %T, want *lipgloss.Canvas", view.Layer)
-	}
-	if !strings.Contains(canvas.Render(), "L2A1 SAR / notcplkerry / CC BY 4.0") {
+	if !strings.Contains(renderLayer(view, m.width, m.height), "L2A1 SAR / notcplkerry / CC BY 4.0") {
 		t.Fatal("rendered background is missing its model credit")
 	}
 }
@@ -67,14 +70,11 @@ func TestL2A1SARBackgroundResizesWithTerminal(t *testing.T) {
 	if view.Layer == nil {
 		t.Fatal("L2A1 SAR background layer missing after resize")
 	}
-	canvas, ok := view.Layer.(*lipgloss.Canvas)
-	if !ok {
-		t.Fatalf("view layer = %T, want *lipgloss.Canvas", view.Layer)
-	}
-	if !strings.Contains(canvas.Render(), "L2A1 SAR / notcplkerry / CC BY 4.0") {
+	rendered := renderLayer(view, 40, 12)
+	if !strings.Contains(rendered, "L2A1 SAR / notcplkerry / CC BY 4.0") {
 		t.Fatal("resized background is missing its model credit")
 	}
-	if got := lipgloss.Width(canvas.Render()); got != 40 {
+	if got := lipgloss.Width(rendered); got != 40 {
 		t.Fatalf("rendered width after resize = %d, want 40", got)
 	}
 }
