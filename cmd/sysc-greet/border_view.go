@@ -97,9 +97,6 @@ func (m model) borderedLoginCanvas(termWidth, termHeight int) (*lipgloss.Canvas,
 		FailureAge: failureAge, HasFailure: hasFailure,
 	}).X(frame.X).Y(frame.Y))
 
-	heading := m.renderSessionsHeading(min(100, termWidth-8))
-	layers = append(layers, lipgloss.NewLayer(m.loginContentLayer(heading)).
-		X(max(0, (termWidth-lipgloss.Width(heading))/2)).Y(frame.HeaderY))
 	layers = append(layers, lipgloss.NewLayer(m.loginContentLayer(form)).X(frame.FormX).Y(frame.FormY))
 	help := m.renderMainHelpFit(termWidth - 2)
 	layers = append(layers, lipgloss.NewLayer(m.loginContentLayer(help)).

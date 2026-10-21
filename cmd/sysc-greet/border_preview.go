@@ -90,7 +90,6 @@ func renderBorderPreview(data []byte, sizes [][2]int) (string, error) {
 		if !ok {
 			return "", fmt.Errorf("border does not fit %dx%d", w, h)
 		}
-		heading := m.renderSessionsHeading(min(100, w-8))
 		help := m.renderMainHelpFit(w - 2)
 		canvas := lipgloss.NewCanvas(
 			lipgloss.NewLayer(clearTerminalLayer{width: w, height: h}).X(0).Y(0),
@@ -98,7 +97,6 @@ func renderBorderPreview(data []byte, sizes [][2]int) (string, error) {
 				Grid: frame.Grid, Palette: borderPalette("theme"), PaletteMode: "theme",
 				Profile: colorProfile, Left: frame.Left, Top: frame.Top, Right: frame.Right, Bottom: frame.Bottom,
 			}).X(frame.X).Y(frame.Y),
-			lipgloss.NewLayer(heading).X(max(0, (w-lipgloss.Width(heading))/2)).Y(frame.HeaderY),
 			lipgloss.NewLayer(form).X(frame.FormX).Y(frame.FormY),
 			lipgloss.NewLayer(help).X(max(0, (w-lipgloss.Width(help))/2)).Y(frame.HelpY),
 		)

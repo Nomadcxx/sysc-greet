@@ -147,7 +147,7 @@ func TestCustomBorderLabelsRemainSelectableWhenDuplicated(t *testing.T) {
 	}
 }
 
-func TestSessionsHeadingRemainsWhenTypewriterIsSelected(t *testing.T) {
+func TestBorderedLayoutOmitsSessionsDividerWithTypewriter(t *testing.T) {
 	m := layoutModel(80, 24)
 	m.selectedBackground = "ticker"
 	m.typewriterTicker = animations.NewTypewriterTicker("niri", "test ticker")
@@ -159,12 +159,11 @@ func TestSessionsHeadingRemainsWhenTypewriterIsSelected(t *testing.T) {
 		t.Fatal("border did not fit with the typewriter line")
 	}
 	rendered := stripAnsi(canvas.Render())
-	headingAt, tickerAt := strings.Index(rendered, "SESSIONS"), strings.Index(rendered, "t█")
-	if headingAt < 0 {
-		t.Fatalf("typewriter replaced the SESSIONS divider: %q", rendered)
+	if strings.Contains(rendered, "SESSIONS") {
+		t.Fatalf("bordered layout retained the SESSIONS divider: %q", rendered)
 	}
-	if tickerAt <= headingAt {
-		t.Fatalf("typewriter content did not appear below the SESSIONS divider: %q", rendered)
+	if !strings.Contains(rendered, "t█") {
+		t.Fatalf("bordered layout omitted typewriter content: %q", rendered)
 	}
 }
 
@@ -200,8 +199,8 @@ func TestRegisteredBordersFitAt80x24AndOffIsStatic(t *testing.T) {
 		if lipgloss.Width(first) > 80 || lipgloss.Height(first) > 24 {
 			t.Errorf("%s rendered %dx%d at 80x24", renderer.ID(), lipgloss.Width(first), lipgloss.Height(first))
 		}
-		if !strings.Contains(first, "SESSIONS") || !strings.Contains(first, "Username:") {
-			t.Errorf("%s omitted the session divider or login field", renderer.ID())
+		if strings.Contains(first, "SESSIONS") || !strings.Contains(first, "Username:") {
+			t.Errorf("%s retained the sessions divider or omitted the login field", renderer.ID())
 		}
 		m.animationFrame = 100
 		m.idleTimer = time.Now().Add(-30 * time.Second)
@@ -274,8 +273,8 @@ func TestRegisteredBordersFitAtApprovedSizes(t *testing.T) {
 				if got := lipgloss.Height(rendered); got > size[1] {
 					t.Errorf("canvas height = %d, exceeds %d", got, size[1])
 				}
-				if !strings.Contains(rendered, "SESSIONS") || !strings.Contains(rendered, "Username:") {
-					t.Error("canvas omitted the sessions heading or login field")
+				if strings.Contains(rendered, "SESSIONS") || !strings.Contains(rendered, "Username:") {
+					t.Error("canvas retained the sessions heading or omitted the login field")
 				}
 			})
 		}
@@ -558,7 +557,7 @@ func TestBorderPreviewRendersFormAndFrame(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"nfo01 80x24", "nfo01 132x40", "SESSIONS", "Username:  nomadx", "Password:  ********"} {
+	for _, want := range []string{"nfo01 80x24", "nfo01 132x40", "Username:  nomadx", "Password:  ********"} {
 		if !strings.Contains(preview, want) {
 			t.Errorf("preview omitted %q", want)
 		}
@@ -589,7 +588,7 @@ func TestBorderPreviewKeepsFrameVisibleWithoutColor(t *testing.T) {
 			}
 		}
 	}
-	if !strings.Contains(preview, "SESSIONS") || !strings.Contains(preview, "Username:") || !strings.Contains(preview, "▄") {
+	if strings.Contains(preview, "SESSIONS") || !strings.Contains(preview, "Username:") || !strings.Contains(preview, "▄") {
 		t.Fatalf("NO_COLOR preview lost its text or frame glyphs: %q", preview)
 	}
 }

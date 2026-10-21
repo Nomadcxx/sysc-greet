@@ -65,21 +65,9 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	formBorder := formBorderStyle.Render(fixedFormContent)
 	innerSections = append(innerSections, formBorder)
 
-	// Simplified border title as first line
 	// Create inner border container with user-selected style
 	innerBorderColor := m.getInnerBorderColor()
-	titleLine := m.renderSessionsHeading(innerWidth)
-
-	// Add title as first element
-	contentWithTitle := []string{titleLine}
-
-	// Add spacing
-	contentWithTitle = append(contentWithTitle, "")
-
-	contentWithTitle = append(contentWithTitle, innerSections...)
-
-	// Revert to Center, ASCII already has explicit centering
-	innerContent := lipgloss.JoinVertical(lipgloss.Center, contentWithTitle...)
+	innerContent := lipgloss.JoinVertical(lipgloss.Center, innerSections...)
 
 	// Reverted: always use normal styling since fire is now inside
 	innerPadV, innerPadH := 2, 3
@@ -185,18 +173,6 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 
 	// CHANGED 2025-10-06 - Return content without Place(), let View() handle centering
 	return contentWithHelp
-}
-
-func (m model) renderSessionsHeading(innerWidth int) string {
-	width := max(1, innerWidth-6)
-	style := lipgloss.NewStyle().Foreground(m.getInnerBorderColor()).Bold(true).Width(width).Align(lipgloss.Center)
-	dashCount := max(4, min(30, (width-22)/2))
-	if m.selectedBorderStyle == "minimal" {
-		dashCount = 4
-	}
-	dashes := strings.Repeat("─", dashCount)
-	slashes := strings.Repeat("/", 7)
-	return style.Render(dashes + slashes + "SESSIONS" + slashes + dashes)
 }
 
 func (m model) renderTypewriterLine(width int) string {
