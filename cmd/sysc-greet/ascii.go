@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"math"
 	"os"
 	"strconv"
@@ -153,6 +154,31 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 	}
 
 	return config, nil
+}
+
+func asciiANSIColor(index int) color.Color {
+	switch index {
+	case 0:
+		return BgBase
+	case 1, 9:
+		return Danger
+	case 2, 5, 10, 13:
+		return Accent
+	case 3, 11:
+		return Warning
+	case 4, 6:
+		return Secondary
+	case 7:
+		return FgSecondary
+	case 8:
+		return FgMuted
+	case 12, 14:
+		return Primary
+	case 15:
+		return FgPrimary
+	default:
+		return FgPrimary
+	}
 }
 
 // Support multi-variant ASCII with cycling and height normalization

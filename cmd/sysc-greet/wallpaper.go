@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Nomadcxx/sysc-greet/internal/cache"
 	"github.com/Nomadcxx/sysc-greet/internal/wallpaper"
 	tea "github.com/charmbracelet/bubbletea/v2"
 )
@@ -129,20 +128,7 @@ func (m model) handleWallpaperSelection(selectedOption string) (tea.Model, tea.C
 		m.gslapperLaunched = false
 
 		// Save cleared preference to cache
-		if !m.config.TestMode {
-			sessionName := ""
-			if m.selectedSession != nil {
-				sessionName = m.selectedSession.Name
-			}
-			cache.SavePreferences(cache.UserPreferences{
-				FollowShell: &m.followShell,
-				Theme:       m.currentTheme,
-				Background:  m.selectedBackground,
-				Wallpaper:   m.selectedWallpaper, // Now empty
-				BorderStyle: m.selectedBorderStyle,
-				Session:     sessionName,
-			})
-		}
+		m.savePreferences()
 	} else if selectedOption != "← Back" {
 		// Launch gslapper with selected wallpaper
 		launchGslapperWallpaper(selectedOption)
@@ -152,20 +138,7 @@ func (m model) handleWallpaperSelection(selectedOption string) (tea.Model, tea.C
 		m.gslapperLaunched = true
 
 		// Save preference
-		if !m.config.TestMode {
-			sessionName := ""
-			if m.selectedSession != nil {
-				sessionName = m.selectedSession.Name
-			}
-			cache.SavePreferences(cache.UserPreferences{
-				FollowShell: &m.followShell,
-				Theme:       m.currentTheme,
-				Background:  m.selectedBackground,
-				Wallpaper:   m.selectedWallpaper,
-				BorderStyle: m.selectedBorderStyle,
-				Session:     sessionName,
-			})
-		}
+		m.savePreferences()
 	}
 
 	m.mode = ModeLogin

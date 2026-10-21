@@ -53,17 +53,60 @@ func initDebugLog() {
 	logPaths := []string{"/tmp/sysc-greet-debug.log"}
 	if home, err := os.UserHomeDir(); err == nil {
 		cacheDir := filepath.Join(home, ".cache", "sysc-greet")
-		os.MkdirAll(cacheDir, 0755)
-		logPaths = append([]string{filepath.Join(cacheDir, "debug.log")}, logPaths...)
+		if err := os.MkdirAll(cacheDir, 0o700); err == nil {
+			if info, err := os.Lstat(cacheDir); err == nil && info.IsDir() && info.Mode()&os.ModeSymlink == 0 {
+				if err := os.Chmod(cacheDir, 0o700); err == nil {
+					logPaths = append([]string{filepath.Join(cacheDir, "debug.log")}, logPaths...)
+				}
+			}
+		}
 	}
 
 	for _, logPath := range logPaths {
-		logFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		logFile, err := openPrivateLog(logPath)
 		if err == nil {
 			debugLog = log.New(logFile, "[DEBUG] ", log.Ldate|log.Ltime|log.Lshortfile)
 			return
 		}
 	}
+}
+
+func openPrivateLog(path string) (*os.File, error) {
+	fd, err := syscall.Open(path, syscall.O_CREAT|syscall.O_WRONLY|syscall.O_APPEND|syscall.O_CLOEXEC|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	file := os.NewFile(uintptr(fd), path)
+	info, err := file.Stat()
+	if err != nil {
+		file.Close()
+		return nil, err
+	}
+	if !info.Mode().IsRegular() {
+		file.Close()
+		return nil, fmt.Errorf("debug log path %q is not a regular file", path)
+	}
+	stat, ok := info.Sys().(*syscall.Stat_t)
+	if !ok {
+		file.Close()
+		return nil, fmt.Errorf("cannot verify owner of debug log path %q", path)
+	}
+	if err := validatePrivateLogOwner(path, stat.Uid); err != nil {
+		file.Close()
+		return nil, err
+	}
+	if err := file.Chmod(0o600); err != nil {
+		file.Close()
+		return nil, err
+	}
+	return file, nil
+}
+
+func validatePrivateLogOwner(path string, ownerUID uint32) error {
+	if ownerUID != uint32(os.Geteuid()) {
+		return fmt.Errorf("debug log path %q is not owned by effective uid", path)
+	}
+	return nil
 }
 
 func logDebug(format string, args ...interface{}) {
@@ -188,7 +231,7 @@ func init() {
 }
 
 // Theme management functions moved to theme.go
-// Includes: applyTheme, setThemeWallpaper, getAnimatedColor, getAnimatedBorderColor, getFocusColor
+// Includes: applyTheme, setThemeWallpaper, getAnimatedColor, getFocusColor
 
 // Utility functions moved to utils.go
 // Includes: centerText, stripANSI, stripAnsi, min, extractCharsWithAnsi
@@ -284,6 +327,11 @@ type Config struct {
 	ShowTime         bool
 	ThemeName        string
 	RememberUsername bool
+	BorderLayout     string
+	FormMode         string
+	FormModeExplicit bool
+	FormHalo         int
+	FormDim          float64
 	Ambient          ambientConfig
 	Secondary        secondaryConfig
 }
@@ -317,6 +365,7 @@ const (
 )
 
 type model struct {
+	frameCache      *frameCache
 	ambient         *ambientCollector
 	followShell     bool
 	hideAmbient     bool // Set only on render copies when optional status cannot fit.
@@ -352,13 +401,17 @@ type model struct {
 	menuOptions []string
 	menuIndex   int
 	// Added fields for functional menu system
-	customASCIIText        string
-	selectedBorderStyle    string
-	selectedBackground     string
-	currentTheme           string
-	availableThemes        []string // Built-in + custom theme names
-	borderAnimationEnabled bool
-	selectedFont           string
+	customASCIIText     string
+	selectedBorderStyle string
+	borderEffect        string
+	borderPaletteMode   string
+	borderRegistry      *borderRegistry
+	formMode            string
+	formLayerCache      *layerCache
+	selectedBackground  string
+	currentTheme        string
+	availableThemes     []string // Built-in + custom theme names
+	selectedFont        string
 	// CHANGED 2025-10-01 - Added animation control fields
 	selectedAnimationStyle     string
 	selectedAnimationSpeed     float64
@@ -370,12 +423,11 @@ type model struct {
 	focusState FocusState
 
 	// Authentication tracking
-	failedAttempts int
+	failedAttempts  int
+	borderFailureAt time.Time
 
 	// Animation state
 	animationFrame   int
-	pulseColor       int
-	borderFrame      int
 	animSpeed        string // "slow", "normal", "fast"
 	bgAnimationFrame int    // frame counter for background effects
 
@@ -409,22 +461,27 @@ type model struct {
 	kittyUpgraded bool // Whether we've upgraded kitty keyboard flags for non-US layout support
 
 	// ASCII Effects
-	typewriterTicker  *animations.TypewriterTicker  // Typewriter ticker for session roasts
-	printEffect       *animations.PrintEffect       // Print effect for ASCII art
-	beamsEffect       *animations.BeamsTextEffect   // Beams text effect for ASCII art
-	pourEffect        *animations.PourEffect        // Pour effect for ASCII art
-	aquariumEffect    *animations.AquariumEffect    // Aquarium background effect
-	sonarEffect       *animations.SonarAnimation    // Sonar background effect
-	cracktroEffect    *animations.CracktroAnimation // Cracktro background effect
-	plasmaEffect      *animations.PlasmaAnimation   // Plasma background effect
-	ak47Effect        *syscgoanimations.AK47Animation
-	l2a1SAREffect     *syscgoanimations.L2A1SARAnimation
-	selectedWallpaper string // gslapper video wallpaper (separate from background effect)
-	gslapperLaunched  bool   // Track if gslapper was launched from cache
+	typewriterTicker    *animations.TypewriterTicker  // Typewriter ticker for session roasts
+	printEffect         *animations.PrintEffect       // Print effect for ASCII art
+	beamsEffect         *animations.BeamsTextEffect   // Beams text effect for ASCII art
+	pourEffect          *animations.PourEffect        // Pour effect for ASCII art
+	aquariumEffect      *animations.AquariumEffect    // Aquarium background effect
+	sonarEffect         *animations.SonarAnimation    // Sonar background effect
+	cracktroEffect      *animations.CracktroAnimation // Cracktro background effect
+	plasmaEffect        *animations.PlasmaAnimation   // Plasma background effect
+	ak47Effect          *syscgoanimations.AK47Animation
+	l2a1SAREffect       *syscgoanimations.L2A1SARAnimation
+	rotatingModelEffect *syscgoanimations.RotatingModelAnimation
+	selectedWallpaper   string // gslapper video wallpaper (separate from background effect)
+	gslapperLaunched    bool   // Track if gslapper was launched from cache
 }
 
 type sessionSelectedMsg sessions.Session
 type powerSelectedMsg string
+type authSuccessMsg struct {
+	Username string
+	Session  string
+}
 type tickMsg time.Time
 
 func doTick() tea.Cmd {
@@ -516,8 +573,9 @@ func (m model) backgroundEffectActive() bool {
 	switch m.selectedBackground {
 	case "fire", "fire+rain", "ascii-rain", "matrix", "fireworks", "sonar", "cracktro", "plasma", "aquarium", "ak-47", "l2a1-sar":
 		return true
+	default:
+		return isRotatingModelBackground(m.selectedBackground)
 	}
-	return false
 }
 
 // cycleAnimSpeed cycles to the next speed preset
@@ -643,6 +701,7 @@ func initialModel(config Config, screensaverMode bool) model {
 	}
 
 	m := model{
+		frameCache:          &frameCache{},
 		usernameInput:       ti,
 		passwordInput:       pi,
 		spinner:             sp,
@@ -660,20 +719,22 @@ func initialModel(config Config, screensaverMode bool) model {
 		sessionDropdownOpen: false,
 		focusState:          FocusUsername,
 		animationFrame:      0,
-		pulseColor:          0,
-		borderFrame:         0,
 		animSpeed:           "normal",
 		bgAnimationFrame:    0,
 		// Initialize default border and background settings
 		// Set Dracula as default theme and disable border animation
-		selectedBorderStyle:    "classic",
-		selectedBackground:     "none",
-		currentTheme:           startupThemeName(config.ThemeName, "", availableThemes),
-		followShell:            config.FollowShell == nil || *config.FollowShell,
-		availableThemes:        availableThemes,
-		borderAnimationEnabled: false,
-		selectedFont:           "/usr/share/bubble-greet/fonts/dos_rebel.flf", // Absolute path
-		customASCIIText:        "",
+		selectedBorderStyle: "classic",
+		borderEffect:        "off",
+		borderPaletteMode:   "theme",
+		borderRegistry:      newBorderRegistry(dataDir + "/borders"),
+		formMode:            config.FormMode,
+		formLayerCache:      &layerCache{},
+		selectedBackground:  "none",
+		currentTheme:        startupThemeName(config.ThemeName, "", availableThemes),
+		followShell:         config.FollowShell == nil || *config.FollowShell,
+		availableThemes:     availableThemes,
+		selectedFont:        "/usr/share/bubble-greet/fonts/dos_rebel.flf", // Absolute path
+		customASCIIText:     "",
 		// CHANGED 2025-10-01 - Initialize animation control defaults
 		selectedAnimationStyle:     "gradient",
 		selectedAnimationSpeed:     1.0,
@@ -720,7 +781,9 @@ func initialModel(config Config, screensaverMode bool) model {
 	// Apply the explicit CLI theme before restoring cached effects.
 	themeApplied := false
 	if !m.config.TestMode {
-		if prefs, err := cache.LoadPreferences(); err == nil && prefs != nil {
+		if prefs, err := cache.LoadPreferences(); err != nil {
+			logDebug("failed to load sysc-greet preferences: %v", err)
+		} else if prefs != nil {
 			if config.FollowShell == nil && prefs.FollowShell != nil {
 				m.followShell = *prefs.FollowShell
 			}
@@ -737,8 +800,18 @@ func initialModel(config Config, screensaverMode bool) model {
 				m.selectedWallpaper = prefs.Wallpaper
 				logDebug("Loaded cached wallpaper: %s", prefs.Wallpaper)
 			}
-			if prefs.BorderStyle != "" {
-				m.selectedBorderStyle = prefs.BorderStyle
+			if prefs.BorderStyle != "" || prefs.BorderEffect != "" {
+				style, effect := migrateBorderPrefs(prefs.BorderStyle, prefs.BorderEffect)
+				if m.borderRegistry.has(style) {
+					m.selectedBorderStyle = style
+				}
+				if effect == "shimmer" || effect == "off" {
+					m.borderEffect = effect
+				}
+			}
+			m.formMode = preferredFormMode(m.config.FormMode, prefs.FormMode, m.config.FormModeExplicit)
+			if validBorderPalette(prefs.BorderPaletteMode) {
+				m.borderPaletteMode = prefs.BorderPaletteMode
 			}
 			if prefs.Session != "" {
 				// Find matching session in m.sessions
@@ -994,6 +1067,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.l2a1SAREffect != nil {
 			m.l2a1SAREffect.Resize(msg.Width, msg.Height)
 		}
+		if m.rotatingModelEffect != nil {
+			m.rotatingModelEffect.Resize(msg.Width, msg.Height)
+		}
 		return m, nil
 
 	case tickMsg:
@@ -1002,8 +1078,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Counters only advance on fast ticks so idle frames are
 			// byte-identical and the renderer diffs them to nothing
 			m.animationFrame++
-			m.pulseColor = (m.pulseColor + 1) % 100
-			m.borderFrame = (m.borderFrame + 1) % 20
 		}
 
 		// Lazy init: create aquarium on first tick when we have real dimensions
@@ -1116,6 +1190,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selectedBackground == "l2a1-sar" && m.l2a1SAREffect == nil {
 			m.l2a1SAREffect = m.newL2A1SAREffect()
 		}
+		if isRotatingModelBackground(m.selectedBackground) && m.rotatingModelEffect == nil {
+			m.rotatingModelEffect = m.newRotatingModelEffect(m.selectedBackground)
+		}
 
 		if (m.enableFire || m.selectedBackground == "fire" || m.selectedBackground == "fire+rain") && m.fireEffect != nil {
 			m.fireEffect.UpdatePalette(animations.GetFirePalette(m.currentTheme))
@@ -1164,6 +1241,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selectedBackground == "l2a1-sar" && m.l2a1SAREffect != nil {
 			m.l2a1SAREffect.Update()
 		}
+		if isRotatingModelBackground(m.selectedBackground) && m.rotatingModelEffect != nil {
+			m.rotatingModelEffect.Update()
+		}
 
 		cmds = append(cmds, doBgTick(m.animSpeed))
 
@@ -1206,7 +1286,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			// Load cached username for NEW session if available
 			if !m.config.TestMode {
-				if prefs, err := cache.LoadPreferences(); err == nil && prefs != nil {
+				if prefs, err := cache.LoadPreferences(); err != nil {
+					logDebug("failed to load sysc-greet preferences: %v", err)
+				} else if prefs != nil {
 					if m.config.RememberUsername && prefs.Username != "" && prefs.Session == session.Name {
 						m.usernameInput.SetValue(prefs.Username)
 						logDebug("Loaded cached username for new session: %s", session.Name)
@@ -1229,23 +1311,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// CHANGED 2025-10-03 - Save session preference
 			// CHANGED 2025-10-03 - Skip saving in test mode
 			// FIXED 2025-10-17 - Save current username value (already loaded for this session above)
-			if !m.config.TestMode {
-				username := ""
-				if m.config.RememberUsername {
-					username = m.usernameInput.Value()
-				}
-				cache.SavePreferences(cache.UserPreferences{
-					FollowShell: &m.followShell,
-					Theme:       m.currentTheme,
-					Background:  m.selectedBackground,
-					Wallpaper:   m.selectedWallpaper,
-					BorderStyle: m.selectedBorderStyle,
-					Session:     session.Name,
-					Username:    username,
-					ASCIIIndex:  m.asciiArtIndex,
-					AnimSpeed:   m.animSpeed,
-				})
-			}
+			m.savePreferences()
 			return m, tea.Batch(cmds...)
 		}
 
@@ -1282,51 +1348,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmds = append(cmds, textinput.Blink)
 		}
 
+	case authSuccessMsg:
+		m.failedAttempts = 0
+		m.saveSuccessfulLogin(msg.Username, msg.Session)
+		fmt.Println("Session started successfully")
+		return m, tea.Quit
+
 	case string:
-		if msg == "success" {
-			// Removed delay workaround
-			// Now we properly wait for greetd's success response in StartSession() before returning
-			// This ensures greetd has finished session initialization regardless of hardware speed
-
-			m.failedAttempts = 0 // Reset failed attempts on successful login
-
-			// FIXED 2025-10-17 - Save username to cache on successful login
-			if !m.config.TestMode && m.selectedSession != nil {
-				sessionName := m.selectedSession.Name
-				username := ""
-				if m.config.RememberUsername {
-					username = m.usernameInput.Value()
-				}
-				cache.SavePreferences(cache.UserPreferences{
-					FollowShell: &m.followShell,
-					Theme:       m.currentTheme,
-					Background:  m.selectedBackground,
-					Wallpaper:   m.selectedWallpaper,
-					BorderStyle: m.selectedBorderStyle,
-					Session:     sessionName,
-					Username:    username,
-					ASCIIIndex:  m.asciiArtIndex,
-					AnimSpeed:   m.animSpeed,
-				})
-				logDebug("Saved username '%s' for session: %s", username, sessionName)
-			}
-
-			fmt.Println("Session started successfully")
-			return m, tea.Quit
-		} else {
-			// FIXED 2025-10-17 - Return to login mode (not password mode) so user can fix username
-			m.errorMessage = msg
-			m.mode = ModeLogin
-			m.usernameInput.SetValue("") // Clear username field
-			m.passwordInput.SetValue("") // Clear password field
-			m.usernameInput.Focus()
-			m.passwordInput.Blur()
-			m.focusState = FocusUsername
-			return m, textinput.Blink
-		}
+		// FIXED 2025-10-17 - Return to login mode (not password mode) so user can fix username
+		m.errorMessage = msg
+		m.borderFailureAt = time.Now()
+		m.mode = ModeLogin
+		m.usernameInput.SetValue("") // Clear username field
+		m.passwordInput.SetValue("") // Clear password field
+		m.usernameInput.Focus()
+		m.passwordInput.Blur()
+		m.focusState = FocusUsername
+		return m, textinput.Blink
 	case error:
 		// FIXED 2025-10-17 - Return to password mode so user can retry
 		m.errorMessage = msg.Error()
+		m.borderFailureAt = time.Now()
 		m.failedAttempts++ // Track failed authentication attempts
 		m.mode = ModePassword
 		// Keep username, only clear password
@@ -1657,22 +1699,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					}
 
 					// Save ASCII index preference
-					if !m.config.TestMode && m.selectedSession != nil {
-						username := ""
-						if m.config.RememberUsername {
-							username = m.usernameInput.Value()
-						}
-						cache.SavePreferences(cache.UserPreferences{
-							FollowShell: &m.followShell,
-							Theme:       m.currentTheme,
-							Background:  m.selectedBackground,
-							Wallpaper:   m.selectedWallpaper,
-							BorderStyle: m.selectedBorderStyle,
-							Session:     m.selectedSession.Name,
-							Username:    username,
-							ASCIIIndex:  m.asciiArtIndex,
-							AnimSpeed:   m.animSpeed,
-						})
+					if m.selectedSession != nil {
+						m.savePreferences()
 					}
 
 					// Reset print effect with new ASCII if enabled
@@ -1755,22 +1783,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					}
 
 					// Save ASCII index preference
-					if !m.config.TestMode && m.selectedSession != nil {
-						username := ""
-						if m.config.RememberUsername {
-							username = m.usernameInput.Value()
-						}
-						cache.SavePreferences(cache.UserPreferences{
-							FollowShell: &m.followShell,
-							Theme:       m.currentTheme,
-							Background:  m.selectedBackground,
-							Wallpaper:   m.selectedWallpaper,
-							BorderStyle: m.selectedBorderStyle,
-							Session:     m.selectedSession.Name,
-							Username:    username,
-							ASCIIIndex:  m.asciiArtIndex,
-							AnimSpeed:   m.animSpeed,
-						})
+					if m.selectedSession != nil {
+						m.savePreferences()
 					}
 
 					// Reset print effect with new ASCII if enabled
@@ -1829,22 +1843,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			default:
 				m.animSpeed = "slow"
 			}
-			if !m.config.TestMode {
-				sessionName := ""
-				if m.selectedSession != nil {
-					sessionName = m.selectedSession.Name
-				}
-				cache.SavePreferences(cache.UserPreferences{
-					FollowShell: &m.followShell,
-					Theme:       m.currentTheme,
-					Background:  m.selectedBackground,
-					Wallpaper:   m.selectedWallpaper,
-					BorderStyle: m.selectedBorderStyle,
-					Session:     sessionName,
-					ASCIIIndex:  m.asciiArtIndex,
-					AnimSpeed:   m.animSpeed,
-				})
-			}
+			m.savePreferences()
 			newModel, cmd := m.navigateToBackgroundsSubmenu()
 			m2 := newModel.(model)
 			m2.menuIndex = len(m2.menuOptions) - 1
@@ -1854,22 +1853,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 	case "right":
 		if m.mode == ModeBackgroundsSubmenu && m.menuIndex == len(m.menuOptions)-1 {
 			m.animSpeed = cycleAnimSpeed(m.animSpeed)
-			if !m.config.TestMode {
-				sessionName := ""
-				if m.selectedSession != nil {
-					sessionName = m.selectedSession.Name
-				}
-				cache.SavePreferences(cache.UserPreferences{
-					FollowShell: &m.followShell,
-					Theme:       m.currentTheme,
-					Background:  m.selectedBackground,
-					Wallpaper:   m.selectedWallpaper,
-					BorderStyle: m.selectedBorderStyle,
-					Session:     sessionName,
-					ASCIIIndex:  m.asciiArtIndex,
-					AnimSpeed:   m.animSpeed,
-				})
-			}
+			m.savePreferences()
 			newModel, cmd := m.navigateToBackgroundsSubmenu()
 			m2 := newModel.(model)
 			m2.menuIndex = len(m2.menuOptions) - 1
@@ -1884,22 +1868,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			// Handle speed selector row
 			if strings.HasPrefix(selectedOption, "Speed: ") {
 				m.animSpeed = cycleAnimSpeed(m.animSpeed)
-				if !m.config.TestMode {
-					sessionName := ""
-					if m.selectedSession != nil {
-						sessionName = m.selectedSession.Name
-					}
-					cache.SavePreferences(cache.UserPreferences{
-						FollowShell: &m.followShell,
-						Theme:       m.currentTheme,
-						Background:  m.selectedBackground,
-						Wallpaper:   m.selectedWallpaper,
-						BorderStyle: m.selectedBorderStyle,
-						Session:     sessionName,
-						ASCIIIndex:  m.asciiArtIndex,
-						AnimSpeed:   m.animSpeed,
-					})
-				}
+				m.savePreferences()
 				newModel, cmd := m.navigateToBackgroundsSubmenu()
 				m2 := newModel.(model)
 				m2.menuIndex = len(m2.menuOptions) - 1
@@ -1999,7 +1968,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.selectedBackground = "none"
 					m.ak47Effect = nil
 				}
-			case "L2A1 SAR":
+			case "Australian SLR":
 				m.enableFire = false
 				if m.selectedBackground != "l2a1-sar" {
 					m.selectedBackground = "l2a1-sar"
@@ -2037,30 +2006,26 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.selectedBackground = "none"
 					m.aquariumEffect = nil
 				}
+			default:
+				if id, ok := rotatingModelBackgroundID(optionName); ok {
+					m.enableFire = false
+					if m.selectedBackground != id {
+						m.selectedBackground = id
+						m.rotatingModelEffect = m.newRotatingModelEffect(id)
+					} else {
+						m.selectedBackground = "none"
+						m.rotatingModelEffect = nil
+					}
+				}
 			}
 
 			if m.enableFire {
 				m.selectedBackground = "fire"
-			} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" && m.selectedBackground != "sonar" && m.selectedBackground != "cracktro" && m.selectedBackground != "plasma" && m.selectedBackground != "aquarium" && m.selectedBackground != "ak-47" && m.selectedBackground != "l2a1-sar" && m.selectedBackground != "ticker" {
+			} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" && m.selectedBackground != "sonar" && m.selectedBackground != "cracktro" && m.selectedBackground != "plasma" && m.selectedBackground != "aquarium" && m.selectedBackground != "ak-47" && m.selectedBackground != "l2a1-sar" && m.selectedBackground != "ticker" && !isRotatingModelBackground(m.selectedBackground) {
 				m.selectedBackground = "none"
 			}
 
-			if !m.config.TestMode {
-				sessionName := ""
-				if m.selectedSession != nil {
-					sessionName = m.selectedSession.Name
-				}
-				cache.SavePreferences(cache.UserPreferences{
-					FollowShell: &m.followShell,
-					Theme:       m.currentTheme,
-					Background:  m.selectedBackground,
-					Wallpaper:   m.selectedWallpaper,
-					BorderStyle: m.selectedBorderStyle,
-					Session:     sessionName,
-					ASCIIIndex:  m.asciiArtIndex,
-					AnimSpeed:   m.animSpeed,
-				})
-			}
+			m.savePreferences()
 
 			savedIndex := m.menuIndex
 			newModel, cmd := m.navigateToBackgroundsSubmenu()
@@ -2141,24 +2106,12 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					if m.selectedBackground == "l2a1-sar" {
 						m.l2a1SAREffect = m.newL2A1SAREffect()
 					}
+					if isRotatingModelBackground(m.selectedBackground) {
+						m.rotatingModelEffect = m.newRotatingModelEffect(m.selectedBackground)
+					}
 					// CHANGED 2025-10-03 - Save theme preference
 					// CHANGED 2025-10-03 - Skip saving in test mode
-					if !m.config.TestMode {
-						sessionName := ""
-						if m.selectedSession != nil {
-							sessionName = m.selectedSession.Name
-						}
-						cache.SavePreferences(cache.UserPreferences{
-							FollowShell: &m.followShell,
-							Theme:       m.currentTheme,
-							Background:  m.selectedBackground,
-							Wallpaper:   m.selectedWallpaper,
-							BorderStyle: m.selectedBorderStyle,
-							Session:     sessionName,
-							ASCIIIndex:  m.asciiArtIndex,
-							AnimSpeed:   m.animSpeed,
-						})
-					}
+					m.savePreferences()
 
 					// Reinitialize ASCII effects with new theme colors if active
 					if m.selectedBackground == "beams" && m.beamsEffect != nil && m.selectedSession != nil {
@@ -2175,49 +2128,53 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				return m, nil
 
 			case ModeBordersSubmenu:
-				// Restored ASCII border handling
-				switch selectedOption {
-				case "Style: Classic":
-					m.selectedBorderStyle = "classic"
-				case "Style: Modern":
-					m.selectedBorderStyle = "modern"
-				case "Style: Minimal":
-					m.selectedBorderStyle = "minimal"
-				case "Style: ASCII-1":
-					m.selectedBorderStyle = "ascii1"
-				case "Style: ASCII-2":
-					m.selectedBorderStyle = "ascii2"
-				case "Style: ASCII-3":
-					m.selectedBorderStyle = "ascii3"
-				case "Style: ASCII-4":
-					m.selectedBorderStyle = "ascii4"
-				case "Animation: Wave":
-					m.borderAnimationEnabled = true
-					m.selectedBorderStyle = "wave"
-				case "Animation: Pulse":
-					m.borderAnimationEnabled = true
-					m.selectedBorderStyle = "pulse"
-				case "Animation: Off":
-					m.borderAnimationEnabled = false
+				optionName := strings.TrimPrefix(selectedOption, "[✓] ")
+				optionName = strings.TrimPrefix(optionName, "[ ] ")
+				if strings.HasPrefix(optionName, "Style: ") && m.borderRegistry != nil {
+					label := strings.TrimPrefix(optionName, "Style: ")
+					for _, renderer := range m.borderRegistry.styles() {
+						if renderer.Label() == label {
+							m.selectedBorderStyle = renderer.ID()
+							break
+						}
+					}
+				} else {
+					switch optionName {
+					case "Style: Classic":
+						m.selectedBorderStyle = "classic"
+					case "Style: Modern":
+						m.selectedBorderStyle = "modern"
+					case "Style: Minimal":
+						m.selectedBorderStyle = "minimal"
+					case "Style: ASCII-1":
+						m.selectedBorderStyle = "ascii1"
+					case "Style: ASCII-2":
+						m.selectedBorderStyle = "ascii2"
+					case "Effect: Shimmer":
+						if renderer := m.borderRegistry.get(m.selectedBorderStyle); renderer != nil && renderer.SupportsEffect("shimmer") {
+							m.borderEffect = "shimmer"
+						}
+					case "Effect: Off":
+						m.borderEffect = "off"
+					case "Palette: Theme":
+						m.borderPaletteMode = "theme"
+					case "Palette: VGA":
+						m.borderPaletteMode = "vga"
+					case "Palette: Terminal":
+						m.borderPaletteMode = "terminal"
+					case "Form: Auto":
+						m.formMode = "auto"
+					case "Form: Opaque":
+						m.formMode = "opaque"
+					case "Form: See-through":
+						m.formMode = "seethrough"
+					case "Form: Frosted":
+						m.formMode = "frosted"
+					}
 				}
 				// CHANGED 2025-10-03 - Save border preference
 				// CHANGED 2025-10-03 - Skip saving in test mode
-				if !m.config.TestMode {
-					sessionName := ""
-					if m.selectedSession != nil {
-						sessionName = m.selectedSession.Name
-					}
-					cache.SavePreferences(cache.UserPreferences{
-						FollowShell: &m.followShell,
-						Theme:       m.currentTheme,
-						Background:  m.selectedBackground,
-						Wallpaper:   m.selectedWallpaper,
-						BorderStyle: m.selectedBorderStyle,
-						Session:     sessionName,
-						ASCIIIndex:  m.asciiArtIndex,
-						AnimSpeed:   m.animSpeed,
-					})
-				}
+				m.savePreferences()
 				m.mode = ModeLogin
 				return m, nil
 
@@ -2448,23 +2405,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				}
 
 				// Save preference
-				if !m.config.TestMode {
-					sessionName := ""
-					if m.selectedSession != nil {
-						sessionName = m.selectedSession.Name
-					}
-					cache.SavePreferences(cache.UserPreferences{
-						FollowShell: &m.followShell,
-						Theme:       m.currentTheme,
-						Background:  m.selectedBackground,
-						Wallpaper:   m.selectedWallpaper,
-						BorderStyle: m.selectedBorderStyle,
-						Session:     sessionName,
-						Username:    "",
-						ASCIIIndex:  m.asciiArtIndex,
-						AnimSpeed:   m.animSpeed,
-					})
-				}
+				m.savePreferences()
 				// Refresh menu to update checkboxes
 				newModel, cmd := m.navigateToASCIIEffectsSubmenu()
 				return newModel.(model), cmd
@@ -2548,6 +2489,15 @@ func (m model) View() tea.View {
 	if termHeight == 0 {
 		termHeight = 24
 	}
+	view := tea.View{AltScreen: m.altScreen, UniformKeyLayout: true}
+	if m.altScreen && !m.config.TestMode {
+		view.MouseMode = tea.MouseModeCellMotion
+	}
+	if canvas, ok := m.borderedLoginCanvas(termWidth, termHeight); ok {
+		view.Layer = canvas
+		view.BackgroundColor = BgBase
+		return view
+	}
 
 	var content string
 	switch m.mode {
@@ -2564,11 +2514,6 @@ func (m model) View() tea.View {
 		content = renderScreensaverView(m, termWidth, termHeight)
 	default:
 		content = m.renderMainView(termWidth, termHeight)
-	}
-
-	view := tea.View{AltScreen: m.altScreen, UniformKeyLayout: true}
-	if m.altScreen && !m.config.TestMode {
-		view.MouseMode = tea.MouseModeCellMotion
 	}
 
 	// Check if fire background is enabled
@@ -2594,10 +2539,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: fire at bottom, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(fireY),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, fireY, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if hasRainBackground {
@@ -2612,10 +2554,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: rain as background, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "matrix" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2629,10 +2568,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: matrix as background, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "fireworks" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2646,10 +2582,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: fireworks as background, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "sonar" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2663,10 +2596,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: sonar as background, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "cracktro" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2680,10 +2610,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: cracktro as background, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "plasma" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2697,10 +2624,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: plasma as background, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "aquarium" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2714,10 +2638,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		// Create canvas with two layers: aquarium as background, UI centered on top
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "ak-47" && (m.mode == ModeLogin || m.mode == ModePassword) {
@@ -2728,24 +2649,29 @@ func (m model) View() tea.View {
 		uiX := (termWidth - contentWidth) / 2
 		uiY := (termHeight - contentHeight) / 2
 
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
-	} else if m.selectedBackground == "l2a1-sar" && (m.mode == ModeLogin || m.mode == ModePassword) {
-		backgroundContent := m.addL2A1SAREffect("")
+	}
 
+	if m.selectedBackground == "l2a1-sar" && (m.mode == ModeLogin || m.mode == ModePassword) {
+		backgroundContent := m.addL2A1SAREffect("")
 		contentWidth := lipgloss.Width(content)
 		contentHeight := lipgloss.Height(content)
 		uiX := (termWidth - contentWidth) / 2
 		uiY := (termHeight - contentHeight) / 2
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
+		view.BackgroundColor = BgBase
+		return view
+	}
 
-		view.Layer = lipgloss.NewCanvas(
-			lipgloss.NewLayer(backgroundContent).X(0).Y(0),
-			lipgloss.NewLayer(content).X(uiX).Y(uiY),
-		)
+	if isRotatingModelBackground(m.selectedBackground) && (m.mode == ModeLogin || m.mode == ModePassword) {
+		backgroundContent := m.addRotatingModelEffect("")
+		contentWidth := lipgloss.Width(content)
+		contentHeight := lipgloss.Height(content)
+		uiX := (termWidth - contentWidth) / 2
+		uiY := (termHeight - contentHeight) / 2
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
 		view.BackgroundColor = BgBase
 		return view
 	}
@@ -2766,10 +2692,7 @@ func (m model) View() tea.View {
 
 	// Keep a full-terminal backing layer so small popups clear stale cells even
 	// when Bubble Tea is running without alt-screen.
-	view.Layer = lipgloss.NewCanvas(
-		lipgloss.NewLayer(blankTerminalContent(termWidth, termHeight)).X(0).Y(0),
-		lipgloss.NewLayer(content).X(x).Y(y),
-	)
+	view.Layer = m.composeLayer(blankTerminalContent(termWidth, termHeight), 0, 0, content, x, y, termWidth, termHeight)
 	view.BackgroundColor = BgBase
 	return view
 }
@@ -2868,7 +2791,7 @@ func (m model) renderMainView(termWidth, termHeight int) string {
 }
 
 // Border rendering functions moved to borders.go
-// Includes: renderDualBorderLayout, renderASCII1/2/3/4BorderLayout, renderASCIIBorderFallback,
+// Includes: renderDualBorderLayout, renderASCII1/2BorderLayout,
 // getInnerBorderStyle, getOuterBorderStyle, getInnerBorderColor, getOuterBorderColor
 
 // Render form with monochrome colors
@@ -2971,7 +2894,7 @@ func (m model) authenticate(username, password string) tea.Cmd {
 					m.ipcClient.CancelSession()
 					return err
 				}
-				return "success"
+				return authSuccessMsg{Username: username, Session: m.selectedSession.Name}
 			} else {
 				// Cancel session on unexpected response
 				m.ipcClient.CancelSession()
@@ -3003,6 +2926,8 @@ func main() {
 	var startWallpaperDaemon bool
 	var widgetConfigPath string
 	var followShell bool
+	var borderPreviewPath string
+	var borderPreviewSizes string
 
 	flag.BoolVar(&showVersion, "version", false, "Show version information")
 	flag.BoolVar(&showVersion, "v", false, "Show version information (shorthand)")
@@ -3015,6 +2940,12 @@ func main() {
 	flag.StringVar(&config.ThemeName, "theme", "", "Theme name from the Themes menu (overrides saved theme)")
 	flag.BoolVar(&config.RememberUsername, "remember-username", true, "Remember last logged in username")
 	flag.BoolVar(&config.ShowTime, "time", false, "") // Hidden flag - not shown in help
+	flag.StringVar(&config.BorderLayout, "border-layout", "hug", "Outer frame layout: hug keeps fixed margins, fill grows to terminal edges")
+	flag.StringVar(&config.FormMode, "form-mode", "auto", "Login form mode: auto, opaque, seethrough or frosted")
+	flag.IntVar(&config.FormHalo, "form-halo", 1, "Halo width in columns around form text (0-2)")
+	flag.Float64Var(&config.FormDim, "form-dim", 0.55, "Frosted form dim strength (0-1)")
+	flag.StringVar(&borderPreviewPath, "border-preview", "", "Render a .ans border around a sample login form (requires --test)")
+	flag.StringVar(&borderPreviewSizes, "size", "80x24,132x40,200x55", "Comma-separated sizes for --border-preview")
 	flag.StringVar(&widgetConfigPath, "widget-config", "", "Widget JSON configuration file (overrides default paths)")
 	flag.StringVar(&config.Ambient.ShellConfig, "weather-shell-config", "", "sysc-shell config path when weather-location is sysc-shell")
 	flag.BoolVar(&config.Ambient.Metrics, "metrics", false, "Show CPU/Memory usage in the login panel")
@@ -3043,6 +2974,12 @@ func main() {
 		fmt.Fprintln(os.Stderr, "  -secondary-effect string\n    \tsysc-terminal effect (default matrix)")
 		fmt.Fprintln(os.Stderr, "  -weather-location LAT,LON\n    \tShow weather at LAT,LON or reuse sysc-shell coordinates")
 		fmt.Fprintln(os.Stderr, "  -weather-units string\n    \tWeather units: celsius (default) or fahrenheit")
+		fmt.Fprintln(os.Stderr, "  -border-preview FILE.ans\n    Render a border asset at --size values; requires -test")
+		fmt.Fprintln(os.Stderr, "  -size 80x24,132x40,200x55\n    Terminal sizes for -border-preview")
+		fmt.Fprintln(os.Stderr, "  -border-layout hug|fill\n    Outer frame layout (default hug)")
+		fmt.Fprintln(os.Stderr, "  -form-mode auto|opaque|seethrough|frosted\n    Login form compositing mode")
+		fmt.Fprintln(os.Stderr, "  -form-halo 0|1|2\n    Halo width in columns around form text")
+		fmt.Fprintln(os.Stderr, "  -form-dim 0..1\n    Frosted form dim strength")
 		// Manually print flags (excluding hidden ones)
 		fmt.Fprintf(os.Stderr, "  -debug\n")
 		fmt.Fprintf(os.Stderr, "    	Enable debug output\n")
@@ -3073,6 +3010,8 @@ func main() {
 	flag.Visit(func(f *flag.Flag) {
 		if f.Name == "follow-shell" {
 			config.FollowShell = &followShell
+		} else if f.Name == "form-mode" {
+			config.FormModeExplicit = true
 		}
 	})
 
@@ -3091,6 +3030,22 @@ func main() {
 		}
 		return
 	}
+	if config.BorderLayout != "hug" && config.BorderLayout != "fill" {
+		fmt.Fprintf(os.Stderr, "invalid --border-layout %q: expected hug or fill\n", config.BorderLayout)
+		os.Exit(2)
+	}
+	if !validFormMode(config.FormMode) {
+		fmt.Fprintf(os.Stderr, "invalid --form-mode %q: expected auto, opaque, seethrough or frosted\n", config.FormMode)
+		os.Exit(2)
+	}
+	if config.FormHalo < 0 || config.FormHalo > 2 {
+		fmt.Fprintf(os.Stderr, "invalid --form-halo %d: expected 0, 1 or 2\n", config.FormHalo)
+		os.Exit(2)
+	}
+	if !validFormDim(config.FormDim) {
+		fmt.Fprintf(os.Stderr, "invalid --form-dim %v: expected a number from 0 to 1\n", config.FormDim)
+		os.Exit(2)
+	}
 
 	// SECURITY: Prevent test mode in production environment
 	// Test mode bypasses authentication and should only be used for development
@@ -3098,6 +3053,30 @@ func main() {
 		fmt.Fprintf(os.Stderr, "SECURITY ERROR: Test mode cannot be enabled in production (GREETD_SOCK is set)\n")
 		fmt.Fprintf(os.Stderr, "Test mode bypasses authentication and should only be used for development.\n")
 		os.Exit(1)
+	}
+	if borderPreviewPath != "" {
+		if !config.TestMode {
+			fmt.Fprintln(os.Stderr, "--border-preview requires --test")
+			os.Exit(2)
+		}
+		sizes, err := parseBorderPreviewSizes(borderPreviewSizes)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "invalid --size: %v\n", err)
+			os.Exit(2)
+		}
+		data, err := loadBorderPreviewFile(borderPreviewPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "border preview: %v\n", err)
+			os.Exit(1)
+		}
+		applyTheme(config.ThemeName, true)
+		preview, err := renderBorderPreview(data, sizes)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "border preview: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Print(preview)
+		return
 	}
 
 	// CHANGED 2025-10-06 - Initialize debug logging
@@ -3164,4 +3143,4 @@ func main() {
 	}
 }
 
-// ASCII-2, ASCII-3, ASCII-4 border rendering functions moved to borders.go
+// ASCII-2 border rendering function moved to borders.go
