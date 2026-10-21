@@ -33,6 +33,8 @@ func (m model) applyBackgroundAnimation(content string) string {
 		return m.addPlasmaEffect(content)
 	case "ak-47":
 		return m.addAK47Effect(content)
+	case "l2a1-sar":
+		return m.addL2A1SAREffect(content)
 	case "none":
 		fallthrough
 	default:
@@ -58,6 +60,25 @@ func (m model) addAK47Effect(content string) string {
 		return content
 	}
 	return m.ak47Effect.Render()
+}
+
+func (m model) newL2A1SAREffect() *syscgoanimations.L2A1SARAnimation {
+	width, height := m.width, m.height
+	if width <= 0 {
+		width = 80
+	}
+	if height <= 0 {
+		height = 30
+	}
+	theme := strings.ReplaceAll(m.currentTheme, " ", "-")
+	return syscgoanimations.NewL2A1SAREffect(width, height, theme)
+}
+
+func (m model) addL2A1SAREffect(content string) string {
+	if m.l2a1SAREffect == nil {
+		return content
+	}
+	return m.l2a1SAREffect.Render()
 }
 
 // addFireEffect renders the fire background (render only, no state mutation)

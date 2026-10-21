@@ -127,7 +127,7 @@ func (m model) renderDualBorderLayout(termWidth, termHeight int) string {
 	// Add matrix to backgrounds that remove outer border
 	// Add fireworks to backgrounds that remove outer border
 	// Add aquarium to backgrounds that remove outer border
-	if m.selectedBackground == "fire" || m.selectedBackground == "ascii-rain" || m.selectedBackground == "matrix" || m.selectedBackground == "ticker" || m.selectedBackground == "fire+rain" || m.selectedBackground == "fireworks" || m.selectedBackground == "sonar" || m.selectedBackground == "cracktro" || m.selectedBackground == "aquarium" || m.selectedBackground == "plasma" || m.selectedBackground == "ak-47" {
+	if m.selectedBackground == "fire" || m.selectedBackground == "ascii-rain" || m.selectedBackground == "matrix" || m.selectedBackground == "ticker" || m.selectedBackground == "fire+rain" || m.selectedBackground == "fireworks" || m.selectedBackground == "sonar" || m.selectedBackground == "cracktro" || m.selectedBackground == "aquarium" || m.selectedBackground == "plasma" || m.selectedBackground == "ak-47" || m.selectedBackground == "l2a1-sar" {
 		helpText := m.renderMainHelp()
 		helpStyle := lipgloss.NewStyle().
 			Foreground(FgMuted).

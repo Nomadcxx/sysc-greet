@@ -70,6 +70,7 @@ func (m model) navigateToBackgroundsSubmenu() (tea.Model, tea.Cmd) {
 	cracktroEnabled := m.selectedBackground == "cracktro"
 	plasmaEnabled := m.selectedBackground == "plasma"
 	ak47Enabled := m.selectedBackground == "ak-47"
+	l2a1SAREnabled := m.selectedBackground == "l2a1-sar"
 
 	m.menuOptions = []string{
 		"← Back",
@@ -82,6 +83,7 @@ func (m model) navigateToBackgroundsSubmenu() (tea.Model, tea.Cmd) {
 		formatCheckbox("Cracktro", cracktroEnabled),
 		formatCheckbox("Plasma", plasmaEnabled),
 		formatCheckbox("AK-47", ak47Enabled),
+		formatCheckbox("L2A1 SAR", l2a1SAREnabled),
 		formatSpeedSelector(m.animSpeed),
 	}
 	m.mode = ModeBackgroundsSubmenu
