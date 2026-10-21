@@ -2,15 +2,48 @@ package main
 
 import (
 	"image/color"
+	"strings"
+
+	syscgoanimations "github.com/Nomadcxx/sysc-Go/animations"
 )
 
+var rotatingModelBackgrounds = [...]struct{ id, label string }{
+	{"jesus-christ-statue", "Jesus Christ Statue"},
+	{"jason", "Jason"},
+	{"nymphe-der-flora", "Nymphe der Flora"},
+	{"lowe", "Löwe"},
+	{"roman-gladiator", "Roman Gladiator"},
+	{"grabfigur", "Grabfigur"},
+}
+
+func isRotatingModelBackground(id string) bool {
+	for _, background := range rotatingModelBackgrounds {
+		if background.id == id {
+			return true
+		}
+	}
+	return false
+}
+
+func rotatingModelBackgroundID(label string) (string, bool) {
+	for _, background := range rotatingModelBackgrounds {
+		if background.label == label {
+			return background.id, true
+		}
+	}
+	return "", false
+}
+
 // Background Effects - Extracted during Phase 5 refactoring
-// This file contains background animation rendering (fire, matrix, rain, fireworks)
+// This file contains background selection and render helpers.
 // IMPORTANT: These render functions are called from View() (value receiver).
 // All state mutation (Update, Resize) must happen in Update() handlers, never here.
 
 // applyBackgroundAnimation routes to the appropriate background effect based on selection
 func (m model) applyBackgroundAnimation(content string) string {
+	if isRotatingModelBackground(m.selectedBackground) {
+		return m.addRotatingModelEffect(content)
+	}
 	switch m.selectedBackground {
 	case "fire": // Add fire effect rendering
 		return m.addFireEffect(content)
@@ -28,11 +61,78 @@ func (m model) applyBackgroundAnimation(content string) string {
 		return m.addCracktroEffect(content)
 	case "plasma":
 		return m.addPlasmaEffect(content)
+	case "ak-47":
+		return m.addAK47Effect(content)
+	case "l2a1-sar":
+		return m.addL2A1SAREffect(content)
 	case "none":
 		fallthrough
 	default:
 		return content
 	}
+}
+
+func (m model) newAK47Effect() *syscgoanimations.AK47Animation {
+	width, height := m.width, m.height
+	if width <= 0 {
+		width = 80
+	}
+	if height <= 0 {
+		height = 30
+	}
+	// ponytail: sysc-Go accepts named palettes only; custom greeter palettes need an AK-47 API that accepts palette values.
+	theme := strings.ReplaceAll(m.currentTheme, " ", "-")
+	return syscgoanimations.NewAK47Effect(width, height, theme)
+}
+
+func (m model) addAK47Effect(content string) string {
+	if m.ak47Effect == nil {
+		return content
+	}
+	return m.ak47Effect.Render()
+}
+
+func (m model) newL2A1SAREffect() *syscgoanimations.L2A1SARAnimation {
+	width, height := m.width, m.height
+	if width <= 0 {
+		width = 80
+	}
+	if height <= 0 {
+		height = 30
+	}
+	theme := strings.ReplaceAll(m.currentTheme, " ", "-")
+	return syscgoanimations.NewL2A1SAREffect(width, height, theme)
+}
+
+func (m model) addL2A1SAREffect(content string) string {
+	if m.l2a1SAREffect == nil {
+		return content
+	}
+	return m.l2a1SAREffect.Render()
+}
+
+func (m model) newRotatingModelEffect(id string) *syscgoanimations.RotatingModelAnimation {
+	width, height := m.width, m.height
+	if width <= 0 {
+		width = 80
+	}
+	if height <= 0 {
+		height = 30
+	}
+	theme := strings.ReplaceAll(m.currentTheme, " ", "-")
+	effect, err := syscgoanimations.NewRotatingModelEffect(id, width, height, theme)
+	if err != nil {
+		logDebug("Could not create rotating model background %q: %v", id, err)
+		return nil
+	}
+	return effect
+}
+
+func (m model) addRotatingModelEffect(content string) string {
+	if m.rotatingModelEffect == nil {
+		return content
+	}
+	return m.rotatingModelEffect.Render()
 }
 
 // addFireEffect renders the fire background (render only, no state mutation)

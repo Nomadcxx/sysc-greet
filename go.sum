@@ -1,5 +1,7 @@
 github.com/BurntSushi/toml v1.5.0 h1:W5quZX/G/csjUnuI8SUYlsHs9M38FC7znL0lIO+DvMg=
 github.com/BurntSushi/toml v1.5.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
+github.com/Nomadcxx/sysc-Go v1.0.9-0.20261021193051-b2ab26d1a6db h1:f4qUJYBVCoVAaFK9biHfgTOI4PJj4E/O5fN2g9pFPrE=
+github.com/Nomadcxx/sysc-Go v1.0.9-0.20261021193051-b2ab26d1a6db/go.mod h1:aVjiviCJEgKIQy0AZ2uQbf+V36JG8ZQLDO4ZtZ9wcQk=
 github.com/Nomadcxx/sysc-metrics v0.7.1 h1:rgtOJ5mKnhwJqe19l/tFCOkX/+ogUzUzD2jDOo3UgkE=
 github.com/Nomadcxx/sysc-metrics v0.7.1/go.mod h1:qIgYyJuuD0Ql7wlh3cN0kiHsSG/LEMczrq+vXA7rIQs=
 github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=
@@ -12,8 +14,8 @@ github.com/charmbracelet/bubbles v0.21.0 h1:9TdC97SdRVg/1aaXNVWfFH3nnLAwOXr8Fn6u
 github.com/charmbracelet/bubbles v0.21.0/go.mod h1:HF+v6QUR4HkEpz62dx7ym2xc71/KBHg+zKwJtMw+qtg=
 github.com/charmbracelet/bubbles/v2 v2.0.0-beta.1 h1:swACzss0FjnyPz1enfX56GKkLiuKg5FlyVmOLIlU2kE=
 github.com/charmbracelet/bubbles/v2 v2.0.0-beta.1/go.mod h1:6HamsBKWqEC/FVHuQMHgQL+knPyvHH55HwJDHl/adMw=
-github.com/charmbracelet/bubbletea v1.3.4 h1:kCg7B+jSCFPLYRA52SDZjr51kG/fMUEoPoZrkaDHyoI=
-github.com/charmbracelet/bubbletea v1.3.4/go.mod h1:dtcUCyCGEX3g9tosuYiut3MXgY/Jsv9nKVdibKKRRXo=
+github.com/charmbracelet/bubbletea v1.3.10 h1:otUDHWMMzQSB0Pkc87rm691KZ3SWa4KUlvF9nRvCICw=
+github.com/charmbracelet/bubbletea v1.3.10/go.mod h1:ORQfo0fk8U+po9VaNvnV95UPWA1BitP1E0N6xJPlHr4=
 github.com/charmbracelet/bubbletea/v2 v2.0.0-beta.5.0.20251030163446-d7c95b8a2778 h1:fqALY+ex0B7mHuQjEAFiY/caSdJYOiWCwtvZyxprIsQ=
 github.com/charmbracelet/bubbletea/v2 v2.0.0-beta.5.0.20251030163446-d7c95b8a2778/go.mod h1:SUTLq+/pGQ5qntHgt0JswfVJFfgJgWDqyvyiSLVlmbo=
 github.com/charmbracelet/colorprofile v0.3.2 h1:9J27WdztfJQVAQKX2WOlSSRB+5gaKqqITmrvb1uTIiI=

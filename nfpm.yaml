@@ -10,7 +10,7 @@ description: |
   Supports Niri, Cagebreak, Sway, and Mango compositors.
 vendor: Nomadcxx
 homepage: https://github.com/Nomadcxx/sysc-greet
-license: GPL-3.0
+license: GPL-3.0-only AND CC-BY-NC-4.0
 
 contents:
   # Main binary
@@ -23,6 +23,17 @@ contents:
   - src: ./ascii_configs/
     dst: /usr/share/sysc-greet/ascii_configs/
     type: tree
+
+  # Border assets (also embedded in the binary)
+  - src: ./cmd/sysc-greet/assets/borders/
+    dst: /usr/share/sysc-greet/borders/
+    type: tree
+
+  # Third-party license notices for embedded animation assets
+  - src: ./THIRD_PARTY_NOTICES.md
+    dst: /usr/share/sysc-greet/THIRD_PARTY_NOTICES.md
+    file_info:
+      mode: 0644
 
   # Wallpapers
   - src: ./wallpapers/

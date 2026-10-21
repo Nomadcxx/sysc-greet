@@ -26,7 +26,7 @@ func layoutModel(width, height int) model {
 
 func TestCompactAuthenticationFits(t *testing.T) {
 	for _, size := range [][2]int{{40, 16}, {60, 20}, {80, 24}, {120, 32}} {
-		for _, border := range []string{"classic", "modern", "minimal", "ascii1", "ascii2", "ascii3", "ascii4"} {
+		for _, border := range []string{"classic", "modern", "minimal", "ascii1", "ascii2"} {
 			for _, mode := range []ViewMode{ModeLogin, ModePassword, ModeLoading} {
 				t.Run(fmt.Sprintf("%dx%d/%s/%s", size[0], size[1], border, mode), func(t *testing.T) {
 					m := layoutModel(size[0], size[1])

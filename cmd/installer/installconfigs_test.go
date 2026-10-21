@@ -66,6 +66,9 @@ if [ "$1" = "-m" ] && [ "$FAIL_INSTALL" = "1" ]; then exit 1; fi
 					t.Errorf("theme install %q present = %v, want %v", command, got, tc.themes)
 				}
 			}
+			if !strings.Contains(string(data), "-r THIRD_PARTY_NOTICES.md /usr/share/sysc-greet/") {
+				t.Error("third-party notices were not copied to the sysc-greet data directory")
+			}
 			if strings.Contains(string(data), "ignored.txt") {
 				t.Fatal("installed a non-TOML file")
 			}
