@@ -182,3 +182,58 @@ func TestMarkServiceDown(t *testing.T) {
 		t.Errorf("markServiceDown for a missing service: %v", err)
 	}
 }
+
+func TestWriteGreeterScriptRewritesThePathsAndKeepsTheExecutableBit(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "session.sh")
+	const script = "#!/bin/sh\ncd /var/lib/greeter || exit 1\nexport HOME=/var/lib/greeter\n"
+	if err := os.WriteFile(src, []byte(script), 0644); err != nil {
+		t.Fatal(err)
+	}
+	dst := filepath.Join(dir, "etc", "greetd", "session.sh")
+
+	if err := writeGreeterScript(src, dst, "_greeter", "/var/lib/_greeter"); err != nil {
+		t.Fatalf("writeGreeterScript: %v", err)
+	}
+
+	data, err := os.ReadFile(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "#!/bin/sh\ncd /var/lib/_greeter || exit 1\nexport HOME=/var/lib/_greeter\n"
+	if string(data) != want {
+		t.Errorf("session script =\n%s\nwant\n%s", data, want)
+	}
+	info, err := os.Stat(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0755 {
+		t.Errorf("session script mode = %v; want 0755", info.Mode().Perm())
+	}
+}
+
+func TestWriteGreeterScriptSetsTheExecutableBitOnAnExistingFile(t *testing.T) {
+	dir := t.TempDir()
+	src := filepath.Join(dir, "session.sh")
+	if err := os.WriteFile(src, []byte("#!/bin/sh\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	dst := filepath.Join(dir, "session.sh")
+	// An older install left the script without the executable bit.
+	if err := os.WriteFile(dst, []byte("#!/bin/sh\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := writeGreeterScript(src, dst, "greeter", "/var/lib/greeter"); err != nil {
+		t.Fatalf("writeGreeterScript: %v", err)
+	}
+
+	info, err := os.Stat(dst)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0755 {
+		t.Errorf("session script mode = %v; want 0755", info.Mode().Perm())
+	}
+}

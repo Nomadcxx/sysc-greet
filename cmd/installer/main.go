@@ -2226,8 +2226,10 @@ exec cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/gr
 			return fmt.Errorf("mango greeter config missing: %v", err)
 		}
 		compositorConfig = string(data)
-		if err := exec.Command("install", "-Dm755", "config/mango-greeter-session.sh", "/etc/greetd/mango-greeter-session.sh").Run(); err != nil {
-			return fmt.Errorf("mango greeter session script install failed")
+		// The session script hardcodes the greeter home, so it has to be
+		// rewritten for the account this system uses.
+		if err := writeGreeterScript("config/mango-greeter-session.sh", "/etc/greetd/mango-greeter-session.sh", m.greeterUser, m.greeterHome); err != nil {
+			return fmt.Errorf("mango greeter session script install failed: %w", err)
 		}
 		configPath = "/etc/greetd/mango-greeter-config.conf"
 		greetdCommand = "mango -c /etc/greetd/mango-greeter-config.conf -s /etc/greetd/mango-greeter-session.sh"

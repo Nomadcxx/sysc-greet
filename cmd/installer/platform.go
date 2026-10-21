@@ -113,6 +113,26 @@ func substituteGreeterPaths(content, user, home string) string {
 	return content
 }
 
+// writeGreeterScript writes a greeter script that has to keep its executable
+// bit and that carries the greeter's own paths, so the greeter session also
+// starts on a system whose greeter account is not /var/lib/greeter.
+func writeGreeterScript(src, dst, user, home string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return err
+	}
+	content := substituteGreeterPaths(string(data), user, home)
+	if err := os.WriteFile(dst, []byte(content), 0755); err != nil {
+		return err
+	}
+	// WriteFile keeps the mode of a file that already exists, so the
+	// executable bit has to be set again for an upgrade over an older file.
+	return os.Chmod(dst, 0755)
+}
+
 // xbpsInstallArgs returns the xbps-install arguments that install packages
 // without asking for a confirmation. xbps-install is the standalone install
 // front end, so it takes no "install" subcommand.
