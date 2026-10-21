@@ -78,6 +78,12 @@ func applyThemeWithWallpaper(themeName string, testMode bool, setWallpaper bool)
 		return
 	}
 
+	BorderDefault = complete(
+		lipgloss.Color("8"),
+		lipgloss.Color("238"),
+		lipgloss.Color("#374151"),
+	)
+
 	switch strings.ToLower(themeName) {
 	case "gruvbox":
 		// Gruvbox Dark theme
@@ -344,13 +350,6 @@ func setThemeWallpaper(themeName string, testMode bool) {
 func (m model) getAnimatedColor() color.Color {
 	colors := []color.Color{Primary, Secondary, Accent}
 	index := (m.animationFrame / 20) % len(colors)
-	return colors[index]
-}
-
-// getAnimatedBorderColor cycles through border colors for animated borders
-func (m model) getAnimatedBorderColor() color.Color {
-	colors := []color.Color{BorderDefault, Primary, Secondary}
-	index := (m.borderFrame / 5) % len(colors)
 	return colors[index]
 }
 

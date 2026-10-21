@@ -109,3 +109,14 @@ func (m model) composeLayer(background string, backgroundX, backgroundY int, con
 	}
 	return layer
 }
+
+func (m model) composeLoginLayer(background string, backgroundX, backgroundY int, content string, contentX, contentY, terminalW, terminalH int) tea.Layer {
+	loginContent := m.loginContentLayer(content)
+	if plainContent, ok := loginContent.(string); ok {
+		return m.composeLayer(background, backgroundX, backgroundY, plainContent, contentX, contentY, terminalW, terminalH)
+	}
+	return lipgloss.NewCanvas(
+		lipgloss.NewLayer(background).X(backgroundX).Y(backgroundY),
+		lipgloss.NewLayer(loginContent).X(contentX).Y(contentY),
+	)
+}

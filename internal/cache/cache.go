@@ -65,15 +65,18 @@ func LoadSelectedSession() (*sessions.Session, error) {
 
 // UserPreferences holds cached user preferences
 type UserPreferences struct {
-	FollowShell *bool  `json:"follow_shell,omitempty"`
-	Theme       string `json:"theme"`        // Last selected theme
-	Background  string `json:"background"`   // Last selected background animation (aquarium, matrix, fire, etc.)
-	Wallpaper   string `json:"wallpaper"`    // Last selected gslapper video wallpaper (separate from background effect)
-	BorderStyle string `json:"border_style"` // Last selected border style
-	Session     string `json:"session"`      // Last selected session
-	Username    string `json:"username"`     // Last successful username for this session
-	ASCIIIndex  int    `json:"ascii_index"`  // Last selected ASCII variant index
-	AnimSpeed   string `json:"anim_speed"`   // Last selected animation speed (slow, normal, fast)
+	FollowShell       *bool  `json:"follow_shell,omitempty"`
+	Theme             string `json:"theme"`                         // Last selected theme
+	Background        string `json:"background"`                    // Last selected background animation (aquarium, matrix, fire, etc.)
+	Wallpaper         string `json:"wallpaper"`                     // Last selected gslapper video wallpaper (separate from background effect)
+	BorderStyle       string `json:"border_style"`                  // Last selected border style
+	BorderEffect      string `json:"border_effect,omitempty"`       // Last selected border effect (off, shimmer); empty = off
+	BorderPaletteMode string `json:"border_palette_mode,omitempty"` // Border palette mode; empty = theme
+	FormMode          string `json:"form_mode,omitempty"`           // Last selected form mode (auto, opaque, seethrough, frosted); empty = auto
+	Session           string `json:"session"`                       // Last selected session
+	Username          string `json:"username"`                      // Last successful username for this session
+	ASCIIIndex        int    `json:"ascii_index"`                   // Last selected ASCII variant index
+	AnimSpeed         string `json:"anim_speed"`                    // Last selected animation speed (slow, normal, fast)
 }
 
 // SavePreferences saves user preferences to cache

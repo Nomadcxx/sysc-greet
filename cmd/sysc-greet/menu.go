@@ -39,19 +39,38 @@ func (m model) navigateToThemesSubmenu() (tea.Model, tea.Cmd) {
 
 // navigateToBordersSubmenu switches to the borders submenu
 func (m model) navigateToBordersSubmenu() (tea.Model, tea.Cmd) {
-	m.menuOptions = []string{
-		"← Back",
-		"Style: Classic",
-		"Style: Modern",
-		"Style: Minimal",
-		"Style: ASCII-1",
-		"Style: ASCII-2",
-		"Style: ASCII-3",
-		"Style: ASCII-4",
-		"Animation: Wave",
-		"Animation: Pulse",
-		"Animation: Off",
+	m.menuOptions = []string{"← Back"}
+	if m.borderRegistry != nil {
+		for _, style := range m.borderRegistry.styles() {
+			m.menuOptions = append(m.menuOptions, formatCheckbox("Style: "+style.Label(), m.selectedBorderStyle == style.ID()))
+		}
+	} else {
+		m.menuOptions = append(m.menuOptions,
+			formatCheckbox("Style: Classic", m.selectedBorderStyle == "classic"),
+			formatCheckbox("Style: Modern", m.selectedBorderStyle == "modern"),
+			formatCheckbox("Style: Minimal", m.selectedBorderStyle == "minimal"),
+			formatCheckbox("Style: ASCII-1", m.selectedBorderStyle == "ascii1"),
+			formatCheckbox("Style: ASCII-2", m.selectedBorderStyle == "ascii2"),
+		)
 	}
+	style := borderRenderer(nil)
+	if m.borderRegistry != nil {
+		style = m.borderRegistry.get(m.selectedBorderStyle)
+	}
+	shimmer := style != nil && style.SupportsEffect("shimmer") && m.borderEffect == "shimmer"
+	if style != nil && style.SupportsEffect("shimmer") {
+		m.menuOptions = append(m.menuOptions, formatCheckbox("Effect: Shimmer", shimmer))
+	}
+	m.menuOptions = append(m.menuOptions,
+		formatCheckbox("Effect: Off", !shimmer),
+		formatCheckbox("Palette: Theme", m.borderPaletteMode == "theme" || m.borderPaletteMode == ""),
+		formatCheckbox("Palette: VGA", m.borderPaletteMode == "vga"),
+		formatCheckbox("Palette: Terminal", m.borderPaletteMode == "terminal"),
+		formatCheckbox("Form: Auto", m.formMode == "auto" || m.formMode == ""),
+		formatCheckbox("Form: Opaque", m.formMode == "opaque"),
+		formatCheckbox("Form: See-through", m.formMode == "seethrough"),
+		formatCheckbox("Form: Frosted", m.formMode == "frosted"),
+	)
 	m.mode = ModeBordersSubmenu
 	m.menuIndex = 0
 	return m, nil

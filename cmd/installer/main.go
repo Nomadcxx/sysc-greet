@@ -1864,6 +1864,7 @@ func installConfigs(m *model) error {
 		configPath + "/Assets",
 		configPath + "/wallpapers",
 		configPath + "/themes",
+		configPath + "/borders",
 	}
 
 	for _, dir := range dirs {
@@ -1889,6 +1890,9 @@ func installConfigs(m *model) error {
 		if err := exec.Command("cp", "-r", src, dst).Run(); err != nil {
 			return fmt.Errorf("failed to copy %s", src)
 		}
+	}
+	if err := copyDirContents("cmd/sysc-greet/assets/borders", configPath+"/borders"); err != nil {
+		return fmt.Errorf("failed to copy border assets: %w", err)
 	}
 
 	// Copy wallpapers if directory exists
@@ -1916,6 +1920,14 @@ func installConfigs(m *model) error {
 		}
 	}
 
+	return nil
+}
+
+func copyDirContents(src, dst string) error {
+	contents := filepath.Clean(src) + string(os.PathSeparator) + "."
+	if err := exec.Command("cp", "-r", contents, dst).Run(); err != nil {
+		return fmt.Errorf("copy directory contents from %s: %w", src, err)
+	}
 	return nil
 }
 

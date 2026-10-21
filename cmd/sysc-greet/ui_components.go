@@ -357,16 +357,58 @@ func (m model) renderSessionDropdown(width int) string {
 	return dropdownStyle.Render(dropdown)
 }
 
-// renderMainHelp renders the help text at the bottom of the screen
-func (m model) renderMainHelp() string {
+// helpItem is one help-line entry with its keep-priority (lower is kept first).
+type helpItem struct {
+	priority int
+	text     string
+}
+
+// fitHelpItems joins help items with " • ", keeping items in priority order
+// until the next one no longer fits width. Output preserves display order.
+func fitHelpItems(width int, items []helpItem) string {
+	chosen := make([]bool, len(items))
+	used, count := 0, 0
+	for p := 0; p < len(items); p++ {
+		for i, it := range items {
+			if chosen[i] || it.priority != p {
+				continue
+			}
+			w := lipgloss.Width(it.text)
+			if count > 0 {
+				w += 3
+			}
+			if used+w <= width {
+				chosen[i] = true
+				used += w
+				count++
+			}
+			break
+		}
+	}
+	parts := make([]string, 0, len(items))
+	for i, it := range items {
+		if chosen[i] {
+			parts = append(parts, it.text)
+		}
+	}
+	return strings.Join(parts, " • ")
+}
+
+// renderMainHelpFit renders the help text at the bottom of the screen,
+// dropping lower-priority items until the line fits the given display width.
+func (m model) renderMainHelpFit(width int) string {
 	switch m.mode {
 	case ModeLogin, ModePassword:
-		// Reorder function keys to F1-F4 logical sequence
-		// Add Page Up/Down navigation for ASCII variants
 		if m.sessionDropdownOpen {
-			return "↑↓ Navigate • ⇞⇟ ASCII • Enter Select • Esc Close • Tab Focus • F1 Menu • F2 Sessions • F3 Notes • F4 Power"
+			return fitHelpItems(width, []helpItem{
+				{0, "↑↓ Navigate"}, {6, "⇞⇟ ASCII"}, {1, "Enter Select"}, {2, "Esc Close"},
+				{3, "Tab Focus"}, {4, "F1 Menu"}, {5, "F2 Sessions"}, {7, "F3 Notes"}, {8, "F4 Power"},
+			})
 		}
-		return "Tab Focus • ↑↓ Sessions • ⇞⇟ ASCII • F1 Menu • F2 Sessions • F3 Notes • F4 Power • Enter Continue"
+		return fitHelpItems(width, []helpItem{
+			{2, "Tab Focus"}, {5, "↑↓ Sessions"}, {6, "⇞⇟ ASCII"}, {1, "F1 Menu"},
+			{3, "F2 Sessions"}, {7, "F3 Notes"}, {4, "F4 Power"}, {0, "Enter Continue"},
+		})
 	case ModeLoading:
 		return "Please wait..."
 	default:
