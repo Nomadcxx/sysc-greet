@@ -21,6 +21,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/colorprofile"
 	"github.com/charmbracelet/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/mbndr/figlet4go"
 
@@ -277,15 +278,17 @@ type ASCIIConfig struct {
 // The sysc-greet.conf system was unused and confusing - hardcoded sessionPalettes provide all needed palettes
 
 type Config struct {
-	FollowShell      *bool
-	ShellThemeFile   string
-	TestMode         bool
-	Debug            bool
-	ShowTime         bool
-	ThemeName        string
-	RememberUsername bool
-	Ambient          ambientConfig
-	Secondary        secondaryConfig
+	ANSILove             *syscgoanimations.ANSILoveConfig
+	ANSILoveCellOverride bool
+	FollowShell          *bool
+	ShellThemeFile       string
+	TestMode             bool
+	Debug                bool
+	ShowTime             bool
+	ThemeName            string
+	RememberUsername     bool
+	Ambient              ambientConfig
+	Secondary            secondaryConfig
 }
 
 type ViewMode string
@@ -409,17 +412,26 @@ type model struct {
 	kittyUpgraded bool // Whether we've upgraded kitty keyboard flags for non-US layout support
 
 	// ASCII Effects
-	typewriterTicker  *animations.TypewriterTicker  // Typewriter ticker for session roasts
-	printEffect       *animations.PrintEffect       // Print effect for ASCII art
-	beamsEffect       *animations.BeamsTextEffect   // Beams text effect for ASCII art
-	pourEffect        *animations.PourEffect        // Pour effect for ASCII art
-	aquariumEffect    *animations.AquariumEffect    // Aquarium background effect
-	sonarEffect       *animations.SonarAnimation    // Sonar background effect
-	cracktroEffect    *animations.CracktroAnimation // Cracktro background effect
-	plasmaEffect      *animations.PlasmaAnimation   // Plasma background effect
-	ak47Effect        *syscgoanimations.AK47Animation
-	selectedWallpaper string // gslapper video wallpaper (separate from background effect)
-	gslapperLaunched  bool   // Track if gslapper was launched from cache
+	typewriterTicker             *animations.TypewriterTicker  // Typewriter ticker for session roasts
+	printEffect                  *animations.PrintEffect       // Print effect for ASCII art
+	beamsEffect                  *animations.BeamsTextEffect   // Beams text effect for ASCII art
+	pourEffect                   *animations.PourEffect        // Pour effect for ASCII art
+	aquariumEffect               *animations.AquariumEffect    // Aquarium background effect
+	sonarEffect                  *animations.SonarAnimation    // Sonar background effect
+	cracktroEffect               *animations.CracktroAnimation // Cracktro background effect
+	plasmaEffect                 *animations.PlasmaAnimation   // Plasma background effect
+	ak47Effect                   *syscgoanimations.AK47Animation
+	ansiLoveEffect               *syscgoanimations.ANSILoveAnimation
+	ansiLoveLastTick             time.Time
+	ansiLoveBuildRequest         uint64
+	ansiLoveBuildPending         bool
+	ansiLoveBuildFailed          bool
+	ansiLoveResizeRequest        uint64
+	ansiLoveResizePending        bool
+	ansiLoveMode                 ViewMode
+	ansiLoveCellW, ansiLoveCellH int
+	selectedWallpaper            string // gslapper video wallpaper (separate from background effect)
+	gslapperLaunched             bool   // Track if gslapper was launched from cache
 }
 
 type sessionSelectedMsg sessions.Session
@@ -506,6 +518,9 @@ func doBgTickIdle() tea.Cmd {
 // per-frame bgTick updates right now. Effects only display on the login and
 // password screens (see View), so other modes don't pay for animation.
 func (m model) backgroundEffectActive() bool {
+	if m.selectedBackground == "ansi-love" && m.mode == ModeScreensaver {
+		return true
+	}
 	if m.mode != ModeLogin && m.mode != ModePassword {
 		return false
 	}
@@ -513,7 +528,7 @@ func (m model) backgroundEffectActive() bool {
 		return true
 	}
 	switch m.selectedBackground {
-	case "fire", "fire+rain", "ascii-rain", "matrix", "fireworks", "sonar", "cracktro", "plasma", "aquarium", "ak-47":
+	case "fire", "fire+rain", "ascii-rain", "matrix", "fireworks", "sonar", "cracktro", "plasma", "aquarium", "ak-47", "ansi-love":
 		return true
 	}
 	return false
@@ -895,6 +910,7 @@ func initialModel(config Config, screensaverMode bool) model {
 
 func (m model) Init() tea.Cmd {
 	return tea.Batch(
+		m.requestANSILoveCellSize(),
 		m.ambient.metricsCmd(0),
 		m.ambient.weatherCmd(0),
 		m.ambient.gpuCmd(0),
@@ -907,8 +923,50 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
+	if m.ansiLoveMode != m.mode || !m.backgroundEffectActive() {
+		m.ansiLoveLastTick = time.Time{}
+		m.ansiLoveMode = m.mode
+	}
 
 	switch msg := msg.(type) {
+	case ansiLoveBuiltMsg:
+		if m.selectedBackground != "ansi-love" || msg.request != m.ansiLoveBuildRequest {
+			return m, nil
+		}
+		m.ansiLoveBuildPending = false
+		if msg.err != nil || msg.effect == nil {
+			m.ansiLoveBuildFailed = true
+			logDebug("ANSI Love construction: %v", msg.err)
+			return m, nil
+		}
+		m.ansiLoveBuildFailed = false
+		m.ansiLoveEffect = msg.effect
+		m.ansiLoveLastTick = time.Time{}
+		return m, nil
+	case ansiLovePreparedMsg:
+		if m.selectedBackground == "ansi-love" && m.ansiLoveEffect == msg.effect && m.ansiLoveResizeRequest == msg.request {
+			m.ansiLoveResizePending = false
+			m.ansiLoveEffect.Apply(msg.prepared)
+		}
+		return m, nil
+	case uv.CellSizeEvent:
+		if !m.config.ANSILoveCellOverride && msg.Width > 0 && msg.Height > 0 && msg.Width <= 1024 && msg.Height <= 1024 {
+			currentW, currentH := 8, 16
+			if m.config.ANSILove != nil {
+				currentW, currentH = m.config.ANSILove.CellW, m.config.ANSILove.CellH
+			}
+			if m.ansiLoveCellW > 0 && m.ansiLoveCellH > 0 {
+				currentW, currentH = m.ansiLoveCellW, m.ansiLoveCellH
+			}
+			m.ansiLoveCellW, m.ansiLoveCellH = msg.Width, msg.Height
+			if currentW*msg.Height != msg.Width*currentH && m.selectedBackground == "ansi-love" && (m.ansiLoveEffect == nil || m.ansiLoveBuildPending) {
+				return m, m.scheduleANSILoveBuild()
+			}
+			if m.ansiLoveEffect != nil && currentW*msg.Height != msg.Width*currentH {
+				return m, m.prepareANSILoveLayout(m.width, m.height, msg.Width, msg.Height)
+			}
+		}
+		return m, nil
 	case gpuMsg:
 		m.gpu = msg
 		if m.config.Debug {
@@ -989,6 +1047,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.ak47Effect != nil {
 			m.ak47Effect.Resize(msg.Width, msg.Height)
+		}
+		if m.selectedBackground == "ansi-love" && (m.ansiLoveEffect == nil || m.ansiLoveBuildPending) {
+			return m, m.scheduleANSILoveBuild()
+		}
+		if m.ansiLoveEffect != nil {
+			cmd := m.prepareANSILoveResize(msg.Width, msg.Height)
+			return m, cmd
 		}
 		return m, nil
 
@@ -1101,11 +1166,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case bgTickMsg:
 		if !m.backgroundEffectActive() {
+			m.ansiLoveLastTick = time.Time{}
 			cmds = append(cmds, doBgTickIdle())
 			return m, tea.Batch(cmds...)
 		}
 
 		m.bgAnimationFrame++
+		if m.selectedBackground == "ansi-love" {
+			if m.ansiLoveEffect == nil && !m.ansiLoveBuildPending && !m.ansiLoveBuildFailed {
+				cmds = append(cmds, m.scheduleANSILoveBuild())
+			}
+			m.updateANSILove(time.Time(msg))
+		}
 		if m.selectedBackground == "ak-47" && m.ak47Effect == nil {
 			m.ak47Effect = m.newAK47Effect()
 		}
@@ -1905,6 +1977,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			optionName := strings.TrimPrefix(selectedOption, "[✓] ")
 			optionName = strings.TrimPrefix(optionName, "[ ] ")
 
+			var ansiLoveCmd tea.Cmd
 			switch optionName {
 			case "Fire":
 				m.enableFire = !m.enableFire
@@ -1980,6 +2053,17 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.selectedBackground = "none"
 					m.plasmaEffect = nil
 				}
+			case "ANSI Love":
+				m.enableFire = false
+				m.ansiLoveLastTick = time.Time{}
+				if m.selectedBackground != "ansi-love" {
+					m.selectedBackground = "ansi-love"
+					ansiLoveCmd = m.scheduleANSILoveBuild()
+				} else {
+					m.selectedBackground = "none"
+					m.ansiLoveEffect = nil
+					m.cancelANSILoveBuild()
+				}
 			case "AK-47":
 				m.enableFire = false
 				if m.selectedBackground != "ak-47" {
@@ -2022,7 +2106,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 
 			if m.enableFire {
 				m.selectedBackground = "fire"
-			} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" && m.selectedBackground != "sonar" && m.selectedBackground != "cracktro" && m.selectedBackground != "plasma" && m.selectedBackground != "aquarium" && m.selectedBackground != "ak-47" && m.selectedBackground != "ticker" {
+			} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" && m.selectedBackground != "sonar" && m.selectedBackground != "cracktro" && m.selectedBackground != "plasma" && m.selectedBackground != "aquarium" && m.selectedBackground != "ak-47" && m.selectedBackground != "ansi-love" && m.selectedBackground != "ticker" {
 				m.selectedBackground = "none"
 			}
 
@@ -2047,6 +2131,9 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			newModel, cmd := m.navigateToBackgroundsSubmenu()
 			m2 := newModel.(model)
 			m2.menuIndex = savedIndex
+			if optionName == "ANSI Love" {
+				return m2, tea.Batch(cmd, ansiLoveCmd, m2.requestANSILoveCellSize())
+			}
 			return m2, cmd
 		}
 
@@ -2097,6 +2184,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			switch m.mode {
 			case ModeThemesSubmenu:
 				followingChanged := false
+				var ansiLoveCmd tea.Cmd
 				if strings.HasSuffix(selectedOption, "Follow sysc-shell") {
 					m.followShell = !m.followShell
 					m.config.ThemeName = ""
@@ -2118,6 +2206,17 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.applyInputTheme()
 					if m.selectedBackground == "ak-47" {
 						m.ak47Effect = m.newAK47Effect()
+					}
+					if m.selectedBackground == "ansi-love" {
+						if m.ansiLoveBuildPending || m.ansiLoveEffect == nil {
+							ansiLoveCmd = m.scheduleANSILoveBuild()
+						} else if cfg := m.ansiLoveConfig(); cfg.Palette == "theme" {
+							ansiLoveCmd = m.prepareANSILoveLayout(m.width, m.height, cfg.CellW, cfg.CellH)
+						} else if m.ansiLoveEffect != nil {
+							if err := m.ansiLoveEffect.SetTheme(strings.ReplaceAll(themeName, " ", "-")); err != nil {
+								logDebug("ANSI Love theme: %v", err)
+							}
+						}
 					}
 					// CHANGED 2025-10-03 - Save theme preference
 					// CHANGED 2025-10-03 - Skip saving in test mode
@@ -2150,7 +2249,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					// Aquarium updates palette automatically via UpdatePalette() in backgrounds.go
 					m.mode = ModeLogin
 				}
-				return m, nil
+				if ansiLoveCmd == nil && m.selectedBackground == "ansi-love" && m.ansiLoveResizePending {
+					ansiLoveCmd = m.prepareANSILoveResize(m.width, m.height)
+				}
+				return m, ansiLoveCmd
 
 			case ModeBordersSubmenu:
 				// Restored ASCII border handling
@@ -2539,7 +2641,9 @@ func (m model) View() tea.View {
 		content = m.renderReleaseNotesView(termWidth, termHeight)
 	case ModeScreensaver:
 		// CHANGED 2025-10-10 - Added screensaver rendering
-		content = renderScreensaverView(m, termWidth, termHeight)
+		if m.selectedBackground != "ansi-love" {
+			content = renderScreensaverView(m, termWidth, termHeight)
+		}
 	default:
 		content = m.renderMainView(termWidth, termHeight)
 	}
@@ -2547,6 +2651,12 @@ func (m model) View() tea.View {
 	view := tea.View{AltScreen: m.altScreen, UniformKeyLayout: true}
 	if m.altScreen && !m.config.TestMode {
 		view.MouseMode = tea.MouseModeCellMotion
+	}
+
+	if m.selectedBackground == "ansi-love" && (m.mode == ModeLogin || m.mode == ModePassword || m.mode == ModeScreensaver) {
+		view.Layer = m.ansiLoveCanvas(content, termWidth, termHeight)
+		view.BackgroundColor = BgBase
+		return view
 	}
 
 	// Check if fire background is enabled
@@ -3093,6 +3203,12 @@ func main() {
 		logDebug("Widget configuration warning: %v", err)
 	}
 	config.Ambient = ambient
+	ansiLove, cellOverride, ansiErr := loadANSILoveConfig(filepath.Join(dataDir, "ansi-love.conf"))
+	if ansiErr != nil {
+		fmt.Fprintf(os.Stderr, "ANSI Love configuration warning: %v; using defaults\n", ansiErr)
+		logDebug("ANSI Love configuration warning: %v", ansiErr)
+	}
+	config.ANSILove, config.ANSILoveCellOverride = &ansiLove, cellOverride
 	collector, err := newAmbientCollector(ctx, config.Ambient)
 	if err != nil {
 		cancel()

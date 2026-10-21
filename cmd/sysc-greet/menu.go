@@ -82,6 +82,7 @@ func (m model) navigateToBackgroundsSubmenu() (tea.Model, tea.Cmd) {
 		formatCheckbox("Cracktro", cracktroEnabled),
 		formatCheckbox("Plasma", plasmaEnabled),
 		formatCheckbox("AK-47", ak47Enabled),
+		formatCheckbox("ANSI Love", m.selectedBackground == "ansi-love"),
 		formatSpeedSelector(m.animSpeed),
 	}
 	m.mode = ModeBackgroundsSubmenu

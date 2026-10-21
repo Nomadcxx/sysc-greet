@@ -182,6 +182,27 @@ In Niri, sysc-greet starts a native `sysc-terminal` background on each active ou
 
 Use `--secondary-backgrounds=false` to disable them, `--secondary-exclude DP-3,HDMI-A-1` to exclude outputs, or `--secondary-effect pour` to choose a renderer effect. The default is Matrix. Helpers overlay existing wallpapers; closing them reveals the wallpaper again. Other compositors do not run these helpers.
 
+## ANSI Love background
+
+Select **ANSI Love** in F1 → Backgrounds. The default uses quadrant blocks, original VGA colours, 1.5× zoom, and subtle motion. The login view starts centered and holds there. Screensaver mode tours the artwork at up to 3.2 rows per second, with 2, 3, 3, and 2 second holds. ANSI Love replaces the screensaver clock and ASCII art while selected; authentication controls stay unchanged.
+
+Optional settings go in `/usr/share/sysc-greet/ansi-love.conf` (or `ansi-love.conf` under a custom build's data directory):
+
+```ini
+ansi_love_backend=quad
+ansi_love_fit=pan
+ansi_love_zoom=1.5
+ansi_love_palette=vga
+ansi_love_motion=subtle
+# ansi_love_cell=8x16
+```
+
+Backends: `auto`, `exact`, `half`, `quad`, `sextant`, `octant`, `braille-two-color`, `braille-fg`. Fits: `pan`, `contain`, `width`, `exact`. Zoom accepts 1–3. Palette accepts `vga` or `theme`; motion accepts `off`, `subtle`, `full`. Leave the cell setting unset to query terminal pixel dimensions, with 8×16 as fallback. An explicit `WxH` overrides the terminal reply; each dimension must be 1–1024. Invalid settings print a warning and use defaults so login remains available.
+
+For local preview, run `SYSC_BG=ansi-love sysc-greet --test`. Add `--screensaver` to preview the tour. The source artwork is by Warpus, December 2019; see [third-party notices](THIRD_PARTY_NOTICES.md).
+
+This integration needs the pending sysc-Go ANSI Love release. The dependency stays at its current tag until RAMA publishes that release; development uses a local Go workspace.
+
 ## Documentation
 
 For detailed docs, configuration guides, troubleshooting, and usage instructions, check out the [full documentation site](https://nomadcxx.github.io/sysc-greet/).

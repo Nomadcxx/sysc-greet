@@ -31,6 +31,8 @@ func (m model) applyBackgroundAnimation(content string) string {
 		return m.addCracktroEffect(content)
 	case "plasma":
 		return m.addPlasmaEffect(content)
+	case "ansi-love":
+		return m.addANSILoveEffect(content)
 	case "ak-47":
 		return m.addAK47Effect(content)
 	case "none":
