@@ -461,18 +461,19 @@ type model struct {
 	kittyUpgraded bool // Whether we've upgraded kitty keyboard flags for non-US layout support
 
 	// ASCII Effects
-	typewriterTicker  *animations.TypewriterTicker  // Typewriter ticker for session roasts
-	printEffect       *animations.PrintEffect       // Print effect for ASCII art
-	beamsEffect       *animations.BeamsTextEffect   // Beams text effect for ASCII art
-	pourEffect        *animations.PourEffect        // Pour effect for ASCII art
-	aquariumEffect    *animations.AquariumEffect    // Aquarium background effect
-	sonarEffect       *animations.SonarAnimation    // Sonar background effect
-	cracktroEffect    *animations.CracktroAnimation // Cracktro background effect
-	plasmaEffect      *animations.PlasmaAnimation   // Plasma background effect
-	ak47Effect        *syscgoanimations.AK47Animation
-	l2a1SAREffect     *syscgoanimations.L2A1SARAnimation
-	selectedWallpaper string // gslapper video wallpaper (separate from background effect)
-	gslapperLaunched  bool   // Track if gslapper was launched from cache
+	typewriterTicker    *animations.TypewriterTicker  // Typewriter ticker for session roasts
+	printEffect         *animations.PrintEffect       // Print effect for ASCII art
+	beamsEffect         *animations.BeamsTextEffect   // Beams text effect for ASCII art
+	pourEffect          *animations.PourEffect        // Pour effect for ASCII art
+	aquariumEffect      *animations.AquariumEffect    // Aquarium background effect
+	sonarEffect         *animations.SonarAnimation    // Sonar background effect
+	cracktroEffect      *animations.CracktroAnimation // Cracktro background effect
+	plasmaEffect        *animations.PlasmaAnimation   // Plasma background effect
+	ak47Effect          *syscgoanimations.AK47Animation
+	l2a1SAREffect       *syscgoanimations.L2A1SARAnimation
+	rotatingModelEffect *syscgoanimations.RotatingModelAnimation
+	selectedWallpaper   string // gslapper video wallpaper (separate from background effect)
+	gslapperLaunched    bool   // Track if gslapper was launched from cache
 }
 
 type sessionSelectedMsg sessions.Session
@@ -572,8 +573,9 @@ func (m model) backgroundEffectActive() bool {
 	switch m.selectedBackground {
 	case "fire", "fire+rain", "ascii-rain", "matrix", "fireworks", "sonar", "cracktro", "plasma", "aquarium", "ak-47", "l2a1-sar":
 		return true
+	default:
+		return isRotatingModelBackground(m.selectedBackground)
 	}
-	return false
 }
 
 // cycleAnimSpeed cycles to the next speed preset
@@ -1065,6 +1067,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.l2a1SAREffect != nil {
 			m.l2a1SAREffect.Resize(msg.Width, msg.Height)
 		}
+		if m.rotatingModelEffect != nil {
+			m.rotatingModelEffect.Resize(msg.Width, msg.Height)
+		}
 		return m, nil
 
 	case tickMsg:
@@ -1185,6 +1190,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selectedBackground == "l2a1-sar" && m.l2a1SAREffect == nil {
 			m.l2a1SAREffect = m.newL2A1SAREffect()
 		}
+		if isRotatingModelBackground(m.selectedBackground) && m.rotatingModelEffect == nil {
+			m.rotatingModelEffect = m.newRotatingModelEffect(m.selectedBackground)
+		}
 
 		if (m.enableFire || m.selectedBackground == "fire" || m.selectedBackground == "fire+rain") && m.fireEffect != nil {
 			m.fireEffect.UpdatePalette(animations.GetFirePalette(m.currentTheme))
@@ -1232,6 +1240,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if m.selectedBackground == "l2a1-sar" && m.l2a1SAREffect != nil {
 			m.l2a1SAREffect.Update()
+		}
+		if isRotatingModelBackground(m.selectedBackground) && m.rotatingModelEffect != nil {
+			m.rotatingModelEffect.Update()
 		}
 
 		cmds = append(cmds, doBgTick(m.animSpeed))
@@ -1995,11 +2006,22 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.selectedBackground = "none"
 					m.aquariumEffect = nil
 				}
+			default:
+				if id, ok := rotatingModelBackgroundID(optionName); ok {
+					m.enableFire = false
+					if m.selectedBackground != id {
+						m.selectedBackground = id
+						m.rotatingModelEffect = m.newRotatingModelEffect(id)
+					} else {
+						m.selectedBackground = "none"
+						m.rotatingModelEffect = nil
+					}
+				}
 			}
 
 			if m.enableFire {
 				m.selectedBackground = "fire"
-			} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" && m.selectedBackground != "sonar" && m.selectedBackground != "cracktro" && m.selectedBackground != "plasma" && m.selectedBackground != "aquarium" && m.selectedBackground != "ak-47" && m.selectedBackground != "l2a1-sar" && m.selectedBackground != "ticker" {
+			} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" && m.selectedBackground != "sonar" && m.selectedBackground != "cracktro" && m.selectedBackground != "plasma" && m.selectedBackground != "aquarium" && m.selectedBackground != "ak-47" && m.selectedBackground != "l2a1-sar" && m.selectedBackground != "ticker" && !isRotatingModelBackground(m.selectedBackground) {
 				m.selectedBackground = "none"
 			}
 
@@ -2083,6 +2105,9 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					}
 					if m.selectedBackground == "l2a1-sar" {
 						m.l2a1SAREffect = m.newL2A1SAREffect()
+					}
+					if isRotatingModelBackground(m.selectedBackground) {
+						m.rotatingModelEffect = m.newRotatingModelEffect(m.selectedBackground)
 					}
 					// CHANGED 2025-10-03 - Save theme preference
 					// CHANGED 2025-10-03 - Skip saving in test mode
@@ -2631,6 +2656,17 @@ func (m model) View() tea.View {
 
 	if m.selectedBackground == "l2a1-sar" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		backgroundContent := m.addL2A1SAREffect("")
+		contentWidth := lipgloss.Width(content)
+		contentHeight := lipgloss.Height(content)
+		uiX := (termWidth - contentWidth) / 2
+		uiY := (termHeight - contentHeight) / 2
+		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
+		view.BackgroundColor = BgBase
+		return view
+	}
+
+	if isRotatingModelBackground(m.selectedBackground) && (m.mode == ModeLogin || m.mode == ModePassword) {
+		backgroundContent := m.addRotatingModelEffect("")
 		contentWidth := lipgloss.Width(content)
 		contentHeight := lipgloss.Height(content)
 		uiX := (termWidth - contentWidth) / 2
