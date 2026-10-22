@@ -53,7 +53,9 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 			key := strings.TrimSpace(parts[0])
 			value := strings.TrimSpace(parts[1])
 
-			if inASCII && (quotedASCII || !isASCIIConfigKey(key)) {
+			isConfigAssignment := isASCIIConfigKey(key) && parts[0] == key && parts[1] == value
+			// ponytail: Unquoted variants lack a terminator; quote blocks when art needs a tight key=value row.
+			if inASCII && (quotedASCII || !isConfigAssignment) {
 				currentVariantLines = append(currentVariantLines, line)
 				continue
 			}

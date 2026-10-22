@@ -16,15 +16,15 @@ func TestLoadASCIIConfigPreservesEqualsInArt(t *testing.T) {
 			name: "quoted export",
 			content: "ansi_style=true\n" +
 				"ascii_1=\"\"\"\n" +
-				"top\nleft = right\nbottom\n" +
+				"top\nname=inside art\nleft = right\nbottom\n" +
 				"\"\"\"\nroasts=one│two\n",
-			want: []string{"top\nleft = right\nbottom"},
+			want: []string{"top\nname=inside art\nleft = right\nbottom"},
 		},
 		{
 			name: "unquoted variants",
-			content: "ascii_1=\ntop\nleft = right\nbottom\n" +
+			content: "ascii_1=\ntop\nleft = right\nname = art\nbottom\n" +
 				"ascii_2=\nsecond\ncolors=#fff\nroasts=one│two\n",
-			want: []string{"top\nleft = right\nbottom", "second"},
+			want: []string{"top\nleft = right\nname = art\nbottom", "second"},
 		},
 	}
 
