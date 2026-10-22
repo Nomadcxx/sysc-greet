@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/BurntSushi/toml v1.5.0
-	github.com/Nomadcxx/sysc-Go v1.0.9-0.20261021193051-b2ab26d1a6db
+	github.com/Nomadcxx/sysc-Go v1.0.9-0.20261021202643-46e181002a76
 	github.com/Nomadcxx/sysc-metrics v0.7.1
 	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbles/v2 v2.0.0-beta.1

@@ -14,6 +14,16 @@ var rotatingModelBackgrounds = [...]struct{ id, label string }{
 	{"lowe", "Löwe"},
 	{"roman-gladiator", "Roman Gladiator"},
 	{"grabfigur", "Grabfigur"},
+	{"laocoon-and-his-sons", "Laocoon and His Sons"},
+	{"napoleon-bust", "Napoleon Bust"},
+	{"brandenburg-gate", "Brandenburg Gate"},
+	{"louis-xiv", "Louis XIV"},
+	{"engel", "Engel"},
+	{"st-george", "St George"},
+	{"santa-muerte", "Santa Muerte"},
+	{"aspasia", "Aspasia"},
+	{"st-nepomuk", "St Nepomuk"},
+	{"lion-statue", "Lion Statue"},
 }
 
 func isRotatingModelBackground(id string) bool {
