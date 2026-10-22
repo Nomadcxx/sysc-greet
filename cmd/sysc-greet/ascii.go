@@ -15,6 +15,16 @@ import (
 // ascii.go - ASCII art configuration, loading, rendering, and animations
 // Extracted from main.go on 2025-10-11 for better code organization
 
+// isASCIIConfigKey identifies variant headers and config lines that can follow unquoted art.
+func isASCIIConfigKey(key string) bool {
+	switch key {
+	case "ascii", "name", "color", "colors", "ansi_style", "animation_style", "animation_speed", "animation_direction", "roasts":
+		return true
+	default:
+		return strings.HasPrefix(key, "ascii_")
+	}
+}
+
 func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 	var config ASCIIConfig
 
@@ -28,6 +38,7 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 
 	var currentVariantLines []string
 	inASCII := false
+	quotedASCII := false
 
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
@@ -41,6 +52,13 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 			parts := strings.SplitN(trimmedLine, "=", 2)
 			key := strings.TrimSpace(parts[0])
 			value := strings.TrimSpace(parts[1])
+
+			isConfigAssignment := isASCIIConfigKey(key) && parts[0] == key && parts[1] == value
+			// ponytail: Unquoted variants lack a terminator; quote blocks when art needs a tight key=value row.
+			if inASCII && (quotedASCII || !isConfigAssignment) {
+				currentVariantLines = append(currentVariantLines, line)
+				continue
+			}
 
 			// Check if this is a new ASCII variant (ascii_1, ascii_2, etc.)
 			if strings.HasPrefix(key, "ascii_") || key == "ascii" {
@@ -62,25 +80,29 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 				// Start new variant
 				currentVariantLines = []string{}
 				inASCII = true
+				quotedASCII = value == `"""`
 
 				if value != "" && value != `"""` {
 					currentVariantLines = append(currentVariantLines, value)
 				}
 			} else {
 				// Save any pending ASCII variant before switching to other keys
-				if inASCII && len(currentVariantLines) > 0 {
-					variant := strings.Join(currentVariantLines, "\n")
-					variant = strings.TrimRight(variant, "\n")
-					config.ASCIIVariants = append(config.ASCIIVariants, variant)
+				if inASCII {
+					if len(currentVariantLines) > 0 {
+						variant := strings.Join(currentVariantLines, "\n")
+						variant = strings.TrimRight(variant, "\n")
+						config.ASCIIVariants = append(config.ASCIIVariants, variant)
 
-					variantLines := strings.Split(variant, "\n")
-					height := len(variantLines)
-					if height > config.MaxASCIIHeight {
-						config.MaxASCIIHeight = height
+						variantLines := strings.Split(variant, "\n")
+						height := len(variantLines)
+						if height > config.MaxASCIIHeight {
+							config.MaxASCIIHeight = height
+						}
 					}
 
 					currentVariantLines = []string{}
 					inASCII = false
+					quotedASCII = false
 				}
 
 				// Handle other config keys
@@ -117,6 +139,7 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 				}
 				currentVariantLines = []string{}
 				inASCII = false
+				quotedASCII = false
 				continue
 			}
 			currentVariantLines = append(currentVariantLines, line)
