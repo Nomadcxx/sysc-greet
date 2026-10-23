@@ -2,7 +2,8 @@
 """Play a demo timeline against a sysc-greet Kitty window.
 
 Timeline lines: "<seconds> keys <key>...", "<seconds> expect <label>",
-"<seconds> mark <name>". "#" starts a comment.
+"<seconds> mark <name>". "keys@<seconds>" sets the gap between that step's
+keys (default KEY_GAP). "#" starts a comment.
 """
 import argparse
 import json
@@ -31,6 +32,7 @@ class Step(NamedTuple):
     action: str
     args: tuple
     line: int
+    gap: float = KEY_GAP
 
 
 def parse_timeline(text: str) -> list:
@@ -47,6 +49,15 @@ def parse_timeline(text: str) -> list:
         except ValueError:
             raise TimelineError(f"line {number}: time {fields[0]!r} is not a number") from None
         action = fields[1] if len(fields) > 1 else ""
+        gap = KEY_GAP
+        if action.startswith("keys@"):
+            try:
+                gap = float(action[5:])
+            except ValueError:
+                gap = 0.0
+            if gap <= 0:
+                raise TimelineError(f"line {number}: key gap in {action!r} must be a positive number")
+            action = "keys"
         if action not in ACTIONS:
             raise TimelineError(f"line {number}: unknown action {action!r}")
         rest = fields[2] if len(fields) > 2 else ""
@@ -64,8 +75,8 @@ def parse_timeline(text: str) -> list:
                 raise TimelineError(f"line {number}: mark {args[0]!r} is already defined")
             marks.add(args[0])
         if action == "keys":
-            busy_until = at + KEY_GAP * (len(args) - 1)
-        steps.append(Step(at, action, args, number))
+            busy_until = at + gap * (len(args) - 1)
+        steps.append(Step(at, action, args, number, gap))
     return steps
 
 
@@ -120,7 +131,7 @@ def run(
             marks[step.args[0]] = round(clock() - start, 3)
         elif step.action == "keys":
             for index, key in enumerate(step.args):
-                wait_until(step.at + index * KEY_GAP)
+                wait_until(step.at + index * step.gap)
                 send_key(key)
         else:
             screen = screen_ansi()
@@ -160,6 +171,10 @@ def main(argv=None) -> int:
         marks = run(steps, kitty.send_key, kitty.screen_ansi)
     except (TimelineError, ExpectError) as error:
         print(f"{options.timeline}: {error}", file=sys.stderr)
+        return 1
+    except subprocess.CalledProcessError as error:
+        command = " ".join(arg for arg in error.cmd if not arg.startswith("unix:") and arg not in ("kitten", "@", "--to"))
+        print(f"kitty rejected '{command}': {(error.stderr or '').strip() or f'exit {error.returncode}'}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
         print("interrupted", file=sys.stderr)

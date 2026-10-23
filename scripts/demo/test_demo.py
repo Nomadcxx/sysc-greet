@@ -1,3 +1,5 @@
+import contextlib
+import io
 import os
 import shutil
 import subprocess
@@ -34,6 +36,18 @@ class TimelineParseTest(unittest.TestCase):
             ],
         )
         self.assertEqual(tour.parse_timeline("3 expect Theme: Tokyo Night")[0].args, ("Theme: Tokyo Night",))
+
+    def test_parse_keys_gap(self):
+        steps = tour.parse_timeline("1 keys@0.1 down down down\n1.2 keys enter")
+        self.assertEqual(steps[0], tour.Step(1.0, "keys", ("down", "down", "down"), 1, 0.1))
+        self.assertEqual(steps[1].gap, tour.KEY_GAP)
+        with self.assertRaises(tour.TimelineError) as caught:
+            tour.parse_timeline("1 keys@0.1 down down down\n1.15 keys enter")
+        self.assertTrue(str(caught.exception).startswith("line 2:"))
+        for bad in ("1 keys@x down", "1 keys@0 down", "1 expect@0.1 Themes"):
+            with self.subTest(bad=bad):
+                with self.assertRaises(tour.TimelineError):
+                    tour.parse_timeline(bad)
 
     def test_parse_rejects(self):
         cases = {
@@ -76,6 +90,13 @@ class RunTest(unittest.TestCase):
         self.assertEqual(sent, [("f1", 1.0), ("down", 1.2)])
         self.assertEqual(marks, {"start": 0.0, "end": 2.0})
 
+    def test_run_keys_gap(self):
+        fake = FakeTime()
+        sent = []
+        steps = tour.parse_timeline("1 keys@0.1 down down down")
+        tour.run(steps, lambda key: sent.append(round(fake.now, 3)), lambda: "", fake.clock, fake.sleep)
+        self.assertEqual(sent, [1.0, 1.1, 1.2])
+
     def test_run_expect_fails(self):
         fake = FakeTime()
         steps = tour.parse_timeline("0 expect Theme: RAMA")
@@ -91,6 +112,26 @@ class RunTest(unittest.TestCase):
         self.assertIn("Theme: RAMA", message)
         self.assertIn("  Theme: Dark\n  Theme: RAMA", message)
         self.assertNotIn("\x1b", message)
+
+    def test_main_reports_kitten_failure(self):
+        def failing(*args, **kwargs):
+            raise subprocess.CalledProcessError(1, ["kitten", "@", "send-key", "f1"], stderr="Error: No matching windows\n")
+
+        with tempfile.TemporaryDirectory() as directory:
+            timeline = os.path.join(directory, "t.timeline")
+            with open(timeline, "w", encoding="utf-8") as handle:
+                handle.write("0 mark start\n")
+            original = tour.run
+            tour.run = failing
+            stderr = io.StringIO()
+            try:
+                with contextlib.redirect_stderr(stderr):
+                    code = tour.main(["--socket", "unix:/none", "--timeline", timeline, "--marks", os.path.join(directory, "m")])
+            finally:
+                tour.run = original
+        self.assertEqual(code, 1)
+        self.assertIn("send-key f1", stderr.getvalue())
+        self.assertIn("No matching windows", stderr.getvalue())
 
     def test_main_interrupt_exits_130(self):
         def interrupted(*args, **kwargs):

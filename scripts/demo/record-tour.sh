@@ -27,10 +27,13 @@ SYSC_GREET_BIN=${SYSC_GREET_BIN:-/usr/local/bin/sysc-greet}
 DEMO_FONT_SIZE=${DEMO_FONT_SIZE:-13}
 WANT_VERSION=v1.2.0
 OPENING_THEME=tokyo-night
+OPENING_SESSION=mango
+FORM_MODE=frosted
 OUTPUT_NAME=eDP-1
 GRID_COLUMNS=(140 160)
 GRID_LINES=(34 42)
 MAX_BYTES=15728640
+MIN_SECONDS=${DEMO_MIN_SECONDS:-40}
 ENCODE_FPS=24
 ENCODE_QUALITY=70
 
@@ -46,7 +49,9 @@ if [ -z "${DEMO_INHIBITED:-}" ]; then
 fi
 
 say "Preflight"
-version=$("$SYSC_GREET_BIN" --version 2>/dev/null | head -1) || fail "$SYSC_GREET_BIN does not run"
+# Read all of --version: piping into head can SIGPIPE it under pipefail.
+version=$("$SYSC_GREET_BIN" --version 2>/dev/null) || fail "$SYSC_GREET_BIN does not run"
+version=${version%%$'\n'*}
 [[ $version == *"$WANT_VERSION"* ]] || fail "$SYSC_GREET_BIN reports '${version:-nothing}', need $WANT_VERSION"
 tools=(kitty kitten niri ffmpeg python3)
 [ "$CHECK" -eq 1 ] || tools+=(gpu-screen-recorder webpmux)
@@ -108,11 +113,14 @@ else
 fi
 
 say "Opening Kitty"
+# --test never reads or writes preferences; the throwaway HOME keeps any other
+# cache files out of the user's home. The timeline sets the opening border in
+# its lead-in, before "mark start", so that part is trimmed from the video.
 mkdir -p "$work/home"
 niri msg action spawn -- kitty --class sysc-greet-demo --config /etc/greetd/kitty.conf \
     -o background_opacity=1.0 -o allow_remote_control=socket-only -o mouse_hide_wait=0 \
     -o "font_size=$DEMO_FONT_SIZE" --listen-on "unix:$socket" --start-as=fullscreen \
-    env "HOME=$work/home" "$SYSC_GREET_BIN" --test --test-session niri --theme "$OPENING_THEME" --follow-shell=false
+    env "HOME=$work/home" "$SYSC_GREET_BIN" --test --test-session "$OPENING_SESSION" --theme "$OPENING_THEME" --form-mode "$FORM_MODE" --follow-shell=false
 for _ in $(seq 100); do [ -S "$socket" ] && break; sleep 0.1; done
 [ -S "$socket" ] || fail "Kitty did not open its control socket within 10 s"
 
@@ -157,14 +165,14 @@ read -r trim_start trim_end < <(python3 -c '
 import json, sys
 marks = json.load(open(sys.argv[1]))
 offset = float(sys.argv[2]) - float(sys.argv[3])
-print(f"{marks[\"start\"] + offset:.3f} {marks[\"end\"] + offset:.3f}")' \
+print("%.3f %.3f" % (marks["start"] + offset, marks["end"] + offset))' \
     "$work/marks.json" "$tour_start" "$recorder_start")
 
 say "Encoding ${trim_start}s-${trim_end}s at $ENCODE_FPS fps, quality $ENCODE_QUALITY"
 ffmpeg -v error -y -ss "$trim_start" -to "$trim_end" -i "$work/capture.mkv" -vf "fps=$ENCODE_FPS" \
     -c:v libwebp_anim -lossless 0 -q:v "$ENCODE_QUALITY" -compression_level 6 -loop 0 "$work/showcase.webp"
 python3 "$here/webp_report.py" "$work/showcase.webp" --max-bytes "$MAX_BYTES" \
-    --min-seconds 40 --max-seconds 60 --size 1920x1080 || fail "encoded WebP is outside the limits; $OUT unchanged"
+    --min-seconds "$MIN_SECONDS" --max-seconds 60 --size 1920x1080 || fail "encoded WebP is outside the limits; $OUT unchanged"
 mkdir -p "$(dirname "$OUT")"
 mv "$work/showcase.webp" "$OUT"
 say "Wrote $OUT (encode fps $ENCODE_FPS, quality $ENCODE_QUALITY)"
