@@ -1,0 +1,6 @@
+# Smoke timeline: open and close the menu. Task 4 replaces this with the tour.
+0   mark start
+1   keys f1
+1.6 expect Close Menu
+2   keys esc
+3   mark end

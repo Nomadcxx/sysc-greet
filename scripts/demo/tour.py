@@ -161,6 +161,9 @@ def main(argv=None) -> int:
     except (TimelineError, ExpectError) as error:
         print(f"{options.timeline}: {error}", file=sys.stderr)
         return 1
+    except KeyboardInterrupt:
+        print("interrupted", file=sys.stderr)
+        return 130
     with open(options.marks, "w", encoding="utf-8") as handle:
         json.dump(marks, handle)
     return 0

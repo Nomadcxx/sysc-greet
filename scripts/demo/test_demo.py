@@ -92,6 +92,22 @@ class RunTest(unittest.TestCase):
         self.assertIn("  Theme: Dark\n  Theme: RAMA", message)
         self.assertNotIn("\x1b", message)
 
+    def test_main_interrupt_exits_130(self):
+        def interrupted(*args, **kwargs):
+            raise KeyboardInterrupt
+
+        with tempfile.TemporaryDirectory() as directory:
+            timeline = os.path.join(directory, "t.timeline")
+            with open(timeline, "w", encoding="utf-8") as handle:
+                handle.write("0 mark start\n")
+            original = tour.run
+            tour.run = interrupted
+            try:
+                code = tour.main(["--socket", "unix:/none", "--timeline", timeline, "--marks", os.path.join(directory, "m")])
+            finally:
+                tour.run = original
+        self.assertEqual(code, 130)
+
 
 # Real `webpmux -info` output (libwebp-utils 1.6.0) for ffmpeg testsrc 64x48, 3 frames at 10 fps;
 # libwebp_anim merged the first two identical frames into one 200 ms frame.
