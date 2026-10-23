@@ -42,10 +42,10 @@ else
   fail "installer does not reference cagebreak"
 fi
 
-if [[ -f "${ROOT}/docs-src/compositors/cagebreak.md" ]]; then
+if [[ -f "${ROOT}/docs-site/content/docs/compositors/cagebreak.md" ]]; then
   pass "cagebreak docs present"
 else
-  fail "docs-src/compositors/cagebreak.md missing"
+  fail "docs-site/content/docs/compositors/cagebreak.md missing"
 fi
 
 echo

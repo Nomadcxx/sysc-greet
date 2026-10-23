@@ -21,7 +21,7 @@
 # session: on exit mango stops graphical-session.target.
 set -euo pipefail
 
-MANGO_VERSION=0.17.4
+MANGO_VERSION=0.18.2
 WLROOTS_VERSION=0.20.2
 SCENEFX_VERSION=0.5
 WAYLAND_VERSION=1.24.0

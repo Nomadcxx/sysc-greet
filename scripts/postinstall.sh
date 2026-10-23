@@ -41,6 +41,9 @@ if [ "${SYSC_COMPOSITOR:-}" = "hyprland" ]; then
 elif command -v niri &>/dev/null; then
     COMPOSITOR="niri"
     GREETD_COMMAND="niri -c /etc/greetd/niri-greeter-config.kdl"
+elif command -v sysc-compositor &>/dev/null; then
+    COMPOSITOR="sysc-compositor"
+    GREETD_COMMAND="sysc-compositor -c /etc/greetd/niri-greeter-config.kdl"
 elif command -v cagebreak &>/dev/null; then
     COMPOSITOR="cagebreak"
     GREETD_COMMAND="cagebreak -e -c /etc/greetd/cagebreak-greeter-config"
@@ -53,10 +56,22 @@ elif command -v mango &>/dev/null; then
 fi
 
 if [ -z "$COMPOSITOR" ]; then
-    echo "WARNING: No supported greeter backend detected (niri, cagebreak, sway, mango)"
-    echo "Please install niri or cagebreak and manually configure /etc/greetd/config.toml"
+    echo "WARNING: No supported greeter backend detected (niri, sysc-compositor, cagebreak, sway, mango)"
+    echo "Please install a supported compositor and manually configure /etc/greetd/config.toml"
 else
     echo "Detected backend: $COMPOSITOR"
+
+    case "$COMPOSITOR" in
+        hyprland) COMPOSITOR_DOC_URL="https://nomadcxx.github.io/sysc-greet/docs/compositors/hyprland/" ;;
+        cagebreak) COMPOSITOR_DOC_URL="https://nomadcxx.github.io/sysc-greet/docs/compositors/cagebreak/" ;;
+        mango) COMPOSITOR_DOC_URL="https://nomadcxx.github.io/sysc-greet/docs/compositors/mango/" ;;
+        niri) COMPOSITOR_DOC_URL="https://nomadcxx.github.io/sysc-greet/docs/compositors/niri/" ;;
+        sway) COMPOSITOR_DOC_URL="https://nomadcxx.github.io/sysc-greet/docs/compositors/sway/" ;;
+        *) COMPOSITOR_DOC_URL="" ;;
+    esac
+    if [ -n "$COMPOSITOR_DOC_URL" ]; then
+        echo "Setup guide: $COMPOSITOR_DOC_URL"
+    fi
 
     if [ "$COMPOSITOR" = "hyprland" ]; then
         echo "WARNING: Hyprland greeter is opt-in and requires physical startup, login, and quit verification."

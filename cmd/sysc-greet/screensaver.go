@@ -203,20 +203,9 @@ func renderScreensaverView(m model, termWidth, termHeight int) string {
 	dateStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(palette[5]))
 	printHeadStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(palette[2])).Bold(true)
 
-	// Cycle through ASCII variants every 30 seconds
-	// CHANGED 2025-10-12 - Fix screensaver starting at ascii_2 instead of ascii_1
-	// Calculate seconds since screensaver activation for faster cycling
-	secondsSinceActivation := 0
-	if m.screensaverActive {
-		secondsSinceActivation = int(time.Since(m.screensaverTime).Seconds())
-	}
-	variantIndex := (secondsSinceActivation / 30) % len(config.ASCIIVariants)
+	// One activation clock keeps the selected art in sync across output children.
+	variantIndex := screensaverVariantIndex(len(config.ASCIIVariants), m.screensaverStart, m.screensaverTime)
 	selectedASCII := config.ASCIIVariants[variantIndex]
-
-	if m.config.Debug {
-		logDebug("Screensaver: %d variants loaded, showing variant %d (after %d seconds)",
-			len(config.ASCIIVariants), variantIndex, secondsSinceActivation)
-	}
 
 	// Get current time and date
 	currentTime := m.screensaverTime
@@ -276,10 +265,23 @@ func renderScreensaverView(m model, termWidth, termHeight int) string {
 	return centeredContent
 }
 
+func screensaverVariantIndex(count int, startedAt, now time.Time) int {
+	if count <= 1 || startedAt.IsZero() || now.Before(startedAt) {
+		return 0
+	}
+	return int(now.Sub(startedAt)/(30*time.Second)) % count
+}
+
 // handleScreensaverInput handles input in screensaver mode
 func handleScreensaverInput(m model, msg tea.KeyMsg) (model, tea.Cmd) {
-	// Exit screensaver on any key press
+	return leaveScreensaver(m), nil
+}
+
+func leaveScreensaver(m model) model {
 	m.mode = ModeLogin
 	m.idleTimer = time.Now()
-	return m, nil
+	m.screensaverStart = time.Time{}
+	m.screensaverActive = false
+	m.screensaverPrint = nil
+	return m
 }

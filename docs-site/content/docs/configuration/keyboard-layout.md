@@ -49,13 +49,15 @@ xkb_rules_layout=de
 
 `xkb_rules_variant` and `xkb_rules_options` set the variant and options.
 
-## hyprland
+## Hyprland 0.55+
 
-Edit `/etc/greetd/hyprland-greeter-config.conf`:
+Edit `/etc/greetd/hyprland-greeter-config.lua`. Set `kb_layout` in the existing `input` table passed to `hl.config`:
 
-```ini
-input {
-    kb_layout = de
+```lua
+input = {
+    kb_layout = "de",
+    repeat_delay = 400,
+    repeat_rate = 40,
 }
 ```
 
@@ -79,11 +81,7 @@ spawn-sh-at-startup "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB
 exec "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB_DEFAULT_LAYOUT=fr XKB_DEFAULT_VARIANT=oss kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; swaymsg exit"
 ```
 
-**hyprland** (`/etc/greetd/hyprland-greeter-config.conf`):
-
-```ini
-exec-once = XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB_DEFAULT_LAYOUT=fr XKB_DEFAULT_VARIANT=oss kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
-```
+**Hyprland 0.55+:** add `XKB_DEFAULT_LAYOUT=fr XKB_DEFAULT_VARIANT=oss` to the `env` assignments on the Kitty `hl.exec_cmd` line in `/etc/greetd/hyprland-greeter-config.lua`.
 
 **mango** (`/etc/greetd/mango-greeter-session.sh`, before the `kitty` line):
 
@@ -115,11 +113,7 @@ spawn-sh-at-startup "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB
 exec "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB_DEFAULT_LAYOUT=us XKB_DEFAULT_VARIANT=dvorak kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; swaymsg exit"
 ```
 
-**hyprland** (`/etc/greetd/hyprland-greeter-config.conf`):
-
-```ini
-exec-once = XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter XKB_DEFAULT_LAYOUT=us XKB_DEFAULT_VARIANT=dvorak kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
-```
+**Hyprland 0.55+:** add `XKB_DEFAULT_LAYOUT=us XKB_DEFAULT_VARIANT=dvorak` to the `env` assignments on the Kitty `hl.exec_cmd` line in `/etc/greetd/hyprland-greeter-config.lua`.
 
 **mango** (`/etc/greetd/mango-greeter-session.sh`, before the `kitty` line):
 

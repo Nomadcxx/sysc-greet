@@ -14,11 +14,11 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.
 ```
 
 The interactive installer will prompt you to:
-1. Choose your greeter backend: niri (default), cagebreak, sway, mango, or a preinstalled sysc-compositor in development builds
+1. Choose your greeter backend: Niri (default), Cagebreak, Sway, Mango, or a separately installed sysc-compositor
 2. Configure backend settings
 3. Install dependencies automatically
 
-> The installer no longer offers Hyprland, which is deprecated and unmaintained. Migrate to [cagebreak](../compositors/cagebreak) or [niri](../compositors/niri).
+> Set `SYSC_COMPOSITOR=hyprland` when running the installer to opt into Hyprland 0.55+. The installer then shows its Lua based backend option. Check startup, login, and quit on the target machine before enabling greetd.
 
 ## Manual Build
 
@@ -26,7 +26,7 @@ The interactive installer will prompt you to:
 
 - Go 1.25+
 - greetd
-- Wayland backend: niri (default), cagebreak, sway, mango, or hyprland (deprecated)
+- Wayland backend: Niri (default), Cagebreak, Sway, Mango, sysc-compositor, or Hyprland 0.55+
 - kitty (terminal emulator)
 - gSlapper (wallpaper daemon)
 - swww (legacy wallpaper daemon, optional fallback)
@@ -56,7 +56,7 @@ sysc-greet provides five AUR packages, one per greeter backend:
 # niri (default)
 yay -S sysc-greet
 
-# Cagebreak variant (the Hyprland replacement)
+# Cagebreak variant
 yay -S sysc-greet-cagebreak
 
 # Sway variant
@@ -65,11 +65,11 @@ yay -S sysc-greet-sway
 # Mango variant
 yay -S sysc-greet-mango
 
-# Hyprland variant (deprecated, replaced by cagebreak)
+# Hyprland 0.55+ Lua variant
 yay -S sysc-greet-hyprland
 ```
 
-The packages conflict with each other — install exactly one. Each pulls in its compositor as a dependency; `sysc-greet-cagebreak` also pulls in socat, which is required to quit the compositor after login.
+The packages conflict with each other, so install exactly one. Each pulls in its compositor as a dependency. The Hyprland package requires version 0.55 or newer; the Cagebreak package also installs socat so it can quit Cagebreak after login.
 
 ## Pre-built Packages
 
@@ -78,8 +78,8 @@ Download pre-built packages from [GitHub Releases](https://github.com/Nomadcxx/s
 ### Debian/Ubuntu (.deb)
 
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.11/sysc-greet_1.1.11_amd64.deb
-sudo apt install ./sysc-greet_1.1.11_amd64.deb
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.2.0/sysc-greet_1.2.0_amd64.deb
+sudo apt install ./sysc-greet_1.2.0_amd64.deb
 ```
 
 The package will:
@@ -93,8 +93,8 @@ The package will:
 ### Fedora (.rpm)
 
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.11/sysc-greet-1.1.11-1.x86_64.rpm
-sudo dnf install ./sysc-greet-1.1.11-1.x86_64.rpm
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.2.0/sysc-greet-1.2.0-1.x86_64.rpm
+sudo dnf install ./sysc-greet-1.2.0-1.x86_64.rpm
 ```
 
 After installation, **reboot** your system to see sysc-greet.
@@ -152,12 +152,14 @@ user = "greeter"
 
 The session script starts the greeter and quits mango with `mmsg` after login. See [Mango Setup](../compositors/mango).
 
-**Hyprland (deprecated):**
+**Hyprland 0.55+:**
 ```toml
 [default_session]
-command = "Hyprland -c /etc/greetd/hyprland-greeter-config.conf"
+command = "start-hyprland -- --config /etc/greetd/hyprland-greeter-config.lua"
 user = "greeter"
 ```
+
+The Lua config installs at `/etc/greetd/hyprland-greeter-config.lua`. The AUR package sets this command when you choose the Hyprland variant. For the source installer, set `SYSC_COMPOSITOR=hyprland` before starting it.
 
 All compositor configs are installed at `/etc/greetd/`. Save the file and reboot to apply the change.
 
@@ -193,7 +195,7 @@ All compositor configs are installed at `/etc/greetd/`. Save the file and reboot
 {
   services.sysc-greet = {
     enable = true;
-    compositor = "niri";  # or "cagebreak", "sway", "mango", "hyprland" (deprecated)
+    compositor = "niri";  # or "cagebreak", "sway", "mango", "hyprland" (0.55+)
   };
 
   # Optional: Set initial session for auto-login
@@ -233,7 +235,7 @@ command = "niri -c /etc/greetd/niri-greeter-config.kdl"
 # command = "cagebreak -e -c /etc/greetd/cagebreak-greeter-config"
 # command = "sway --unsupported-gpu -c /etc/greetd/sway-greeter-config"
 # command = "mango -c /etc/greetd/mango-greeter-config.conf -s /etc/greetd/mango-greeter-session.sh"
-# command = "start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
+# command = "start-hyprland -- --config /etc/greetd/hyprland-greeter-config.lua"
 user = "greeter"
 ```
 
@@ -255,8 +257,8 @@ sudo cp config/sway-greeter-config /etc/greetd/
 sudo cp config/mango-greeter-config.conf /etc/greetd/
 sudo install -m755 config/mango-greeter-session.sh /etc/greetd/
 
-# hyprland (deprecated)
-sudo cp config/hyprland-greeter-config.conf /etc/greetd/
+# Hyprland 0.55+
+sudo cp config/hyprland-greeter-config.lua /etc/greetd/
 ```
 
 ### Create Greeter User

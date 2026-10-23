@@ -1,120 +1,42 @@
 ---
 title: "Hyprland Setup"
-description: "Hyprland greeter support is deprecated and unmaintained. It will be removed in a future release."
+description: "Run the sysc-greet session with Hyprland 0.55+ and its Lua launcher."
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
 
-<Callout type="warn" title="Deprecated">
+<Callout type="warn" title="Explicit opt-in">
 
-Hyprland greeter support is deprecated. Hyprland config and launcher changes break the greeter too often to maintain, so this path receives no fixes and will be removed in a future release.
+The Hyprland greeter requires Hyprland 0.55 or newer. It uses `start-hyprland` and the Lua config. The installer shows it only when you set `SYSC_COMPOSITOR=hyprland`.
 
-Migrate to [cagebreak](/docs/compositors/cagebreak), the Hyprland replacement, or [niri](/docs/compositors/niri), the default.
-
-The installer no longer offers Hyprland. `SYSC_COMPOSITOR=hyprland` still writes this config for one more release.
-
-Your Hyprland desktop session is unaffected. Only the boot greeter changes.
+Check startup, login, and quit on the target machine before enabling greetd.
 
 </Callout>
 
-Configuration for running sysc-greet with the Hyprland Wayland compositor.
+## Installer
 
-## greetd Config
-
-Edit `/etc/greetd/config.toml`:
-
-```toml
-[terminal]
-vt = 1
-
-[default_session]
-command = "start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
-user = "greeter"
-
-[initial_session]
-command = "start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
-user = "greeter"
-```
-
-## Compositor Config
-
-Edit `/etc/greetd/hyprland-greeter-config.conf`:
-
-```ini
-# SYSC-Greet Hyprland config for greetd greeter session
-# Monitors auto-detected by Hyprland at runtime
-
-# No animations for faster greeter startup
-animations {
-    enabled = false
-}
-
-# Minimal decorations
-decoration {
-    rounding = 0
-    blur {
-        enabled = false
-    }
-}
-
-# Greeter doesn't need gaps
-general {
-    gaps_in = 0
-    gaps_out = 0
-    border_size = 0
-}
-
-misc {
-    disable_hyprland_logo = true
-    disable_splash_rendering = true
-    background_color = rgb(000000)
-    # Suppress watchdog warning - greetd doesn't pass fd properly to start-hyprland
-    disable_watchdog_warning = true
-}
-
-# Input configuration
-input {
-    kb_layout = us
-    repeat_delay = 400
-    repeat_rate = 40
-
-    touchpad {
-        tap-to-click = true
-    }
-}
-
-# Window rules for kitty greeter
-windowrule = match:class ^(kitty)$, fullscreen on, opacity 1.0
-
-# Layer rules for wallpaper daemon
-layerrule = match:namespace wallpaper, blur on
-
-# Startup applications
-# Start gslapper with the cached greeter wallpaper (forked to background with IPC socket)
-exec-once = HOME=/var/lib/greeter /usr/local/bin/sysc-greet --wallpaper-daemon
-exec-once = XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet && hyprctl dispatch exit
-```
-
-## Cursor Visibility
-
-To hide the cursor completely, add:
-
-```ini
-cursor {
-    invisible = true
-}
-```
-
-## Keyboard Layout
-
-Change `kb_layout = us` to your preferred layout. See [Keyboard Layout](../configuration/keyboard-layout) for details.
-
-## Verification
+From a source checkout, expose the Hyprland option with:
 
 ```bash
-# Restart greetd
-sudo systemctl restart greetd
-
-# Check logs
-journalctl -u greetd -n 50
+SYSC_COMPOSITOR=hyprland go run ./cmd/installer/
 ```
+
+The `sysc-greet-hyprland` AUR package also selects this backend. Install Hyprland 0.55 or newer first when using another package format.
+
+## greetd Command
+
+The greeter config lives at `/etc/greetd/hyprland-greeter-config.lua`. Set both greetd session commands to:
+
+```toml
+[default_session]
+command = "start-hyprland -- --config /etc/greetd/hyprland-greeter-config.lua"
+user = "greeter"
+```
+
+The installer and package use this command. After changing greetd configuration, reboot to activate it.
+
+## Lua Config
+
+The repository ships `config/hyprland-greeter-config.lua`. It disables animations and decorations, starts the wallpaper daemon, and launches fullscreen Kitty with sysc-greet. After Kitty exits, the config asks Hyprland to quit so greetd can continue with the user session.
+
+Run `luac -p config/hyprland-greeter-config.lua` to check Lua syntax. This check does not verify compositor startup, authentication, or quit behavior. Those checks still need a physical Hyprland test.

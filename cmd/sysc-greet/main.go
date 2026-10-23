@@ -11,7 +11,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -325,6 +324,7 @@ type Config struct {
 	ShellThemeFile   string
 	TestMode         bool
 	TestSession      string
+	SecondarySaver   bool
 	Debug            bool
 	ShowTime         bool
 	ThemeName        string
@@ -336,6 +336,14 @@ type Config struct {
 	FormDim          float64
 	Ambient          ambientConfig
 	Secondary        secondaryConfig
+}
+
+func shouldCreateGreetdIPC(config Config) bool {
+	return !config.TestMode && !config.SecondarySaver
+}
+
+func shouldLoadUserPreferences(config Config) bool {
+	return !config.TestMode && !config.SecondarySaver
 }
 
 type ViewMode string
@@ -367,25 +375,27 @@ const (
 )
 
 type model struct {
-	frameCache      *frameCache
-	ambient         *ambientCollector
-	followShell     bool
-	hideAmbient     bool // Set only on render copies when optional status cannot fit.
-	machine         metricsMsg
-	weather         weatherMsg
-	gpu             gpuMsg
-	secondary       secondaryMsg
-	secondaryTheme  *atomic.Value
-	usernameInput   textinput.Model
-	passwordInput   textinput.Model
-	spinner         spinner.Model
-	sessions        []sessions.Session
-	selectedSession *sessions.Session
-	sessionIndex    int
-	ipcClient       *ipc.Client
-	mode            ViewMode
-	config          Config
-	startTime       time.Time
+	frameCache         *frameCache
+	ambient            *ambientCollector
+	followShell        bool
+	hideAmbient        bool // Set only on render copies when optional status cannot fit.
+	machine            metricsMsg
+	weather            weatherMsg
+	gpu                gpuMsg
+	secondary          secondaryMsg
+	secondaryRuntime   *secondaryStateBus
+	secondaryReadyFile string
+	secondaryReadySent bool
+	usernameInput      textinput.Model
+	passwordInput      textinput.Model
+	spinner            spinner.Model
+	sessions           []sessions.Session
+	selectedSession    *sessions.Session
+	sessionIndex       int
+	ipcClient          *ipc.Client
+	mode               ViewMode
+	config             Config
+	startTime          time.Time
 
 	// Terminal dimensions
 	width     int
@@ -448,6 +458,7 @@ type model struct {
 	// CHANGED 2025-10-10 - Screensaver fields
 	idleTimer         time.Time               // Time when idle started
 	screensaverTime   time.Time               // Current time for screensaver display
+	screensaverStart  time.Time               // Shared activation time for mirrored saver variants
 	screensaverPrint  *animations.PrintEffect // CHANGED 2025-10-11 - Print effect animation for screensaver
 	screensaverActive bool                    // CHANGED 2025-10-11 - Track if screensaver just activated
 	ssConfig          ScreensaverConfig       // Cached screensaver.conf; reading it per tick was 33 file opens/s
@@ -671,7 +682,7 @@ func initialModel(config Config, screensaverMode bool) model {
 	var selectedSession *sessions.Session
 	var sessionIndex int
 
-	if !config.TestMode {
+	if shouldCreateGreetdIPC(config) {
 		// CHANGED 2025-10-05 - Proper IPC client error handling
 		logDebug("Attempting to create IPC client...")
 		client, err := ipc.NewClient()
@@ -755,7 +766,7 @@ func initialModel(config Config, screensaverMode bool) model {
 		bgAnimationFrame:    0,
 		// Initialize default border and background settings
 		// Set Dracula as default theme and disable border animation
-		selectedBorderStyle: "classic",
+		selectedBorderStyle: defaultBorderStyle,
 		borderEffect:        "off",
 		borderPaletteMode:   "theme",
 		borderRegistry:      newBorderRegistry(dataDir + "/borders"),
@@ -812,7 +823,7 @@ func initialModel(config Config, screensaverMode bool) model {
 	// CHANGED 2025-10-03 - Skip cache in test mode
 	// Apply the explicit CLI theme before restoring cached effects.
 	themeApplied := false
-	if !m.config.TestMode {
+	if shouldLoadUserPreferences(m.config) {
 		if prefs, err := cache.LoadPreferences(); err != nil {
 			logDebug("failed to load sysc-greet preferences: %v", err)
 		} else if prefs != nil {
@@ -834,9 +845,7 @@ func initialModel(config Config, screensaverMode bool) model {
 			}
 			if prefs.BorderStyle != "" || prefs.BorderEffect != "" {
 				style, effect := migrateBorderPrefs(prefs.BorderStyle, prefs.BorderEffect)
-				if m.borderRegistry.has(style) {
-					m.selectedBorderStyle = style
-				}
+				m.selectedBorderStyle = preferredBorderStyle(style, m.borderRegistry)
 				if effect == "shimmer" || effect == "off" {
 					m.borderEffect = effect
 				}
@@ -962,7 +971,7 @@ func initialModel(config Config, screensaverMode bool) model {
 
 	// Test mode and an absent cache still apply the resolved startup theme.
 	if !themeApplied {
-		applyTheme(m.currentTheme, m.config.TestMode)
+		applyThemeWithWallpaper(m.currentTheme, m.config.TestMode, !m.config.SecondarySaver)
 		logDebug("Startup theme: %s", m.currentTheme)
 	}
 
@@ -972,6 +981,7 @@ func initialModel(config Config, screensaverMode bool) model {
 
 	// CHANGED 2025-10-11 - Initialize print effect if starting in screensaver mode
 	if screensaverMode {
+		m.screensaverStart = time.Now()
 		ssConfig := m.ssConfig
 		if ssConfig.AnimateOnStart && ssConfig.AnimationType == "print" && len(ssConfig.ASCIIVariants) > 0 {
 			selectedASCII := ssConfig.ASCIIVariants[0]
@@ -985,6 +995,9 @@ func initialModel(config Config, screensaverMode bool) model {
 }
 
 func (m model) Init() tea.Cmd {
+	if m.config.SecondarySaver {
+		return doTick()
+	}
 	return tea.Batch(
 		m.ambient.metricsCmd(0),
 		m.ambient.weatherCmd(0),
@@ -996,8 +1009,19 @@ func (m model) Init() tea.Cmd {
 	)
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m model) Update(msg tea.Msg) (result tea.Model, command tea.Cmd) {
+	defer func() {
+		if current, ok := result.(model); ok {
+			current.publishSecondaryRuntime()
+		}
+	}()
 	var cmds []tea.Cmd
+	if m.config.SecondarySaver {
+		switch msg.(type) {
+		case tea.KeyMsg, tea.MouseMsg:
+			return m, tea.Quit
+		}
+	}
 
 	switch msg := msg.(type) {
 	case gpuMsg:
@@ -1009,7 +1033,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case secondaryMsg:
 		m.secondary = msg
 		if m.config.Debug {
-			logDebug("Secondary backgrounds: primary=%s outputs=%v error=%v", msg.Primary, msg.Outputs, msg.Err)
+			logDebug("Secondary outputs: primary=%s active=%v error=%v", msg.Primary, msg.Outputs, msg.Err)
+		}
+		return m, nil
+	case secondaryWakeMsg:
+		if m.mode == ModeScreensaver {
+			m = leaveScreensaver(m)
 		}
 		return m, nil
 	case metricsMsg:
@@ -1050,6 +1079,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		if m.config.SecondarySaver && !m.secondaryReadySent && m.secondaryReadyFile != "" {
+			if err := writeSecondarySaverReady(m.secondaryReadyFile); err != nil {
+				logDebug("secondary saver readiness: %v", err)
+			} else {
+				m.secondaryReadySent = true
+			}
+		}
 		logDebug("Terminal resized: %dx%d", msg.Width, msg.Height)
 
 		// Resize all active background effects to match new terminal dimensions
@@ -1161,6 +1197,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			idleDuration := time.Since(m.idleTimer)
 			if idleDuration >= time.Duration(ssConfig.IdleTimeout)*time.Minute && m.mode != ModeScreensaver {
 				m.mode = ModeScreensaver
+				m.screensaverStart = m.screensaverTime
 				m.screensaverActive = true // CHANGED 2025-10-11 - Mark screensaver as just activated
 
 				// CHANGED 2025-10-11 - Initialize print effect animation if enabled
@@ -1422,8 +1459,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseMsg:
 		// CHANGED 2025-10-12 - Exit screensaver and reset idle timer on mouse movement
 		if m.mode == ModeScreensaver {
-			m.mode = ModeLogin
-			m.idleTimer = time.Now()
+			m = leaveScreensaver(m)
 			return m, nil
 		}
 		// Reset idle timer on any mouse input in normal modes
@@ -2081,9 +2117,6 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						m.followShell = false
 					}
 					m.currentTheme = themeName
-					if m.secondaryTheme != nil {
-						m.secondaryTheme.Store(themeName)
-					}
 					// Apply theme immediately
 					applyTheme(themeName, m.config.TestMode)
 					m.applyInputTheme()
@@ -2413,7 +2446,9 @@ func (m model) View() tea.View {
 		termHeight = 24
 	}
 	view := tea.View{AltScreen: m.altScreen, UniformKeyLayout: true}
-	if m.altScreen && !m.config.TestMode {
+	if m.mode == ModeScreensaver {
+		view.MouseMode = tea.MouseModeAllMotion
+	} else if m.altScreen && !m.config.TestMode {
 		view.MouseMode = tea.MouseModeCellMotion
 	}
 	if canvas, ok := m.borderedLoginCanvas(termWidth, termHeight); ok {
@@ -2869,12 +2904,17 @@ func main() {
 	var followShell bool
 	var borderPreviewPath string
 	var borderPreviewSizes string
+	var secondarySaverStartedAt string
+	var secondaryReadyFile string
 
 	flag.BoolVar(&showVersion, "version", false, "Show version information")
 	flag.BoolVar(&showVersion, "v", false, "Show version information (shorthand)")
 	flag.BoolVar(&startWallpaperDaemon, "wallpaper-daemon", false, "Start gSlapper with the cached greeter wallpaper")
 	flag.BoolVar(&config.TestMode, "test", false, "Enable test mode (no actual authentication)")
 	flag.StringVar(&config.TestSession, "test-session", "", "Select a session profile for visual testing (requires --test)")
+	flag.BoolVar(&config.SecondarySaver, "secondary-screensaver", false, "")
+	flag.StringVar(&secondarySaverStartedAt, "screensaver-started-at", "", "")
+	flag.StringVar(&secondaryReadyFile, "secondary-ready-file", "", "")
 	flag.BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	flag.BoolVar(&screensaverTestMode, "screensaver", false, "Start directly in screensaver mode for testing")
 	flag.BoolVar(&followShell, "follow-shell", true, "Follow the installed shell account theme by default")
@@ -2894,7 +2934,7 @@ func main() {
 	flag.BoolVar(&config.Ambient.GPU, "gpu", false, "Collect optional GPU statistics for upcoming widgets (no display yet)")
 	flag.BoolVar(&config.Secondary.Enabled, "secondary-backgrounds", true, "Enable backgrounds on secondary outputs in supported greeter sessions")
 	flag.StringVar(&config.Secondary.Exclude, "secondary-exclude", "", "Comma-separated outputs to exclude from secondary backgrounds")
-	flag.StringVar(&config.Secondary.Effect, "secondary-effect", "matrix", "sysc-terminal effect for secondary backgrounds")
+	flag.StringVar(&config.Secondary.Effect, "secondary-effect", "", "Explicit sysc-terminal effect fallback for secondary outputs")
 	flag.StringVar(&config.Ambient.WeatherLocation, "weather-location", "", "Show weather at LAT,LON or reuse sysc-shell coordinates")
 	flag.StringVar(&config.Ambient.WeatherUnits, "weather-units", "", "Weather temperature units: celsius or fahrenheit")
 
@@ -2913,7 +2953,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "  -gpu\n    \tCollect optional GPU statistics for upcoming widgets (no display yet)")
 		fmt.Fprintln(os.Stderr, "  -secondary-backgrounds=false\n    \tDisable secondary backgrounds (enabled in supported greeter sessions)")
 		fmt.Fprintln(os.Stderr, "  -secondary-exclude OUTPUT,OUTPUT\n    \tExclude outputs from secondary backgrounds")
-		fmt.Fprintln(os.Stderr, "  -secondary-effect string\n    \tsysc-terminal effect (default matrix)")
+		fmt.Fprintln(os.Stderr, "  -secondary-effect string\n    \texplicit fallback effect for secondary outputs (default empty)")
 		fmt.Fprintln(os.Stderr, "  -weather-location LAT,LON\n    \tShow weather at LAT,LON or reuse sysc-shell coordinates")
 		fmt.Fprintln(os.Stderr, "  -weather-units string\n    \tWeather units: celsius (default) or fahrenheit")
 		fmt.Fprintln(os.Stderr, "  -border-preview FILE.ans\n    Render a border asset at --size values; requires -test")
@@ -2973,6 +3013,19 @@ func main() {
 		fmt.Printf("Commit: %s\n", GitCommit)
 		fmt.Printf("Built: %s\n", BuildDate)
 		os.Exit(0)
+	}
+	var parsedSecondarySaverStart time.Time
+	if config.SecondarySaver {
+		var err error
+		parsedSecondarySaverStart, err = parseSecondarySaverStart(secondarySaverStartedAt)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+		if secondaryReadyFile == "" {
+			fmt.Fprintln(os.Stderr, "secondary screensaver requires --secondary-ready-file")
+			os.Exit(2)
+		}
 	}
 
 	if startWallpaperDaemon {
@@ -3060,16 +3113,23 @@ func main() {
 		logDebug("Widget configuration warning: %v", err)
 	}
 	config.Ambient = ambient
-	collector, err := newAmbientCollector(ctx, config.Ambient)
-	if err != nil {
-		cancel()
-		fmt.Fprintf(os.Stderr, "Invalid ambient configuration: %v\n", err)
-		os.Exit(1)
+	var collector *ambientCollector
+	if !config.SecondarySaver {
+		collector, err = newAmbientCollector(ctx, config.Ambient)
+		if err != nil {
+			cancel()
+			fmt.Fprintf(os.Stderr, "Invalid ambient configuration: %v\n", err)
+			os.Exit(1)
+		}
 	}
-	m := initialModel(config, screensaverTestMode)
+	m := initialModel(config, screensaverTestMode || config.SecondarySaver)
 	m.ambient = collector
-	m.secondaryTheme = &atomic.Value{}
-	m.secondaryTheme.Store(m.currentTheme)
+	m.secondaryReadyFile = secondaryReadyFile
+	if config.SecondarySaver {
+		m.screensaverStart = parsedSecondarySaverStart
+	}
+	m.secondaryRuntime = newSecondaryStateBus()
+	m.publishSecondaryRuntime()
 	// Use fullscreen terminal modes when a controlling TTY is available.
 	if tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0); err != nil {
 		if config.Debug {
@@ -3081,13 +3141,22 @@ func main() {
 	}
 
 	p := tea.NewProgram(m, tea.WithContext(ctx))
-	secondaryDone := startSecondaryBackgrounds(ctx, config.Secondary, m.secondaryTheme, p.Send)
+	var secondaryDone <-chan struct{}
+	if config.SecondarySaver {
+		done := make(chan struct{})
+		close(done)
+		secondaryDone = done
+	} else {
+		secondaryDone = startSecondaryManager(ctx, config.Secondary, m.secondaryRuntime, p.Send)
+	}
 
 	_, err = p.Run()
 	cancel()
 	<-secondaryDone
-	if closeErr := collector.close(); closeErr != nil {
-		logDebug("Close GPU sampler: %v", closeErr)
+	if collector != nil {
+		if closeErr := collector.close(); closeErr != nil {
+			logDebug("Close GPU sampler: %v", closeErr)
+		}
 	}
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)

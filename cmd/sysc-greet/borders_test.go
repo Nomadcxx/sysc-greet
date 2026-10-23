@@ -31,6 +31,24 @@ func TestBorderPrefsMigration(t *testing.T) {
 	}
 }
 
+func TestBorderStyleUsesMinimalFallbackAndKeepsSavedChoice(t *testing.T) {
+	registry := newBorderRegistry("")
+	for _, tc := range []struct {
+		name, saved, want string
+	}{
+		{"missing", "", "minimal"},
+		{"invalid", "unknown-style", "minimal"},
+		{"valid classic", "classic", "classic"},
+		{"valid NFO", "nfo01", "nfo01"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := preferredBorderStyle(tc.saved, registry); got != tc.want {
+				t.Fatalf("preferredBorderStyle(%q) = %q, want %q", tc.saved, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestBuiltInThemeResetsDefaultBorderColor(t *testing.T) {
 	useBorderGoldenTheme(t)
 	BorderDefault = lipgloss.Color("#21215f")
@@ -98,8 +116,6 @@ func TestBorderPrefsRoundTrip(t *testing.T) {
 	m.borderEffect = "shimmer"
 	m.borderPaletteMode = "terminal"
 	m.formMode = "frosted"
-	m.config.RememberUsername = true
-	m.usernameInput.SetValue("saved-user")
 	if err := cache.SavePreferences(m.currentPreferences()); err != nil {
 		t.Fatal(err)
 	}
@@ -115,9 +131,6 @@ func TestBorderPrefsRoundTrip(t *testing.T) {
 	}
 	if prefs.BorderPaletteMode != "terminal" {
 		t.Errorf("BorderPaletteMode = %q, want terminal", prefs.BorderPaletteMode)
-	}
-	if prefs.Username != "saved-user" {
-		t.Errorf("Username = %q, want saved-user", prefs.Username)
 	}
 }
 

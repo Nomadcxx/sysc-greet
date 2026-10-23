@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -25,23 +24,23 @@ type secondaryConfig struct {
 	Exclude string
 	Effect  string
 }
+
 type secondaryMsg struct {
 	Primary string
 	Outputs []string
 	Err     error
 }
-type niriOutput struct {
-	Logical *struct{} `json:"logical"`
-}
-type niriWorkspace struct {
-	ID     uint64 `json:"id"`
-	Output string `json:"output"`
-}
-type niriWindow struct {
-	ID          uint64  `json:"id"`
-	AppID       string  `json:"app_id"`
-	WorkspaceID *uint64 `json:"workspace_id"`
-}
+
+type secondaryWakeMsg struct{}
+
+type secondaryChildKind uint8
+
+const (
+	secondaryChildBackground secondaryChildKind = iota
+	secondaryChildScreensaver
+)
+
+const secondarySaverWindowClass = "sysc-greet-screensaver"
 
 func secondaryPalettes(catalog string) map[string]bool {
 	palettes := make(map[string]bool)
@@ -59,30 +58,39 @@ func secondaryPalettes(catalog string) map[string]bool {
 	return palettes
 }
 
-func secondaryTargets(outputs map[string]niriOutput, primary, excluded string) []string {
-	if outputs[primary].Logical == nil {
-		return nil
-	}
-	skip := map[string]bool{primary: true}
-	for _, name := range strings.Split(excluded, ",") {
-		skip[strings.TrimSpace(name)] = true
-	}
-	var targets []string
-	for name, output := range outputs {
-		if output.Logical != nil && !skip[name] {
-			targets = append(targets, name)
+func secondaryEffectCatalog(catalog string) map[string]bool {
+	effects := make(map[string]bool)
+	for _, line := range strings.Split(catalog, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "effect" {
+			effects[fields[1]] = true
 		}
 	}
-	sort.Strings(targets)
-	return targets
+	return effects
+}
+
+func secondaryEffectID(background string, effects map[string]bool) (string, bool) {
+	if background == "ascii-rain" {
+		background = "rain"
+	}
+	if !effects[background] {
+		return "", false
+	}
+	return background, true
 }
 
 type backgroundChild struct {
-	cmd      *exec.Cmd
-	done     chan struct{}
-	stopOnce sync.Once
-	socket   string
-	theme    string
+	cmd           *exec.Cmd
+	done          chan struct{}
+	stopOnce      sync.Once
+	stopRequested bool
+	exitErr       error
+	kind          secondaryChildKind
+	socket        string
+	readyFile     string
+	ready         bool
+	effect        string
+	theme         string
 }
 
 func startBackgroundChild(cmd *exec.Cmd) (*backgroundChild, error) {
@@ -91,15 +99,22 @@ func startBackgroundChild(cmd *exec.Cmd) (*backgroundChild, error) {
 		return nil, err
 	}
 	child := &backgroundChild{cmd: cmd, done: make(chan struct{})}
-	go func() { _ = cmd.Wait(); close(child.done) }()
+	go func() {
+		child.exitErr = cmd.Wait()
+		close(child.done)
+	}()
 	return child, nil
 }
 
 func (c *backgroundChild) stop() {
 	c.stopOnce.Do(func() {
+		c.stopRequested = true
 		defer func() {
 			if c.socket != "" {
 				_ = os.Remove(c.socket)
+			}
+			if c.readyFile != "" {
+				_ = os.Remove(c.readyFile)
 			}
 		}()
 		_ = syscall.Kill(-c.cmd.Process.Pid, syscall.SIGTERM)
@@ -110,20 +125,6 @@ func (c *backgroundChild) stop() {
 			<-c.done
 		}
 	})
-}
-
-func niriCommand(ctx context.Context, args ...string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second)
-	defer cancel()
-	return exec.CommandContext(ctx, "niri", append([]string{"msg", "--json"}, args...)...).Output()
-}
-
-func niriRead(ctx context.Context, value any, args ...string) error {
-	data, err := niriCommand(ctx, args...)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(data, value)
 }
 
 func backgroundRequest(ctx context.Context, socket, request string) (string, error) {
@@ -145,18 +146,17 @@ func backgroundRequest(ctx context.Context, socket, request string) (string, err
 	return strings.TrimSpace(response), err
 }
 
-func launchSecondary(ctx context.Context, output, binary, socket, effect, theme string) (*backgroundChild, error) {
-	cmd := exec.Command(binary, "--output", output, "--effect", effect, "--theme", theme, "--ipc-socket", socket)
-	for _, entry := range os.Environ() {
-		if !strings.HasPrefix(entry, "GREETD_SOCK=") {
-			cmd.Env = append(cmd.Env, entry)
-		}
+func launchSecondaryBackground(ctx context.Context, stateBus *secondaryStateBus, expected secondaryRuntimeState, output, binary, socket, effect, theme string) (*backgroundChild, error) {
+	if stateBus.load() != expected {
+		return nil, context.Canceled
 	}
+	cmd := exec.Command(binary, "--output", output, "--effect", effect, "--theme", theme, "--ipc-socket", socket)
+	cmd.Env = secondaryChildEnvironment()
 	child, err := startBackgroundChild(cmd)
 	if err != nil {
 		return nil, err
 	}
-	child.socket, child.theme = socket, theme
+	child.kind, child.socket, child.effect, child.theme = secondaryChildBackground, socket, effect, theme
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	ticker := time.NewTicker(50 * time.Millisecond)
@@ -164,12 +164,18 @@ func launchSecondary(ctx context.Context, output, binary, socket, effect, theme 
 	for {
 		response, err := backgroundRequest(ctx, socket, "query")
 		if err == nil && strings.HasPrefix(response, "STATUS:") {
+			child.ready = true
 			return child, nil
 		}
 		select {
 		case <-ctx.Done():
 			child.stop()
 			return nil, fmt.Errorf("background readiness: %w", ctx.Err())
+		case <-stateBus.changed:
+			if stateBus.load() != expected {
+				child.stop()
+				return nil, context.Canceled
+			}
 		case <-child.done:
 			child.stop()
 			return nil, fmt.Errorf("background helper exited before readiness")
@@ -178,156 +184,444 @@ func launchSecondary(ctx context.Context, output, binary, socket, effect, theme 
 	}
 }
 
-// One goroutine owns output reconciliation and all child lifetimes.
-func startSecondaryBackgrounds(ctx context.Context, config secondaryConfig, currentTheme *atomic.Value, send func(tea.Msg)) <-chan struct{} {
+func secondaryChildEnvironment() []string {
+	var env []string
+	for _, entry := range os.Environ() {
+		name, _, _ := strings.Cut(entry, "=")
+		switch name {
+		case "GREETD_SOCK", "KITTY_WINDOW_ID", "KITTY_LISTEN_ON", "KITTY_PID", "KITTY_PUBLIC_KEY":
+			continue
+		}
+		env = append(env, entry)
+	}
+	return env
+}
+
+func launchSecondarySaver(ctx context.Context, stateBus *secondaryStateBus, expected secondaryRuntimeState, output, kitty, executable, configFile, theme, startedAt, readyFile string) (*backgroundChild, error) {
+	cmd := exec.Command(kitty, secondarySaverCommandArgs(configFile, executable, theme, startedAt, readyFile)...)
+	cmd.Env = secondaryChildEnvironment()
+	child, err := startBackgroundChild(cmd)
+	if err != nil {
+		return nil, err
+	}
+	child.kind, child.readyFile, child.theme = secondaryChildScreensaver, readyFile, theme
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if info, err := os.Stat(readyFile); err == nil && info.Mode().IsRegular() {
+			child.ready = true
+			_ = os.Remove(readyFile)
+			child.readyFile = ""
+			return child, nil
+		}
+		select {
+		case <-ctx.Done():
+			child.stop()
+			return nil, fmt.Errorf("screensaver readiness on %s: %w", output, ctx.Err())
+		case <-stateBus.changed:
+			if stateBus.load() != expected {
+				child.stop()
+				return nil, context.Canceled
+			}
+		case <-child.done:
+			child.stop()
+			return nil, fmt.Errorf("screensaver on %s exited before readiness", output)
+		case <-ticker.C:
+		}
+	}
+}
+
+func secondaryKittyConfig() string {
+	const configFile = "/etc/greetd/kitty.conf"
+	if info, err := os.Stat(configFile); err == nil && info.Mode().IsRegular() {
+		return configFile
+	}
+	return ""
+}
+
+func startSecondaryManager(ctx context.Context, config secondaryConfig, state *secondaryStateBus, send func(tea.Msg)) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		if !config.Enabled {
-			return
-		}
-		if os.Getenv("NIRI_SOCKET") == "" {
-			return
-		}
-		binary, err := exec.LookPath("sysc-terminal")
+		manager, err := detectOutputManager()
 		if err != nil {
-			send(secondaryMsg{Err: fmt.Errorf("secondary backgrounds: %w", err)})
+			sendSecondary(send, secondaryMsg{Err: err})
 			return
 		}
-		catalogCtx, cancelCatalog := context.WithTimeout(ctx, time.Second)
-		catalog, err := exec.CommandContext(catalogCtx, binary, "--list").Output()
-		cancelCatalog()
-		if err != nil {
-			send(secondaryMsg{Err: fmt.Errorf("background palette catalog: %w", err)})
+		runSecondaryManager(ctx, config, state, send, manager)
+	}()
+	return done
+}
+
+func runSecondaryManager(ctx context.Context, config secondaryConfig, stateBus *secondaryStateBus, send func(tea.Msg), manager compositorOutputManager) {
+	dir, err := os.MkdirTemp(os.Getenv("XDG_RUNTIME_DIR"), "sysc-greet-secondary-")
+	if err != nil {
+		sendSecondary(send, secondaryMsg{Err: fmt.Errorf("secondary runtime directory: %w", err)})
+		return
+	}
+	defer os.RemoveAll(dir)
+	children := make(map[string]*backgroundChild)
+	defer func() {
+		for _, child := range children {
+			child.stop()
+		}
+	}()
+
+	var (
+		primary             string
+		wakePending         bool
+		focusRestorePending bool
+		catalogLoaded       bool
+		effects             map[string]bool
+		palettes            map[string]bool
+		terminalBinary      string
+		kittyBinary         string
+		greeterBinary       string
+		lastStatus          secondaryMsg
+		haveStatus          bool
+		fullscreenReady     bool
+	)
+	for {
+		if err := ctx.Err(); err != nil {
 			return
 		}
-		palettes := secondaryPalettes(string(catalog))
-		if !palettes["dracula"] {
-			send(secondaryMsg{Err: fmt.Errorf("background palette catalog lacks dracula fallback")})
-			return
+		runtime := stateBus.load()
+		if !runtime.Screensaver {
+			wakePending = false
 		}
-		directory, err := os.MkdirTemp(os.Getenv("XDG_RUNTIME_DIR"), "sysc-greet-background-")
-		if err != nil {
-			send(secondaryMsg{Err: err})
-			return
-		}
-		defer os.RemoveAll(directory)
-		if config.Effect == "" {
-			config.Effect = "matrix"
-		}
-		if strings.ContainsAny(config.Effect, " \t\r\n") {
-			send(secondaryMsg{Err: fmt.Errorf("secondary effect must be one effect id")})
-			return
-		}
-		children := make(map[string]*backgroundChild)
-		defer func() {
-			for _, child := range children {
-				child.stop()
+		var childErr error
+		wakePending, childErr = reconcileSecondaryChildren(children, runtime.Screensaver, wakePending, send)
+		outputs, focused, listErr := manager.ListOutputs(ctx)
+		if listErr == nil {
+			primary = stablePrimaryOutput(primary, outputs, focused)
+			if primary == "" {
+				listErr = fmt.Errorf("no stable primary output is active")
 			}
-		}()
-		var owner uint64
-		var socketID uint64
-		var lastUnsupported string
-		ticker := time.NewTicker(2 * time.Second)
-		defer ticker.Stop()
-		for {
-			theme := strings.ReplaceAll(strings.ToLower(currentTheme.Load().(string)), " ", "-")
-			if strings.ContainsAny(theme, " \t\r\n") {
-				send(secondaryMsg{Err: fmt.Errorf("secondary theme must be one palette id")})
-				return
-			}
-			if !palettes[theme] {
-				if theme != lastUnsupported {
-					send(secondaryMsg{Err: fmt.Errorf("background palette %q unavailable; using dracula", theme)})
-					lastUnsupported = theme
+		}
+		if listErr != nil {
+			var restoreErr error
+			focusRestorePending, restoreErr = restorePrimaryFocus(ctx, manager, primary, focusRestorePending)
+			publishSecondaryStatus(send, &lastStatus, &haveStatus, secondaryMsg{Primary: primary, Err: errors.Join(listErr, childErr, restoreErr)})
+		} else {
+			desired := make(map[string]secondaryRuntimeState)
+			iterationErr := childErr
+			focusAttempted := false
+			if runtime.Screensaver {
+				if !wakePending {
+					if runtime.SaverStart.IsZero() {
+						iterationErr = fmt.Errorf("screensaver activation time is missing")
+					} else {
+						for _, output := range secondaryOutputTargets(outputs, primary, "") {
+							desired[output] = runtime
+						}
+					}
 				}
-				theme = "dracula"
+				if len(desired) > 0 && kittyBinary == "" {
+					kittyBinary, iterationErr = exec.LookPath("kitty")
+					if iterationErr == nil {
+						greeterBinary, iterationErr = os.Executable()
+					}
+				}
+				if iterationErr != nil {
+					desired = make(map[string]secondaryRuntimeState)
+				}
 			} else {
-				lastUnsupported = ""
-			}
-			var outputs map[string]niriOutput
-			var windows []niriWindow
-			var workspaces []niriWorkspace
-			err := niriRead(ctx, &outputs, "outputs")
-			if err == nil {
-				err = niriRead(ctx, &windows, "windows")
-			}
-			if err == nil {
-				err = niriRead(ctx, &workspaces, "workspaces")
-			}
-			primary := ""
-			if err == nil {
-				for _, window := range windows {
-					if owner == 0 && window.AppID == "sysc-greet" {
-						owner = window.ID
+				content := secondaryContentFor(runtime.Background, runtime.Wallpaper, false, config.Enabled, config.Effect)
+				if content.Mode == secondaryContentBackground {
+					var effectErr error
+					if terminalBinary == "" {
+						terminalBinary, effectErr = exec.LookPath("sysc-terminal")
 					}
-					if window.ID != owner || window.WorkspaceID == nil {
-						continue
+					if effectErr == nil && !catalogLoaded {
+						var catalog []byte
+						catalogCtx, cancelCatalog := context.WithTimeout(ctx, time.Second)
+						catalog, effectErr = exec.CommandContext(catalogCtx, terminalBinary, "--list").Output()
+						cancelCatalog()
+						if effectErr == nil {
+							effects = secondaryEffectCatalog(string(catalog))
+							palettes = secondaryPalettes(string(catalog))
+							catalogLoaded = true
+						}
 					}
-					for _, workspace := range workspaces {
-						if workspace.ID == *window.WorkspaceID {
-							primary = workspace.Output
+					var effect string
+					if effectErr == nil {
+						var ok bool
+						effect, ok = secondaryEffectID(content.Effect, effects)
+						if !ok {
+							effectErr = fmt.Errorf("secondary effect %q is not available in sysc-terminal", content.Effect)
+						}
+					}
+					var theme string
+					if effectErr == nil {
+						var themeWarning error
+						theme, themeWarning = secondaryTheme(runtime.Theme, palettes)
+						if theme == "" {
+							effectErr = themeWarning
+						} else {
+							iterationErr = errors.Join(iterationErr, themeWarning)
+						}
+					}
+					if effectErr != nil {
+						iterationErr = errors.Join(iterationErr, effectErr)
+					} else {
+						for _, output := range secondaryOutputTargets(outputs, primary, config.Exclude) {
+							desired[output] = secondaryRuntimeState{Theme: theme, Background: effect}
 						}
 					}
 				}
-				if primary == "" {
-					err = fmt.Errorf("authentication window output unavailable")
-				}
 			}
-			wanted := secondaryTargets(outputs, primary, config.Exclude)
-			keep := make(map[string]bool)
-			for _, output := range wanted {
-				keep[output] = true
-			}
+
 			for output, child := range children {
-				select {
-				case <-child.done:
+				want, exists := desired[output]
+				if wakePending || !exists || !desiredMatches(child, want, runtime.Screensaver) {
 					child.stop()
 					delete(children, output)
-				default:
+					continue
 				}
-				if !keep[output] {
+				if child.kind == secondaryChildBackground && (child.effect != want.Background || child.theme != want.Theme) {
+					response, changeErr := backgroundRequest(ctx, child.socket, "change effect "+want.Background+" theme "+want.Theme)
+					if changeErr != nil || response != "OK" {
+						if changeErr == nil {
+							changeErr = fmt.Errorf("background change: %s", response)
+						}
+						iterationErr = errors.Join(iterationErr, changeErr)
+						child.stop()
+						delete(children, output)
+					} else {
+						child.effect, child.theme = want.Background, want.Theme
+					}
+				}
+			}
+			if wakePending {
+				for output, child := range children {
 					child.stop()
 					delete(children, output)
 				}
 			}
-			if err == nil {
-				for _, output := range wanted {
-					if children[output] != nil {
-						child := children[output]
-						if child.theme != theme {
-							response, changeErr := backgroundRequest(ctx, child.socket, "change effect "+config.Effect+" theme "+theme)
-							if changeErr != nil {
-								err = changeErr
-							} else if response != "OK" {
-								err = fmt.Errorf("background theme: %s", response)
+
+			if !wakePending {
+				if runtime.Screensaver {
+					if len(desired) > 0 && !fullscreenReady {
+						saver, required := manager.(interface{ prepareSaverFullscreen(context.Context) error })
+						if required {
+							if err := saver.prepareSaverFullscreen(ctx); err != nil {
+								iterationErr = errors.Join(iterationErr, err)
+								desired = make(map[string]secondaryRuntimeState)
 							} else {
-								child.theme = theme
+								fullscreenReady = true
 							}
+						} else {
+							fullscreenReady = true
 						}
-						continue
 					}
-					socketID++
-					child, launchErr := launchSecondary(ctx, output, binary, filepath.Join(directory, fmt.Sprintf("output-%d.sock", socketID)), config.Effect, theme)
-					if launchErr != nil {
-						err = fmt.Errorf("background %s: %w", output, launchErr)
-						continue
+					for _, output := range sortedDesiredOutputs(desired) {
+						if stateBus.load() != runtime {
+							break
+						}
+						if children[output] != nil {
+							continue
+						}
+						// A compositor can move focus before its IPC call reports an error.
+						focusAttempted = true
+						if err := manager.FocusOutput(ctx, output); err != nil {
+							iterationErr = errors.Join(iterationErr, err)
+							continue
+						}
+						readyFile := filepath.Join(dir, fmt.Sprintf("ready-%d", time.Now().UnixNano()))
+						child, startErr := launchSecondarySaver(ctx, stateBus, runtime, output, kittyBinary, greeterBinary, secondaryKittyConfig(), runtime.Theme, runtime.SaverStart.Format(time.RFC3339Nano), readyFile)
+						if startErr != nil {
+							if stateBus.load() != runtime {
+								break
+							}
+							iterationErr = errors.Join(iterationErr, startErr)
+							continue
+						}
+						if stateBus.load() != runtime {
+							child.stop()
+							break
+						}
+						children[output] = child
+						if hasExitedSaver(children) {
+							wakePending = true
+							sendSecondary(send, secondaryWakeMsg{})
+							for name, saver := range children {
+								saver.stop()
+								delete(children, name)
+							}
+							break
+						}
 					}
-					children[output] = child
+				} else {
+					for _, output := range sortedDesiredOutputs(desired) {
+						if stateBus.load() != runtime {
+							break
+						}
+						if children[output] != nil {
+							continue
+						}
+						socket := filepath.Join(dir, fmt.Sprintf("background-%d.sock", time.Now().UnixNano()))
+						want := desired[output]
+						child, startErr := launchSecondaryBackground(ctx, stateBus, runtime, output, terminalBinary, socket, want.Background, want.Theme)
+						if startErr != nil {
+							if stateBus.load() != runtime {
+								break
+							}
+							iterationErr = errors.Join(iterationErr, fmt.Errorf("background %s: %w", output, startErr))
+							continue
+						}
+						if stateBus.load() != runtime {
+							child.stop()
+							break
+						}
+						children[output] = child
+					}
 				}
+			}
+			focusRestorePending = focusRestorePending || focusAttempted
+			var restoreErr error
+			focusRestorePending, restoreErr = restorePrimaryFocus(ctx, manager, primary, focusRestorePending)
+			iterationErr = errors.Join(iterationErr, restoreErr)
+			if stateBus.load() != runtime {
+				continue
 			}
 			active := make([]string, 0, len(children))
 			for output := range children {
 				active = append(active, output)
 			}
 			sort.Strings(active)
-			send(secondaryMsg{Primary: primary, Outputs: active, Err: err})
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-			}
+			publishSecondaryStatus(send, &lastStatus, &haveStatus, secondaryMsg{Primary: primary, Outputs: active, Err: iterationErr})
 		}
-	}()
-	return done
+
+		wait := 2 * time.Second
+		if runtime.Screensaver && len(children) > 0 {
+			wait = 100 * time.Millisecond
+		}
+		timer := time.NewTimer(wait)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-stateBus.changed:
+			timer.Stop()
+		case <-timer.C:
+		}
+	}
+}
+
+func restorePrimaryFocus(ctx context.Context, manager compositorOutputManager, primary string, pending bool) (bool, error) {
+	if !pending || primary == "" {
+		return pending, nil
+	}
+	if err := manager.FocusOutput(ctx, primary); err != nil {
+		return true, fmt.Errorf("restore focus to %s: %w", primary, err)
+	}
+	return false, nil
+}
+
+func reconcileSecondaryChildren(children map[string]*backgroundChild, saverActive, wakePending bool, send func(tea.Msg)) (bool, error) {
+	var childErr error
+	for output, child := range children {
+		select {
+		case <-child.done:
+			if child.kind == secondaryChildScreensaver && saverActive && !wakePending && !child.stopRequested && child.ready && child.exitErr == nil {
+				wakePending = true
+				sendSecondary(send, secondaryWakeMsg{})
+			} else if child.exitErr != nil {
+				childErr = errors.Join(childErr, fmt.Errorf("secondary output %s exited: %w", output, child.exitErr))
+			}
+			child.stop()
+			delete(children, output)
+			continue
+		default:
+		}
+		if wakePending || (saverActive && child.kind != secondaryChildScreensaver) || (!saverActive && child.kind == secondaryChildScreensaver) {
+			child.stop()
+			delete(children, output)
+		}
+	}
+	return wakePending, childErr
+}
+
+func secondaryTheme(theme string, palettes map[string]bool) (string, error) {
+	theme = strings.ReplaceAll(strings.ToLower(strings.TrimSpace(theme)), " ", "-")
+	if theme == "" {
+		theme = "dracula"
+	}
+	if palettes[theme] {
+		return theme, nil
+	}
+	if palettes["dracula"] {
+		return "dracula", fmt.Errorf("secondary palette %q unavailable; using dracula", theme)
+	}
+	return "", fmt.Errorf("secondary palette catalog lacks dracula fallback")
+}
+
+func hasExitedSaver(children map[string]*backgroundChild) bool {
+	for _, child := range children {
+		if child.kind != secondaryChildScreensaver || child.stopRequested || !child.ready {
+			continue
+		}
+		select {
+		case <-child.done:
+			if child.exitErr == nil {
+				return true
+			}
+		default:
+		}
+	}
+	return false
+}
+
+func desiredMatches(child *backgroundChild, desired secondaryRuntimeState, saver bool) bool {
+	if child == nil {
+		return false
+	}
+	if saver {
+		return child.kind == secondaryChildScreensaver && child.theme == desired.Theme
+	}
+	return desired.Background != "" && child.kind == secondaryChildBackground
+}
+
+func sortedDesiredOutputs(desired map[string]secondaryRuntimeState) []string {
+	outputs := make([]string, 0, len(desired))
+	for output := range desired {
+		outputs = append(outputs, output)
+	}
+	sort.Strings(outputs)
+	return outputs
+}
+
+func publishSecondaryStatus(send func(tea.Msg), previous *secondaryMsg, havePrevious *bool, next secondaryMsg) {
+	if *havePrevious && previous.Primary == next.Primary && strings.Join(previous.Outputs, "\x00") == strings.Join(next.Outputs, "\x00") && errorText(previous.Err) == errorText(next.Err) {
+		return
+	}
+	*previous, *havePrevious = next, true
+	sendSecondary(send, next)
+}
+
+func errorText(err error) string {
+	if err == nil {
+		return ""
+	}
+	return err.Error()
+}
+
+func sendSecondary(send func(tea.Msg), msg tea.Msg) {
+	if send != nil {
+		send(msg)
+	}
+}
+
+func (c commandCompositor) prepareSaverFullscreen(ctx context.Context) error {
+	if c.kind != compositorHyprland {
+		return nil
+	}
+	rule := "match:class " + secondarySaverWindowClass + ", fullscreen on"
+	_, err := runOutputCommand(ctx, "hyprctl", "keyword", "windowrule", rule)
+	if err != nil {
+		return fmt.Errorf("configure Hyprland fullscreen saver rule: %w", err)
+	}
+	return nil
 }

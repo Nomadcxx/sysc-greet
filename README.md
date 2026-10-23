@@ -12,9 +12,8 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 
 - [Full Documentation](https://nomadcxx.github.io/sysc-greet/) - Complete guides, configuration, and usage instructions
 
-> [!WARNING]
-> Hyprland greeter support is deprecated. Supported: niri (default), cagebreak, sway, and mango.
-> Development builds can also use a separately installed sysc-compositor.
+> [!NOTE]
+> The greeter supports Niri, Cagebreak, Sway, Mango, and a separately installed sysc-compositor. Hyprland 0.55+ uses the Lua config and requires explicit opt-in with `SYSC_COMPOSITOR=hyprland`. Test startup, login, and quit on the target machine before enabling it for greetd.
 
 ## Installation
 
@@ -39,16 +38,17 @@ go run ./cmd/installer/
 ```
 
 The installer walks you through compositor selection and configuration.
+Set `SYSC_COMPOSITOR=hyprland` before running the installer to show the Hyprland 0.55+ option.
 
 ### Arch Linux (AUR)
 
-Four AUR packages available depending on which greeter backend you're using:
+Five AUR packages are available, one for each packaged greeter backend:
 
 ```bash
 # niri (default)
 yay -S sysc-greet
 
-# Cagebreak variant (the Hyprland replacement)
+# Cagebreak variant
 yay -S sysc-greet-cagebreak
 
 # Sway variant
@@ -57,7 +57,7 @@ yay -S sysc-greet-sway
 # Mango variant
 yay -S sysc-greet-mango
 
-# Hyprland variant (deprecated, replaced by cagebreak)
+# Hyprland 0.55+ Lua variant
 yay -S sysc-greet-hyprland
 ```
 
@@ -95,7 +95,7 @@ If you're on NixOS, add sysc-greet to your flake:
 {
   services.sysc-greet = {
     enable = true;
-    compositor = "niri";  # or "cagebreak", "sway", "mango", "hyprland" (deprecated)
+    compositor = "niri";  # or "cagebreak", "sway", "mango", "hyprland" (0.55+)
   };
 
   # Optional: Set initial session for auto-login
@@ -126,18 +126,18 @@ sudo nixos-rebuild switch --flake .#your-hostname
 
 Download pre-built packages from [GitHub Releases](https://github.com/Nomadcxx/sysc-greet/releases/latest):
 
-**Latest: v1.1.11**
+**Latest: v1.2.0**
 
 **Debian/Ubuntu:**
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.11/sysc-greet_1.1.11_amd64.deb
-sudo apt install ./sysc-greet_1.1.11_amd64.deb
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.2.0/sysc-greet_1.2.0_amd64.deb
+sudo apt install ./sysc-greet_1.2.0_amd64.deb
 ```
 
 **Fedora:**
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.11/sysc-greet-1.1.11-1.x86_64.rpm
-sudo dnf install ./sysc-greet-1.1.11-1.x86_64.rpm
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.2.0/sysc-greet-1.2.0-1.x86_64.rpm
+sudo dnf install ./sysc-greet-1.2.0-1.x86_64.rpm
 ```
 
 See [Installation Guide](https://nomadcxx.github.io/sysc-greet/docs/getting-started/installation/) for details.
@@ -177,15 +177,15 @@ For persistent settings, create `/etc/sysc-greet/widgets.json` (for greetd) or `
 
 To reuse sysc-shell coordinates and units, set `"weather_location": "sysc-shell"` and omit `weather_units`. The default source is the running user's `sysc-shell/config.json` under the XDG config directory. Set `"shell_config": "/path/to/sysc-shell/config.json"` or `--weather-shell-config PATH` to choose another source. Greetd runs as `greeter`, so use a config that this account can read; do not assume it can access your home directory. Direct coordinates in the system widget file work without sysc-shell. Shell configs with a city name need explicit coordinates in the greeter file. If the shell config is unavailable or invalid, the greeter warns and hides weather while keeping login available. Set `"weather_location": ""` or pass `--weather-location=` to disable weather.
 
-## Secondary-monitor backgrounds
+## Secondary monitors
 
-In Niri, sysc-greet starts a native `sysc-terminal` background on each active output except the login window's output. Install sysc-terminal separately; a missing helper leaves login available. Helpers follow theme changes and exit with the greeter.
+On Niri, sysc-compositor, Cagebreak, Sway, Mango, and Hyprland 0.55+, the greeter can draw the selected background effect on each active secondary output with `sysc-terminal`. sysc-compositor uses the Niri-compatible IPC exposed over `NIRI_SOCKET`. With no effect selected, the existing wallpaper remains. A selected GSlapper video suppresses secondary effects. `--secondary-effect pour` opts into a renderer effect only when the greeter background is None; the default is empty. Effects the installed `sysc-terminal` does not provide are skipped without substituting another effect.
 
-Use `--secondary-backgrounds=false` to disable them, `--secondary-exclude DP-3,HDMI-A-1` to exclude outputs, or `--secondary-effect pour` to choose a renderer effect. The default is Matrix. Helpers overlay existing wallpapers; closing them reveals the wallpaper again. Other compositors do not run these helpers.
+`--secondary-backgrounds=false` disables secondary background effects, and `--secondary-exclude DP-3,HDMI-A-1` excludes outputs from those effects. The configured screensaver takes precedence over wallpapers and effects and appears in a read-only fullscreen Kitty child on every secondary output. Input in any saver window wakes the primary greeter and closes the other saver windows. Background helpers are removed when outputs disappear or the greeter exits. Install `sysc-terminal` separately to mirror effects; Kitty is already required by the greeter.
 
 ## Border styles
 
-Classic is the default. Open **F1 → Borders** to choose Classic, Modern, Minimal, ASCII-1, ASCII-2, NFO 01–03, or Braille Hairline. Sextant Bevel appears in Kitty, the terminal used by greetd for sysc-greet. The hug layout keeps the frame around the form; `--border-layout=fill` grows it toward the terminal edges.
+Minimal is the default and the fallback when no valid border style is saved; valid saved styles continue to load unchanged. Open **F1 → Borders** to choose Classic, Modern, Minimal, ASCII-1, ASCII-2, NFO 01–03, or Braille Hairline. Sextant Bevel appears in Kitty, the terminal used by greetd for sysc-greet. The hug layout keeps the frame around the form; `--border-layout=fill` grows it toward the terminal edges.
 
 The border effect starts Off. Shimmer starts after ten seconds without input, travels at 24 cells per second, pauses four seconds after each lap, and stops after one minute idle.
 

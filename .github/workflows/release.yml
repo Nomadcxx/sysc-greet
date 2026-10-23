@@ -21,10 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
 
@@ -65,7 +65,7 @@ jobs:
           nfpm package --config nfpm.yaml --packager rpm --target .
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: sysc-greet
           path: |
@@ -107,7 +107,7 @@ jobs:
             depends: "libwlroots-0.19.so()(64bit) libwayland-server libxkbcommon libinput systemd-libs libevdev cairo pango glib2 fontconfig"
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install build dependencies (apt)
         if: matrix.pkgmgr == 'apt'
@@ -171,7 +171,7 @@ jobs:
             --packager ${{ matrix.packager }} --target "${{ matrix.pkgfile }}"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.pkgfile }}
           path: ${{ matrix.pkgfile }}
@@ -205,7 +205,7 @@ jobs:
             packager: deb
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Build mango
         # installs build deps, checks libs resolve and the greeter config parses
@@ -234,7 +234,7 @@ jobs:
           echo "pkgfile=$pkgfile" >> "$GITHUB_OUTPUT"
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.package.outputs.pkgfile }}
           path: ${{ steps.package.outputs.pkgfile }}
@@ -245,7 +245,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           merge-multiple: true
 
@@ -254,7 +254,7 @@ jobs:
           sha256sum sysc-greet *.deb *.rpm > SHA256SUMS
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             sysc-greet

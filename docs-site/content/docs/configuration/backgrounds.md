@@ -16,6 +16,13 @@ Access via **F1** → **Backgrounds**:
 | ASCII Rain | Falling ASCII characters (theme colors) |
 | Fireworks | Random firework explosions |
 | Aquarium | Swimming fish and bubbles |
+| Sonar | Scanning sonar display |
+| Cracktro | Retro scene-style animated art |
+| Plasma | Animated plasma field |
+| AK-47 | Rotating AK-47 model |
+| Australian SLR | Rotating L2A1 SAR model |
+| Rotating models | Statues, landmarks, and aircraft from the Backgrounds menu |
+| Typewriter, Print, Beams, Pour | Text and ASCII-art animations in the ASCII Effects submenu |
 | None | Disable background effect |
 
 ## Wallpapers
@@ -43,18 +50,19 @@ Access via **F1** → **Wallpaper**.
 
 ## Priority
 
-1. Custom wallpaper (if selected)
-2. Themed wallpaper (auto-matches theme)
-3. Background effect (if no wallpaper)
+1. Screensaver (overlays the selected wallpaper or effect)
+2. Custom wallpaper (if selected)
+3. Themed wallpaper (auto-matches theme)
+4. Background effect (if no video wallpaper)
 
 ## Secondary monitors
 
-In Niri, sysc-greet can use an installed `sysc-terminal` to draw native ASCII backgrounds on secondary outputs. These surfaces accept no keyboard input. The login window keeps focus, and the greeter removes its helpers on exit or output removal.
+On Niri, sysc-compositor, Cagebreak, Sway, Mango, and Hyprland 0.55+, sysc-greet can use an installed `sysc-terminal` to draw the selected effect and theme on secondary outputs. sysc-compositor uses the Niri-compatible IPC exposed over `NIRI_SOCKET`. If no effect is selected, the compositor wallpaper remains. A selected GSlapper video suppresses secondary effects. An explicit `--secondary-effect` supplies a fallback only when the selected effect is None; its default is empty. Effects absent from the installed renderer are skipped without substitution.
 
 | Option | Behavior |
 | --- | --- |
-| `--secondary-backgrounds=false` | Disable secondary backgrounds; enabled by default in Niri |
-| `--secondary-exclude DP-3,HDMI-A-1` | Exclude named outputs |
-| `--secondary-effect pour` | Choose a sysc-terminal effect; defaults to Matrix |
+| `--secondary-backgrounds=false` | Disable secondary background effects; enabled by default |
+| `--secondary-exclude DP-3,HDMI-A-1` | Exclude named outputs from background effects |
+| `--secondary-effect pour` | Use this sysc-terminal effect when the greeter background is None |
 
-Helpers follow the selected greeter theme when the installed renderer supports it; unsupported palettes use Dracula. They overlay existing wallpapers. Install sysc-terminal separately. A missing or failed helper leaves login available. Other compositors do not run secondary helpers.
+When the configured screensaver activates, it appears on every secondary output in a read-only fullscreen Kitty child and takes precedence over wallpapers and effects, including GSlapper video. A key or mouse event in any saver window wakes the primary greeter and closes the other saver windows. Disabling secondary background effects or excluding an output does not disable its screensaver. Install sysc-terminal separately to mirror effects; a missing or failed helper leaves login available.

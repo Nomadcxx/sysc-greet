@@ -1,11 +1,11 @@
 ---
 title: "Cagebreak Setup"
-description: "Cagebreak is a tiling kiosk compositor forked from Cage. It replaces Hyprland for the greetd greeter session, which is deprecated. Niri remains the default g..."
+description: "Cagebreak is a tiling kiosk compositor forked from Cage and supported as a greetd backend. Niri remains the default greeter compositor."
 ---
 
-Cagebreak is a tiling kiosk compositor forked from Cage. It replaces Hyprland for the greetd greeter session, which is [deprecated](hyprland). Niri remains the default greeter compositor.
+Cagebreak is a tiling kiosk compositor forked from Cage. It offers a greeter focused on a single fullscreen Kitty window. Niri remains the default greeter compositor. Hyprland 0.55+ is available as an explicit opt-in.
 
-Cagebreak supports wlr-layer-shell, so gSlapper wallpapers work the same as under niri and sway. Wallpapers appear on secondary monitors; the primary output is covered by the greeter TUI, which draws its own background effects.
+Cagebreak supports wlr-layer-shell, so gSlapper wallpapers work the same as under Niri and Sway. The primary output is covered by the greeter Kitty UI. Selected background effects can use sysc-terminal layers on secondary outputs, and the configured screensaver uses read-only fullscreen Kitty children on secondary outputs.
 
 The greeter config is ~10 lines, defines no keybindings, and quits the compositor through cagebreak's IPC socket after login. Tracked in [issue #69](https://github.com/Nomadcxx/sysc-greet/issues/69).
 

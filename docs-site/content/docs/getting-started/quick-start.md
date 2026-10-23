@@ -14,7 +14,7 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.
 ```
 
 The interactive installer will guide you through:
-1. Choosing your greeter compositor: niri (default), cagebreak, sway, mango, or a preinstalled sysc-compositor in development builds
+1. Choosing your greeter compositor: Niri (default), Cagebreak, Sway, Mango, or preinstalled sysc-compositor. Set `SYSC_COMPOSITOR=hyprland` to reveal the Hyprland 0.55+ Lua option.
 2. Configuring compositor settings
 3. Installing dependencies automatically
 

@@ -46,7 +46,7 @@ sysc-greet provides five AUR packages for different greeter compositors:
 # niri (default)
 yay -S sysc-greet
 
-# Cagebreak variant (the Hyprland replacement)
+# Cagebreak variant
 yay -S sysc-greet-cagebreak
 
 # Sway variant
@@ -55,11 +55,11 @@ yay -S sysc-greet-sway
 # Mango variant
 yay -S sysc-greet-mango
 
-# Hyprland variant (deprecated, replaced by cagebreak)
+# Hyprland 0.55+ Lua variant
 yay -S sysc-greet-hyprland
 ```
 
-The packages conflict with each other — install exactly one. `sysc-greet-cagebreak` pulls in cagebreak and socat from the AUR.
+The packages conflict with each other, so install exactly one. The Hyprland package requires Hyprland 0.55 or newer. `sysc-greet-cagebreak` also installs socat so it can quit Cagebreak after login.
 
 ### Pre-built Packages (.deb / .rpm)
 
@@ -67,14 +67,14 @@ Download from [GitHub Releases](https://github.com/Nomadcxx/sysc-greet/releases)
 
 **Debian/Ubuntu:**
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.11/sysc-greet_1.1.11_amd64.deb
-sudo apt install ./sysc-greet_1.1.11_amd64.deb
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.2.0/sysc-greet_1.2.0_amd64.deb
+sudo apt install ./sysc-greet_1.2.0_amd64.deb
 ```
 
 **Fedora:**
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.1.11/sysc-greet-1.1.11-1.x86_64.rpm
-sudo dnf install ./sysc-greet-1.1.11-1.x86_64.rpm
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.2.0/sysc-greet-1.2.0-1.x86_64.rpm
+sudo dnf install ./sysc-greet-1.2.0-1.x86_64.rpm
 ```
 
 > Package configs use conservative syntax for stable distro compatibility. For bleeding-edge compositor features, use the install script or AUR instead.
@@ -111,7 +111,7 @@ Add sysc-greet to your NixOS configuration using the flake:
 {
   services.sysc-greet = {
     enable = true;
-    compositor = "niri";  # or "cagebreak", "sway", "mango", "hyprland" (deprecated)
+    compositor = "niri";  # or "cagebreak", "sway", "mango", "hyprland" (0.55+)
   };
 
   # Optional: Set initial session for auto-login
@@ -139,7 +139,7 @@ sudo nixos-rebuild switch --flake .#your-hostname
 **Requirements:**
 - Go 1.25+
 - greetd
-- Wayland compositor: niri (default), cagebreak, sway, mango, or hyprland (deprecated)
+- Wayland compositor: niri (default), cagebreak, sway, mango, sysc-compositor, or Hyprland 0.55+
 - socat (cagebreak only — quits the compositor after login)
 - kitty (terminal)
 - gSlapper (wallpaper daemon)
@@ -178,7 +178,7 @@ command = "niri -c /etc/greetd/niri-greeter-config.kdl"
 # command = "cagebreak -e -c /etc/greetd/cagebreak-greeter-config"
 # command = "sway --unsupported-gpu -c /etc/greetd/sway-greeter-config"
 # command = "mango -c /etc/greetd/mango-greeter-config.conf -s /etc/greetd/mango-greeter-session.sh"
-# command = "start-hyprland -- -c /etc/greetd/hyprland-greeter-config.conf"
+# command = "start-hyprland -- --config /etc/greetd/hyprland-greeter-config.lua"
 user = "greeter"
 ```
 
@@ -200,8 +200,8 @@ sudo cp config/sway-greeter-config /etc/greetd/
 sudo cp config/mango-greeter-config.conf /etc/greetd/
 sudo install -m755 config/mango-greeter-session.sh /etc/greetd/
 
-# For hyprland (deprecated):
-sudo cp config/hyprland-greeter-config.conf /etc/greetd/
+# For Hyprland 0.55+:
+sudo cp config/hyprland-greeter-config.lua /etc/greetd/
 ```
 
 **Create greeter user:**
@@ -336,13 +336,13 @@ Screensaver configuration is in `/usr/share/sysc-greet/ascii_configs/screensaver
 
 ### Compositor Setup
 
-sysc-greet runs its greeter session under niri (default), cagebreak, Sway, Mango, or Hyprland (deprecated and unmaintained, migrate to cagebreak). This only affects the boot greeter; your desktop session is unrelated. For detailed setup instructions, see:
+sysc-greet runs its greeter under Niri, Cagebreak, Sway, Mango, a separately installed sysc-compositor, or Hyprland 0.55+. Set `SYSC_COMPOSITOR=hyprland` to opt into Hyprland. Check startup, login, and quit on the target machine before enabling greetd. For setup instructions, see:
 
 - [Niri Setup](compositors/niri) — default
-- [Cagebreak Setup](compositors/cagebreak) — the Hyprland replacement
+- [Cagebreak Setup](compositors/cagebreak)
 - [Sway Setup](compositors/sway)
 - [Mango Setup](compositors/mango) — Arch, Debian 13, Ubuntu 26.04, Fedora 43/44
-- [Hyprland Setup](compositors/hyprland) — deprecated
+- [Hyprland Setup](compositors/hyprland) — explicit opt-in, Lua config, version 0.55+
 
 ## Development
 

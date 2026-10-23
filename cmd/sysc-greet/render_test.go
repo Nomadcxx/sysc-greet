@@ -35,29 +35,40 @@ func TestReleaseNotesDescribeGreeterSupport(t *testing.T) {
 	applyTheme("dracula", true)
 	notes := stripAnsi((model{}).renderReleaseNotesView(213, 54))
 	for _, text := range []string{
-		"Ayu, Amber, Blue, Purple, Green, Orange themes (same names as sysc-shell)",
-		"Mango greeter compositor",
-		"Supported greeter backends: niri (default), cagebreak, sway, mango",
-		"Hyprland greeter path awaits physical startup, login, and quit verification",
-		"ansi_style=true maps ANSI header colors through the active theme",
+		"Config ANSI headers use theme colors; sysc-compositor profiles added",
+		"NFO borders default to Minimal; saved styles persist",
+		"Removed the SESSIONS divider from bordered layouts",
+		"Backgrounds: Australian SLR, AK-47, L2A1 SAR, statue and fighter rotations",
+		"Hyprland 0.55+ Lua greeter is opt-in; physical checks remain",
+		"Mango 0.18.2 config and release packages; six themes; shell theme following",
+		"Secondary displays mirror effects; screensaver takes priority; video suppresses effects",
+		"CPU, RAM, and weather widgets",
 	} {
 		if !strings.Contains(notes, text) {
 			t.Errorf("release notes omit %q", text)
 		}
+	}
+	if strings.Contains(notes, "ANSI Love") {
+		t.Error("release notes include the unfinished ANSI Love effect")
 	}
 }
 
 func TestViewTerminalModes(t *testing.T) {
 	for _, altScreen := range []bool{false, true} {
 		for _, testMode := range []bool{false, true} {
-			for _, mode := range []ViewMode{ModeLogin, ModeMenu, ModePower, ModeReleaseNotes} {
+			for _, mode := range []ViewMode{ModeLogin, ModeMenu, ModePower, ModeReleaseNotes, ModeScreensaver} {
 				m := model{width: 80, height: 24, mode: mode, altScreen: altScreen, config: Config{TestMode: testMode}}
+				if mode == ModeScreensaver {
+					m.ssConfig = ScreensaverConfig{ASCIIVariants: []string{"test"}, TimeFormat: "3:04 PM", DateFormat: "Jan 2", ClockStyle: "plain"}
+				}
 				view := m.View()
 				if view.AltScreen != altScreen || !view.UniformKeyLayout {
 					t.Fatalf("mode %v lost terminal or keyboard settings", mode)
 				}
 				wantMouse := tea.MouseModeNone
-				if altScreen && !testMode {
+				if mode == ModeScreensaver {
+					wantMouse = tea.MouseModeAllMotion
+				} else if altScreen && !testMode {
 					wantMouse = tea.MouseModeCellMotion
 				}
 				if view.MouseMode != wantMouse {

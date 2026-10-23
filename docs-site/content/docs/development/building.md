@@ -81,7 +81,7 @@ rm -f sysc-greet install-sysc-greet
 
 Runtime dependencies that must be installed on the system:
 - greetd
-- Wayland compositor: niri (default), cagebreak, sway, or hyprland (deprecated)
+- Wayland compositor: Niri (default), Cagebreak, Sway, Mango, sysc-compositor, or Hyprland 0.55+
 - socat (cagebreak only — quits the compositor after login)
 - kitty (terminal emulator)
 - gSlapper (wallpaper daemon)

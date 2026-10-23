@@ -305,5 +305,10 @@ assert.match(
   /nomadcxx\.github\.io\/sysc-greet\/docs\/compositors\/cagebreak\//i,
   'postinstall is missing the Fumadocs Cagebreak route',
 );
+assert.match(
+  postinstall,
+  /nomadcxx\.github\.io\/sysc-greet\/docs\/compositors\/hyprland\//i,
+  'postinstall is missing the Fumadocs Hyprland route',
+);
 
 console.log('export check passed');

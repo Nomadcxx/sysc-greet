@@ -107,6 +107,32 @@ func TestSyscCompositorGreeterBackend(t *testing.T) {
 	}
 }
 
+func TestHyprlandGreeterRequiresExplicitOptIn(t *testing.T) {
+	t.Setenv("SYSC_COMPOSITOR", "")
+	for _, compositor := range compositorPickerOptions() {
+		if compositor.name == "hyprland" {
+			t.Fatal("Hyprland appeared in the default installer picker")
+		}
+	}
+
+	t.Setenv("SYSC_COMPOSITOR", "hyprland")
+	var found bool
+	for _, compositor := range compositorPickerOptions() {
+		if compositor.name == "hyprland" {
+			found = true
+			if len(compositor.binaries) != 1 || compositor.binaries[0] != "start-hyprland" {
+				t.Fatalf("Hyprland binaries = %v, want [start-hyprland]", compositor.binaries)
+			}
+		}
+	}
+	if !found {
+		t.Fatal("explicit SYSC_COMPOSITOR=hyprland did not enable the Hyprland picker entry")
+	}
+	if got, want := hyprlandGreetdCommand, "start-hyprland -- --config /etc/greetd/hyprland-greeter-config.lua"; got != want {
+		t.Fatalf("Hyprland greetd command = %q, want %q", got, want)
+	}
+}
+
 func TestNiriGreeterQuitCommand(t *testing.T) {
 	for _, tc := range []struct {
 		compositor string

@@ -2,6 +2,8 @@ package main
 
 import "github.com/Nomadcxx/sysc-greet/internal/cache"
 
+const defaultBorderStyle = "minimal"
+
 func migrateBorderPrefs(style, effect string) (string, string) {
 	switch style {
 	case "ascii3", "ascii4":
@@ -21,6 +23,13 @@ func migrateBorderPrefs(style, effect string) (string, string) {
 		effect = "off"
 	}
 	return style, effect
+}
+
+func preferredBorderStyle(saved string, registry *borderRegistry) string {
+	if registry.has(saved) {
+		return saved
+	}
+	return defaultBorderStyle
 }
 
 func preferredFormMode(flagMode, savedMode string, flagSet bool) string {
@@ -49,21 +58,29 @@ func (m model) currentPreferences() cache.UserPreferences {
 	if m.selectedSession != nil {
 		p.Session = m.selectedSession.Name
 	}
-	if m.config.RememberUsername {
-		p.Username = m.usernameInput.Value()
-	}
 	return p
 }
 
 func (m model) savePreferences() {
-	if m.config.TestMode {
+	if m.config.TestMode || m.config.SecondarySaver {
 		return
 	}
-	m.persistPreferences(m.currentPreferences())
+	p := m.currentPreferences()
+	if m.config.RememberUsername {
+		previous, err := cache.LoadPreferences()
+		if err != nil {
+			logDebug("failed to load sysc-greet preferences before save: %v", err)
+			return
+		}
+		if previous != nil && previous.Session == p.Session {
+			p.Username = previous.Username
+		}
+	}
+	m.persistPreferences(p)
 }
 
 func (m model) saveSuccessfulLogin(username, session string) {
-	if m.config.TestMode {
+	if m.config.TestMode || m.config.SecondarySaver {
 		return
 	}
 	p := m.currentPreferences()
@@ -76,7 +93,7 @@ func (m model) saveSuccessfulLogin(username, session string) {
 }
 
 func (m model) persistPreferences(p cache.UserPreferences) {
-	if m.config.TestMode {
+	if m.config.TestMode || m.config.SecondarySaver {
 		return
 	}
 	if err := cache.SavePreferences(p); err != nil {

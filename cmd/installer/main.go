@@ -244,14 +244,25 @@ type greeterCompositor struct {
 	installable bool // installCompositor can install it when missing
 }
 
-// greeterCompositors is the set of supported greeter backends.
+// greeterCompositors are the backends available in the default installer picker.
 var greeterCompositors = []greeterCompositor{
 	{name: "niri", label: "Tiling compositor with scrollable workspaces (default)", binaries: []string{"niri"}},
-	{name: "hyprland", label: "Dynamic tiling compositor", binaries: []string{"start-hyprland"}, installable: true},
 	{name: "sysc-compositor", label: "Niri-compatible compositor (install separately)", binaries: []string{"sysc-compositor"}},
 	{name: "cagebreak", label: "Minimal tiling kiosk", binaries: []string{"cagebreak"}, installable: true},
 	{name: "sway", label: "Stable i3-compatible tiling compositor", binaries: []string{"sway"}},
 	{name: "mango", label: "dwl-based tiling compositor (Arch, Debian 13, Ubuntu 26.04, Fedora 43/44)", binaries: []string{"mango"}, installable: true},
+}
+
+var hyprlandGreeterCompositor = greeterCompositor{
+	name: "hyprland", label: "Hyprland 0.55+ (explicit opt-in; Lua config)", binaries: []string{"start-hyprland"}, installable: true,
+}
+
+func compositorPickerOptions() []greeterCompositor {
+	if os.Getenv("SYSC_COMPOSITOR") != "hyprland" {
+		return greeterCompositors
+	}
+	options := append([]greeterCompositor(nil), greeterCompositors...)
+	return append(options, hyprlandGreeterCompositor)
 }
 
 const (
@@ -284,7 +295,7 @@ func mangoAvailable(packageManager string) bool {
 // compositorBinaries returns the executables that indicate name is installed
 func compositorBinaries(name string) []string {
 	if name == "hyprland" {
-		return []string{"start-hyprland"}
+		return hyprlandGreeterCompositor.binaries
 	}
 	for _, c := range greeterCompositors {
 		if c.name == name {
@@ -373,7 +384,7 @@ func newModel(debugMode bool, logFile *os.File) model {
 	if comp := os.Getenv("SYSC_COMPOSITOR"); comp != "" {
 		m.step = stepCompositorSelect
 		m.compositorIndex = -1
-		for i, c := range greeterCompositors {
+		for i, c := range compositorPickerOptions() {
 			if c.name == comp {
 				m.compositorIndex = i
 			}
@@ -424,7 +435,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "down", "j":
 			if m.step == stepWelcome && m.selectedOption < 1 {
 				m.selectedOption++
-			} else if m.step == stepCompositorSelect && m.compositorIndex < len(greeterCompositors)-1 {
+			} else if m.step == stepCompositorSelect && m.compositorIndex < len(compositorPickerOptions())-1 {
 				m.compositorIndex++
 			}
 		case "enter":
@@ -457,11 +468,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 			} else if m.step == stepCompositorSelect {
-				if m.compositorIndex < 0 || m.compositorIndex >= len(greeterCompositors) {
+				options := compositorPickerOptions()
+				if m.compositorIndex < 0 || m.compositorIndex >= len(options) {
 					m.errors = append(m.errors, "choose a compositor from the list")
 					return m, nil
 				}
-				c := greeterCompositors[m.compositorIndex]
+				c := options[m.compositorIndex]
 				m.selectedCompositor = c.name
 				installable := c.installable
 
@@ -639,7 +651,7 @@ func (m model) renderCompositorSelect() string {
 
 	b.WriteString("Select Wayland compositor:\n\n")
 
-	for i, comp := range greeterCompositors {
+	for i, comp := range compositorPickerOptions() {
 		prefix := "  "
 		if i == m.compositorIndex {
 			prefix = lipgloss.NewStyle().Foreground(Primary).Render("▸ ")
@@ -1164,7 +1176,7 @@ func cagebreakArtifact() string {
 }
 
 // mangoPackageVersion must match MANGO_VERSION in scripts/build-mango.sh
-const mangoPackageVersion = "0.17.4"
+const mangoPackageVersion = "0.18.2"
 
 // mangoArtifact returns the mangowm package attached to sysc-greet releases
 // for this distro (built by scripts/build-mango.sh in CI), or "" when none

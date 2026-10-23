@@ -108,8 +108,8 @@ cat /etc/greetd/sway-greeter-config
 # For mango
 cat /etc/greetd/mango-greeter-config.conf
 
-# For hyprland
-cat /etc/greetd/hyprland-greeter-config.conf
+# For Hyprland 0.55+
+cat /etc/greetd/hyprland-greeter-config.lua
 ```
 
 Look for gSlapper startup command.
@@ -164,8 +164,8 @@ For compositor-specific debugging, check their log files or stderr output in gre
 # Test niri config
 niri -c /etc/greetd/niri-greeter-config.kdl --check
 
-# Test hyprland config (syntax check)
-Hyprland --check-config -c /etc/greetd/hyprland-greeter-config.conf
+# Check Hyprland 0.55+ Lua config syntax
+luac -p /etc/greetd/hyprland-greeter-config.lua
 ```
 
 Cagebreak has no syntax-check flag. Run it from a TTY to see parse errors — a bad config makes it exit immediately, so greetd relaunches the greeter in a loop:

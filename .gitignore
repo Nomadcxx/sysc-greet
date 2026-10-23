@@ -12,7 +12,12 @@ test-*
 !internal/sessions/sessions_test.go
 !cmd/sysc-greet/border_registry_test.go
 !cmd/sysc-greet/border_golden_test.go
+!cmd/sysc-greet/border_preference_test.go
 !cmd/sysc-greet/prefs_test.go
+!cmd/sysc-greet/secondary_compositor_test.go
+!cmd/sysc-greet/secondary_effects_test.go
+!cmd/sysc-greet/secondary_policy_test.go
+!cmd/sysc-greet/secondary_screensaver_test.go
 !internal/ansiart/upscale_test.go
 !internal/cache/cache_test.go
 !cmd/sysc-greet/testdata/

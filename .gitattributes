@@ -1,0 +1,1 @@
+cmd/sysc-greet/testdata/borders/*.golden whitespace=-blank-at-eol
