@@ -51,7 +51,10 @@ def parse_webpmux_info(text: str, size_bytes: int) -> WebPInfo:
 
 
 def read_webp(path: str) -> WebPInfo:
-    result = subprocess.run(["webpmux", "-info", path], capture_output=True, text=True)
+    try:
+        result = subprocess.run(["webpmux", "-info", path], capture_output=True, text=True)
+    except FileNotFoundError:
+        raise ValueError("webpmux not found: install libwebp-utils") from None
     if result.returncode != 0:
         raise ValueError(f"webpmux failed on {path}: {result.stderr.strip()}")
     return parse_webpmux_info(result.stdout, os.path.getsize(path))

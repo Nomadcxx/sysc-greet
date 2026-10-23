@@ -115,8 +115,8 @@ fi
 
 say "Opening Kitty"
 # --test never reads or writes preferences; the throwaway HOME keeps any other
-# cache files out of the user's home. The timeline sets the opening border in
-# its lead-in, before "mark start", so that part is trimmed from the video.
+# cache files out of the user's home. The timeline sets the opening session and
+# header variant in its lead-in, before "mark start", which is trimmed from the video.
 mkdir -p "$work/home"
 niri msg action spawn -- kitty --class sysc-greet-demo --config /etc/greetd/kitty.conf \
     -o background_opacity=1.0 -o allow_remote_control=socket-only -o mouse_hide_wait=0 \

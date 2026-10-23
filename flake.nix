@@ -65,7 +65,7 @@
             # Install assets (logo, showcase)
             mkdir -p $out/share/sysc-greet/Assets
             cp assets/logo.png $out/share/sysc-greet/Assets/
-            cp assets/showcase.gif $out/share/sysc-greet/Assets/
+            cp assets/showcase.webp $out/share/sysc-greet/Assets/
 
             # Install kitty config
             mkdir -p $out/etc/greetd

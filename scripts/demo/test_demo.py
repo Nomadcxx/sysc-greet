@@ -175,6 +175,16 @@ class WebPReportTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             webp_report.parse_webpmux_info(WEBPMUX_ANIM.replace("Number of frames: 2\n", ""), 500)
 
+    def test_read_webp_without_webpmux(self):
+        original = os.environ.get("PATH", "")
+        os.environ["PATH"] = tempfile.gettempdir()
+        try:
+            with self.assertRaises(ValueError) as caught:
+                webp_report.read_webp(__file__)
+        finally:
+            os.environ["PATH"] = original
+        self.assertIn("libwebp-utils", str(caught.exception))
+
     @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("webpmux"), "needs ffmpeg and webpmux")
     def test_read_webp(self):
         with tempfile.TemporaryDirectory() as directory:
