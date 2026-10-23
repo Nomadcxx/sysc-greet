@@ -1,10 +1,14 @@
 import os
+import shutil
+import subprocess
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import tour  # noqa: E402
+import webp_report  # noqa: E402
 
 
 class FakeTime:
@@ -87,6 +91,53 @@ class RunTest(unittest.TestCase):
         self.assertIn("Theme: RAMA", message)
         self.assertIn("  Theme: Dark\n  Theme: RAMA", message)
         self.assertNotIn("\x1b", message)
+
+
+# Real `webpmux -info` output (libwebp-utils 1.6.0) for ffmpeg testsrc 64x48, 3 frames at 10 fps;
+# libwebp_anim merged the first two identical frames into one 200 ms frame.
+WEBPMUX_ANIM = """Canvas size: 64 x 48
+Features present: animation
+Background color : 0xFFFFFFFF  Loop Count : 0
+Number of frames: 2
+No.: width height alpha x_offset y_offset duration   dispose blend image_size  compression
+  1:    64    48    no        0        0      200       none    no        250       lossy
+  2:    63     7    no        0       36      100       none   yes         88       lossy
+"""
+WEBPMUX_STILL = """Canvas size: 64 x 48
+No features present.
+"""
+
+
+class WebPReportTest(unittest.TestCase):
+    def test_parse_webpmux_info(self):
+        info = webp_report.parse_webpmux_info(WEBPMUX_ANIM, 500)
+        self.assertEqual(info, webp_report.WebPInfo(64, 48, 2, 300, 500, 0))
+        self.assertAlmostEqual(info.fps, 2 / 0.3)
+        with self.assertRaises(ValueError):
+            webp_report.parse_webpmux_info(WEBPMUX_STILL, 100)
+        with self.assertRaises(ValueError):
+            webp_report.parse_webpmux_info(WEBPMUX_ANIM.replace("Number of frames: 2\n", ""), 500)
+
+    @unittest.skipUnless(shutil.which("ffmpeg") and shutil.which("webpmux"), "needs ffmpeg and webpmux")
+    def test_read_webp(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "out.webp")
+            subprocess.run(
+                ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc=size=64x48:rate=10", "-t", "1",
+                 "-c:v", "libwebp_anim", "-loop", "0", path],
+                check=True,
+            )
+            info = webp_report.read_webp(path)
+            self.assertEqual((info.width, info.height, info.loop_count), (64, 48, 0))
+            self.assertTrue(1 <= info.frames <= 10, info.frames)
+            self.assertLessEqual(abs(info.duration_ms - 1000), 100)
+            self.assertEqual(info.size_bytes, os.path.getsize(path))
+
+            result = subprocess.run(
+                [sys.executable, webp_report.__file__, path, "--max-bytes", "10"], capture_output=True, text=True
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("size", result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
