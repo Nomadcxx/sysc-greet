@@ -2,10 +2,117 @@ package main
 
 import (
 	"image/color"
+	"os"
 	"strings"
 
 	syscgoanimations "github.com/Nomadcxx/sysc-Go/animations"
+	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
+	"github.com/charmbracelet/x/termios"
 )
+
+func applyTerminalCellAspect(effect interface{ SetCellAspect(int, int) }) {
+	size, err := termios.GetWinsize(int(os.Stdout.Fd()))
+	if err != nil {
+		return
+	}
+	setCellAspect(effect, int(size.Col), int(size.Row), int(size.Xpixel), int(size.Ypixel))
+}
+
+func setCellAspect(effect interface{ SetCellAspect(int, int) }, cols, rows, pixelWidth, pixelHeight int) {
+	if cols <= 0 || rows <= 0 || pixelWidth <= 0 || pixelHeight <= 0 {
+		return
+	}
+	effect.SetCellAspect((pixelWidth+cols/2)/cols, (pixelHeight+rows/2)/rows)
+}
+
+func (m model) usesKittyMeshBackground() bool {
+	return m.kittyGraphics && (m.mode == ModeLogin || m.mode == ModePassword) &&
+		(m.selectedBackground == "ak-47" || m.selectedBackground == "l2a1-sar" || isRotatingModelBackground(m.selectedBackground))
+}
+
+func (m model) viewBackgroundColor() color.Color {
+	if m.usesKittyMeshBackground() {
+		return nil
+	}
+	return BgBase
+}
+
+func (m model) kittyCreditBackground() string {
+	width, height := m.width, m.height
+	if width <= 0 {
+		width = 80
+	}
+	if height <= 0 {
+		height = 30
+	}
+	background := blankTerminalContent(width, height)
+	if m.kittyCredit == "" {
+		return background
+	}
+	lines := strings.Split(background, "\n")
+	creditLines := strings.Split(lipgloss.NewStyle().Width(width).Align(lipgloss.Right).Render(m.kittyCredit), "\n")
+	if len(creditLines) > height {
+		creditLines = creditLines[len(creditLines)-height:]
+	}
+	copy(lines[height-len(creditLines):], creditLines)
+	return strings.Join(lines, "\n")
+}
+
+func (m model) renderKittyMeshFrame() (syscgoanimations.MeshFrame, bool) {
+	switch m.selectedBackground {
+	case "ak-47":
+		if m.ak47Effect != nil {
+			return m.ak47Effect.RenderFrame(), true
+		}
+	case "l2a1-sar":
+		if m.l2a1SAREffect != nil {
+			return m.l2a1SAREffect.RenderFrame(), true
+		}
+	default:
+		if isRotatingModelBackground(m.selectedBackground) && m.rotatingModelEffect != nil {
+			return m.rotatingModelEffect.RenderFrame(), true
+		}
+	}
+	return syscgoanimations.MeshFrame{}, false
+}
+
+func syncKittyMeshFrame(previous model, next *model, msg tea.Msg) tea.Cmd {
+	if !next.usesKittyMeshBackground() {
+		next.kittyCredit = ""
+		if sequence := next.kittyImages.clear(); sequence != "" {
+			return tea.Raw(sequence)
+		}
+		return nil
+	}
+
+	refresh := !previous.usesKittyMeshBackground() ||
+		previous.width != next.width || previous.height != next.height ||
+		previous.selectedBackground != next.selectedBackground || previous.currentTheme != next.currentTheme
+	switch msg.(type) {
+	case bgTickMsg, tea.WindowSizeMsg:
+		refresh = true
+	}
+	if !refresh {
+		return nil
+	}
+	frame, ok := next.renderKittyMeshFrame()
+	if !ok {
+		return nil
+	}
+	sequence, err := next.kittyImages.render(frame, next.width, next.height)
+	if err != nil {
+		logDebug("Could not render Kitty mesh background: %v", err)
+		next.kittyGraphics = false
+		next.kittyCredit = ""
+		if clear := next.kittyImages.clear(); clear != "" {
+			return tea.Raw(clear)
+		}
+		return nil
+	}
+	next.kittyCredit = frame.Credit
+	return tea.Raw(sequence)
+}
 
 var rotatingModelBackgrounds = [...]struct{ id, label string }{
 	{"jesus-christ-statue", "Jesus Christ Statue"},
@@ -96,12 +203,17 @@ func (m model) newAK47Effect() *syscgoanimations.AK47Animation {
 	}
 	// ponytail: sysc-Go accepts named palettes only; custom greeter palettes need an AK-47 API that accepts palette values.
 	theme := strings.ReplaceAll(m.currentTheme, " ", "-")
-	return syscgoanimations.NewAK47Effect(width, height, theme)
+	effect := syscgoanimations.NewAK47Effect(width, height, theme)
+	applyTerminalCellAspect(effect)
+	return effect
 }
 
 func (m model) addAK47Effect(content string) string {
 	if m.ak47Effect == nil {
 		return content
+	}
+	if m.usesKittyMeshBackground() {
+		return m.kittyCreditBackground()
 	}
 	return m.ak47Effect.Render()
 }
@@ -115,12 +227,17 @@ func (m model) newL2A1SAREffect() *syscgoanimations.L2A1SARAnimation {
 		height = 30
 	}
 	theme := strings.ReplaceAll(m.currentTheme, " ", "-")
-	return syscgoanimations.NewL2A1SAREffect(width, height, theme)
+	effect := syscgoanimations.NewL2A1SAREffect(width, height, theme)
+	applyTerminalCellAspect(effect)
+	return effect
 }
 
 func (m model) addL2A1SAREffect(content string) string {
 	if m.l2a1SAREffect == nil {
 		return content
+	}
+	if m.usesKittyMeshBackground() {
+		return m.kittyCreditBackground()
 	}
 	return m.l2a1SAREffect.Render()
 }
@@ -139,12 +256,16 @@ func (m model) newRotatingModelEffect(id string) *syscgoanimations.RotatingModel
 		logDebug("Could not create rotating model background %q: %v", id, err)
 		return nil
 	}
+	applyTerminalCellAspect(effect)
 	return effect
 }
 
 func (m model) addRotatingModelEffect(content string) string {
 	if m.rotatingModelEffect == nil {
 		return content
+	}
+	if m.usesKittyMeshBackground() {
+		return m.kittyCreditBackground()
 	}
 	return m.rotatingModelEffect.Render()
 }
