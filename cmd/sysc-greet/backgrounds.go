@@ -80,10 +80,7 @@ func (m model) renderKittyMeshFrame() (syscgoanimations.MeshFrame, bool) {
 func syncKittyMeshFrame(previous model, next *model, msg tea.Msg) tea.Cmd {
 	if !next.usesKittyMeshBackground() {
 		next.kittyCredit = ""
-		if sequence := next.kittyImages.clear(); sequence != "" {
-			return tea.Raw(sequence)
-		}
-		return nil
+		return next.kittyImages.write(next.kittyImages.clear())
 	}
 
 	refresh := !previous.usesKittyMeshBackground() ||
@@ -105,13 +102,10 @@ func syncKittyMeshFrame(previous model, next *model, msg tea.Msg) tea.Cmd {
 		logDebug("Could not render Kitty mesh background: %v", err)
 		next.kittyGraphics = false
 		next.kittyCredit = ""
-		if clear := next.kittyImages.clear(); clear != "" {
-			return tea.Raw(clear)
-		}
-		return nil
+		return next.kittyImages.write(next.kittyImages.clear())
 	}
 	next.kittyCredit = frame.Credit
-	return tea.Raw(sequence)
+	return next.kittyImages.write(sequence)
 }
 
 var rotatingModelBackgrounds = [...]struct{ id, label string }{

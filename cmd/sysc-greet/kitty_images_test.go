@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"image"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -48,7 +50,8 @@ func TestKittyImagePresenterAlternatesAndClearsImageIDs(t *testing.T) {
 	if !strings.Contains(second, "a=T,f=100,i=11,") || !strings.Contains(second, "d=I,i=10,") {
 		t.Fatalf("replacement image command = %q", second)
 	}
-	if got := presenter.clear(); !strings.Contains(got, "d=I,i=11,") {
+	// Both IDs go: at exit a queued frame may not have replaced the one on screen.
+	if got := presenter.clear(); !strings.Contains(got, "d=I,i=10,") || !strings.Contains(got, "d=I,i=11,") {
 		t.Fatalf("clear command = %q", got)
 	}
 	if got := presenter.clear(); got != "" {
@@ -108,7 +111,7 @@ func TestKittyMeshBackgroundClearsWhenLeavingLogin(t *testing.T) {
 		mode:               ModeLogin,
 		selectedBackground: "ak-47",
 		kittyCredit:        "AK-47 credit",
-		kittyImages:        kittyImagePresenter{currentID: 11},
+		kittyImages:        kittyImagePresenter{ids: [2]uint32{10, 11}, currentID: 11},
 	}
 	next := previous
 	next.mode = ModeMenu
@@ -132,5 +135,55 @@ func TestKittyMeshBackgroundRefreshesOnBackgroundTick(t *testing.T) {
 	}
 	if m.kittyImages.currentID == 0 || m.kittyCredit == "" {
 		t.Fatalf("background tick did not retain its image and credit: id=%d credit=%q", m.kittyImages.currentID, m.kittyCredit)
+	}
+}
+
+// visibleKittyImages applies Kitty transmit and delete commands in order and
+// returns the image IDs still placed on screen.
+func visibleKittyImages(writes ...string) map[string]bool {
+	visible := map[string]bool{}
+	command := regexp.MustCompile(`\x1b_Ga=([Td]),(?:f=100,|d=I,)i=(\d+)`)
+	for _, write := range writes {
+		for _, match := range command.FindAllStringSubmatch(write, -1) {
+			if match[1] == "T" {
+				visible[match[2]] = true
+			} else {
+				delete(visible, match[2])
+			}
+		}
+	}
+	return visible
+}
+
+func TestKittyMeshWritesStayOrderedWhenDeliveredOutOfOrder(t *testing.T) {
+	m := model{kittyGraphics: true, mode: ModeLogin, selectedBackground: "ak-47"}
+	m.width, m.height = 40, 12
+	m.ak47Effect = syscgoanimations.NewAK47Effect(m.width, m.height, "Dracula")
+
+	var raws []tea.Msg
+	for _, step := range []func(*model) tea.Msg{
+		func(*model) tea.Msg { return bgTickMsg(time.Now()) },
+		func(*model) tea.Msg { return bgTickMsg(time.Now()) },
+		func(next *model) tea.Msg { next.mode = ModeMenu; return tea.KeyPressMsg{Code: tea.KeyF1} },
+	} {
+		previous := m
+		msg := step(&m)
+		cmd := syncKittyMeshFrame(previous, &m, msg)
+		if cmd == nil {
+			t.Fatalf("no Kitty write for %T", msg)
+		}
+		raws = append(raws, cmd())
+	}
+
+	// Bubble Tea runs each command on its own goroutine, so the event loop can
+	// receive these writes in any order. It prints each one with fmt.Sprint.
+	for _, order := range [][3]int{{0, 1, 2}, {0, 2, 1}, {1, 0, 2}, {1, 2, 0}, {2, 0, 1}, {2, 1, 0}} {
+		writes := make([]string, 0, len(order))
+		for _, index := range order {
+			writes = append(writes, fmt.Sprint(raws[index].(tea.RawMsg).Msg))
+		}
+		if visible := visibleKittyImages(writes...); len(visible) != 0 {
+			t.Errorf("delivery order %v left images %v on screen", order, visible)
+		}
 	}
 }
