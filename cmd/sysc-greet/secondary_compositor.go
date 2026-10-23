@@ -90,7 +90,7 @@ func (c commandCompositor) ListOutputs(ctx context.Context) ([]secondaryOutput, 
 			outputs, err = parseNiriOutputs(data)
 		}
 		if err == nil {
-			data, err = runOutputCommand(ctx, "niri", "msg", "focused-output")
+			data, err = runOutputCommand(ctx, "niri", "msg", "--json", "focused-output")
 		}
 		if err == nil {
 			focused, err = parseNiriFocusedOutput(data)
@@ -225,14 +225,16 @@ func parseNiriOutputs(data []byte) ([]secondaryOutput, error) {
 }
 
 func parseNiriFocusedOutput(data []byte) (string, error) {
-	value := strings.TrimSpace(string(data))
-	if index := strings.LastIndex(value, "("); index >= 0 && strings.HasSuffix(value, ")") {
-		value = strings.TrimSpace(value[index+1 : len(value)-1])
+	var raw *struct {
+		Name string `json:"name"`
 	}
-	if value == "" {
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return "", fmt.Errorf("parse niri focused output: %w", err)
+	}
+	if raw == nil || raw.Name == "" {
 		return "", fmt.Errorf("empty focused output")
 	}
-	return value, nil
+	return raw.Name, nil
 }
 
 func parseSwayOutputs(data []byte) ([]secondaryOutput, error) {

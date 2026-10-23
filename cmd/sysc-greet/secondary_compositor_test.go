@@ -24,9 +24,13 @@ func TestParseNiriOutputs(t *testing.T) {
 }
 
 func TestParseNiriFocusedOutput(t *testing.T) {
-	got, err := parseNiriFocusedOutput([]byte(`Output "DP-1" (DP-1)`))
+	// Shape of `niri msg --json focused-output` from niri 26.04.
+	got, err := parseNiriFocusedOutput([]byte(`{"name":"DP-1","make":"Acer Technologies","model":"Acer X34 P","modes":[{"width":3440,"height":1440,"refresh_rate":59973,"is_preferred":true}],"logical":{"x":0,"y":0,"width":3440,"height":1440}}`))
 	if err != nil || got != "DP-1" {
 		t.Fatalf("parseNiriFocusedOutput() = %q, %v; want DP-1", got, err)
+	}
+	if got, err := parseNiriFocusedOutput([]byte("null")); err == nil {
+		t.Fatalf("parseNiriFocusedOutput(null) = %q, want error", got)
 	}
 }
 
