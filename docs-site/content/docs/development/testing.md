@@ -13,13 +13,13 @@ sysc-greet includes a test mode that bypasses greetd authentication, allowing yo
 
 ```bash
 # Basic test mode
-sysc-greet --test
+kitty --start-as=fullscreen sysc-greet --test
 
 # Test mode with debug logging
-sysc-greet --test --debug
+kitty --start-as=fullscreen sysc-greet --test --debug
 
 # Test mode with screensaver enabled
-sysc-greet --test --screensaver
+kitty --start-as=fullscreen sysc-greet --test --screensaver
 ```
 
 ### Fullscreen Testing
@@ -35,7 +35,7 @@ kitty --start-as=fullscreen sysc-greet --test
 Enable debug logging to diagnose issues:
 
 ```bash
-sysc-greet --test --debug
+kitty --start-as=fullscreen sysc-greet --test --debug
 ```
 
 Debug logs are written to `/tmp/sysc-greet-debug.log` and include:
@@ -71,9 +71,9 @@ tail -n 50 /tmp/sysc-greet-debug.log
 Test with a specific theme:
 
 ```bash
-sysc-greet --test --theme dracula
-sysc-greet --test --theme nord
-sysc-greet --test --theme tokyo-night
+kitty --start-as=fullscreen sysc-greet --test --theme dracula
+kitty --start-as=fullscreen sysc-greet --test --theme nord
+kitty --start-as=fullscreen sysc-greet --test --theme tokyo-night
 ```
 
 Available theme names: dracula, gruvbox, material, nord, tokyo-night, catppuccin, solarized, monochrome, transishardjob, eldritch
@@ -84,7 +84,7 @@ Available theme names: dracula, gruvbox, material, nord, tokyo-night, catppuccin
 Test username caching:
 
 ```bash
-sysc-greet --test --remember-username
+kitty --start-as=fullscreen sysc-greet --test --remember-username
 ```
 
 ## Testing Checklist
@@ -128,49 +128,35 @@ watch -n 1 'ps aux | grep sysc-greet'
 
 Background effects (fire, matrix, rain) are CPU-intensive. Verify they don't cause excessive resource usage on target hardware.
 
-## TTY Compatibility Testing
+## Kitty and compositor visual testing
 
-Test on different terminal types:
-
-```bash
-# TrueColor terminal (kitty)
-kitty sysc-greet --test
-
-# ANSI256 terminal
-TERM=xterm-256color sysc-greet --test
-
-# Basic TTY (requires actual TTY)
-# Switch to TTY: Ctrl+Alt+F2
-# Run: sysc-greet --test
-```
-
-Verify color fallbacks work correctly across terminal types.
+Run sysc-greet fullscreen in Kitty inside the testbed's running compositor with --test. This bypasses authentication while exercising the real greeter window. Use a second connected display to check secondary-output placement; one output cannot verify that path.
 
 ## Common Test Scenarios
 
 ### Test Theme Switching
-1. Start greeter: `sysc-greet --test`
+1. Start greeter in fullscreen Kitty: `kitty --start-as=fullscreen sysc-greet --test`
 2. Press F1 (Settings)
 3. Navigate to Themes
 4. Cycle through all themes
 5. Verify colors update correctly
 
 ### Test Background Effects
-1. Start greeter: `sysc-greet --test`
+1. Start greeter in fullscreen Kitty: `kitty --start-as=fullscreen sysc-greet --test`
 2. Press F1 (Settings)
 3. Navigate to Backgrounds
-4. Test each effect (Fire, Matrix, Rain, Fireworks, Aquarium)
+4. Test the listed effects, including Sonar, Cracktro, Plasma, model rotations, and Australian SLR
 5. Verify animations render correctly
 
 ### Test Screensaver
-1. Start greeter: `sysc-greet --test --screensaver`
+1. Start greeter in fullscreen Kitty: `kitty --start-as=fullscreen sysc-greet --test --screensaver`
 2. Wait for idle timeout (or manually trigger)
 3. Verify screensaver displays
 4. Press any key to exit
 5. Verify login state is preserved
 
 ### Test ASCII Variants
-1. Start greeter: `sysc-greet --test`
+1. Start greeter in fullscreen Kitty: `kitty --start-as=fullscreen sysc-greet --test`
 2. Press Page Up/Down
 3. Verify ASCII art cycles through variants
 4. Verify selected variant persists after restart

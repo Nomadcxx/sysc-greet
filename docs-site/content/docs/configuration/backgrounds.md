@@ -27,7 +27,7 @@ Access via **F1** → **Backgrounds**:
 
 ## Wallpapers
 
-Wallpapers take priority over background effects. Managed by [gSlapper](https://github.com/Nomadcxx/gSlapper).
+Custom image and video wallpapers are managed by [gSlapper](https://github.com/Nomadcxx/gSlapper).
 
 ### Themed Wallpapers
 
@@ -48,14 +48,7 @@ sudo chown greeter:greeter /var/lib/greeter/Pictures/wallpapers/my-wallpaper.mp4
 
 Access via **F1** → **Wallpaper**.
 
-## Priority
-
-1. Screensaver (overlays the selected wallpaper or effect)
-2. Custom wallpaper (if selected)
-3. Themed wallpaper (auto-matches theme)
-4. Background effect (if no video wallpaper)
-
-## Secondary monitors
+## Secondary outputs
 
 On Niri, sysc-compositor, Cagebreak, Sway, Mango, and Hyprland 0.55+, sysc-greet can use an installed `sysc-terminal` to draw the selected effect and theme on secondary outputs. sysc-compositor uses the Niri-compatible IPC exposed over `NIRI_SOCKET`. If no effect is selected, the compositor wallpaper remains. A selected GSlapper video suppresses secondary effects. An explicit `--secondary-effect` supplies a fallback only when the selected effect is None; its default is empty. Effects absent from the installed renderer are skipped without substitution.
 

@@ -11,11 +11,13 @@ import { DocsHome, DocsHintStrip } from '@/components/docs-home';
 ## Features
 
 - **Multiple Themes**: Dracula, Gruvbox, Material, Nord, Tokyo Night, Catppuccin, Solarized, Monochrome, TransIsHardJob, Eldritch, RAMA, Dark, Ayu, Amber, Blue, Purple, Green, Orange (plus custom themes)
-- **Background Effects**: Fire (DOOM PSX), Matrix rain, ASCII rain, Fireworks, Aquarium
+- **Background Effects**: Fire, ASCII Rain, Matrix, Fireworks, Aquarium, Sonar, Cracktro, Plasma, AK-47, Australian SLR, plus rotating statues and fighters
+- **ANSI Headers**: Configurable per-session art with opt-in embedded SGR colors
 - **ASCII Effects**: Typewriter, Print, Beams, and Pour effects for session text
-- **Border Styles**: Classic, Modern, Minimal, ASCII-1, ASCII-2, Wave, Pulse
+- **Secondary Displays**: Selected effects mirror across supported compositor outputs; configured screensavers use read-only Kitty windows
+- **Border Styles**: Classic, Modern, Minimal, ASCII-1, ASCII-2, NFO 01–03, Braille Hairline, Sextant Bevel, shimmer, and palette cycling
 - **Screensaver**: Configurable idle timeout with ASCII art cycling
-- **Video Wallpapers**: Multi-monitor support via gSlapper
+- **Video Wallpapers**: gSlapper support across monitors
 - **Security Features**: Failed attempt counter with account lockout warnings, optional username caching
 
 ## Installation
@@ -294,13 +296,19 @@ Custom themes can be added via TOML files in `/usr/share/sysc-greet/themes/` or 
 
 ### Background Effects
 
-sysc-greet supports several background effects:
+sysc-greet includes these background effects:
 
-- **Fire** - DOOM PSX fire effect
-- **Matrix** - Matrix rain effect
-- **ASCII Rain** - Falling ASCII characters
-- **Fireworks** - Firework explosions
-- **Aquarium** - Swimming fish animation
+- Fire
+- Matrix
+- ASCII Rain
+- Fireworks
+- Aquarium
+- Sonar
+- Cracktro
+- Plasma
+- AK-47
+- Australian SLR (L2A1 SAR)
+- Rotating statues, landmarks, and fighter aircraft
 
 ### Wallpapers
 
@@ -331,6 +339,8 @@ The screensaver activates after a configurable idle timeout and displays:
 - Current time and date
 - ASCII art cycling
 - Optional print animation effect
+
+On secondary outputs it mirrors the configured art and clock in read-only fullscreen Kitty windows. It takes precedence over effects and wallpapers, including GSlapper video. Input in any saver window wakes the primary greeter and closes the other saver windows.
 
 Screensaver configuration is in `/usr/share/sysc-greet/ascii_configs/screensaver.conf`.
 

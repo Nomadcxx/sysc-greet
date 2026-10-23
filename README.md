@@ -205,7 +205,7 @@ For detailed docs, configuration guides, troubleshooting, and usage instructions
 
 ## License
 
-The sysc-greet source is GPL-3.0. The optional AK-47 background embeds model data under CC BY-NC 4.0, and the Australian SLR background uses the L2A1 SAR model under CC BY 4.0. Third-party code and model notices are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+The sysc-greet source is GPL-3.0-only. Bundled animation code is MIT; model data uses CC0, CC BY, CC BY-NC, CC BY-SA, and CC BY-NC-SA licenses. The CC BY-NC restrictions apply to the models marked that way in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), which lists all bundled third-party code and model data.
 
 ---
 

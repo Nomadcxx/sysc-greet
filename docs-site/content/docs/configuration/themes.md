@@ -112,7 +112,7 @@ This creates wallpapers for all themes in `/usr/share/sysc-greet/wallpapers/`. S
 
 ### Background Effects
 
-Custom themes automatically work with all background effects (fire, matrix, rain, fireworks). The effects generate color palettes from your theme's colors:
+Custom themes color the built-in effects, including Fire, Matrix, ASCII Rain, Fireworks, Aquarium, Sonar, Cracktro, Plasma, AK-47, Australian SLR, and rotating models. The effects use palettes derived from your theme's colors:
 
 - **Fire** uses `bg_base` → `warning` → `danger` → `primary` gradient
 - **Matrix** uses `bg_base` → `secondary` → `primary` for the falling characters
@@ -121,12 +121,6 @@ Custom themes automatically work with all background effects (fire, matrix, rain
 
 No additional configuration needed - just select your custom theme and enable an effect.
 
-### TTY Compatibility
+### Kitty color output
 
-sysc-greet uses the `colorprofile` library to detect terminal capabilities and fall back gracefully:
-
-- **TrueColor terminals** - Full 24-bit color support
-- **ANSI256 terminals** - 256-color palette support
-- **Basic TTY** - Falls back to basic ANSI 16 colors
-
-This ensures consistent appearance across different terminal emulators and TTY.
+greetd starts sysc-greet as a fullscreen Kitty process under the selected Wayland compositor. Kitty provides the TrueColor profile used by the greeter. Color profile fallback behavior is not a substitute for testing the greeter in Kitty on the target compositor.

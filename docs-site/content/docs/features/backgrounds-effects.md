@@ -12,20 +12,19 @@ Access via **F1** → **Backgrounds**:
 | Effect | Description |
 |--------|-------------|
 | Fire | DOOM PSX-style fire animation |
-| Matrix | Falling green characters (The Matrix) |
-| ASCII Rain | Falling characters (theme colors) |
-| Fireworks | Random particle explosions |
+| Matrix | Falling green characters |
+| ASCII Rain | Falling characters in theme colors |
+| Fireworks | Particle explosions |
 | Aquarium | Fish, bubbles, and seaweed |
-| Jesus Christ Statue | Upright horizontal rotation |
-| Jason | Upright horizontal rotation |
-| Nymphe der Flora | Upright horizontal rotation |
-| Löwe | Upright horizontal rotation |
-| Roman Gladiator | Upright horizontal rotation |
-| Grabfigur | Upright horizontal rotation |
+| Sonar | Scanning sonar display |
+| Cracktro | Retro scene-style animated art |
+| Plasma | Animated plasma field |
+| AK-47 | Rotating model |
+| Australian SLR | Rotating L2A1 SAR model |
+| Rotating models | Statues, landmarks, and aircraft |
 
-Each statue turns around its vertical axis with a fixed camera angle. Its
-frame displays the model title, creator, and license. `THIRD_PARTY_NOTICES.md`
-lists the source links and full license terms.
+Rotating model frames display the model title, creator, and license.
+`THIRD_PARTY_NOTICES.md` lists their source links and full license terms.
 
 ## ASCII Effects
 
@@ -48,13 +47,8 @@ See [Custom Themes](../configuration/themes#custom-themes) for creating your own
 
 - Background effects are mutually exclusive
 - ASCII effects are mutually exclusive
-- Both can run together
-- Video wallpapers override all effects
+- Background and ASCII effects can run together
+- A GSlapper video suppresses secondary background effects; with no effect selected, the existing wallpaper remains
+- The configured screensaver takes precedence over wallpapers and effects, including video, on secondary outputs
 
-## TTY Compatibility
-
-All effects use automatic color profile detection:
-
-- TrueColor: Full 24-bit color
-- ANSI256: 256-color palette
-- Basic TTY: 16 ANSI colors
+The greeter runs fullscreen in Kitty under the compositor that greetd starts. For visual checks, use Kitty in that real compositor; a raw TTY does not exercise the greeter window or compositor output behavior.

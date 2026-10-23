@@ -83,15 +83,9 @@ sysc-greet operates in different view modes:
 | ModeReleaseNotes | Release notes display |
 | ModeScreensaver | Idle screensaver |
 
-## TTY Compatibility
+## Kitty color output
 
-sysc-greet uses `colorprofile` library to detect terminal capabilities and provide appropriate fallback colors:
-
-- **TrueColor terminals** - Full 24-bit RGB color support
-- **ANSI256 terminals** - 256-color palette support
-- **Basic TTY** - Falls back to 16 ANSI colors
-
-Color rendering uses `lipgloss.Complete()` function which selects the best available color depth.
+greetd launches the Bubble Tea interface in fullscreen Kitty under the selected compositor. The colorprofile library detects the color depth exposed by Kitty; the supported runtime is the Kitty greeter session.
 
 ## IPC Communication
 
@@ -165,11 +159,10 @@ All background effects implement a common interface:
 - Use theme colors for rendering
 
 Effects:
-- Fire - PSX DOOM algorithm with particle system
-- Matrix - Falling characters with trail effect
-- ASCII Rain - Falling ASCII using theme colors
-- Fireworks - Particle explosion system
-- Aquarium - Swimming fish with bubble particles
+- Fire, Matrix, ASCII Rain, Fireworks, Aquarium
+- Sonar, Cracktro, Plasma
+- AK-47 and Australian SLR models
+- Rotating statues, landmarks, and aircraft
 
 ### ASCII Effects
 
