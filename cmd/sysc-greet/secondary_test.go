@@ -68,7 +68,7 @@ func TestReconcileSecondaryChildrenStopsSaverAfterPrimaryWake(t *testing.T) {
 	defer child.stop()
 	children := map[string]*backgroundChild{"DP-1": child}
 
-	if _, err := reconcileSecondaryChildren(children, false, false, nil); err != nil {
+	if _, err := reconcileSecondaryChildren(children, false, false, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := children["DP-1"]; ok {
@@ -542,7 +542,8 @@ func TestSecondaryManagerRetriesFullscreenPreparationBeforeSaverLaunch(t *testin
 	}
 
 	manager.setFullscreenError(nil)
-	deadline = time.Now().Add(2 * time.Second)
+	// With no children, the manager's normal retry interval is two seconds.
+	deadline = time.Now().Add(4 * time.Second)
 	for time.Now().Before(deadline) {
 		if data, err := os.ReadFile(kittyLog); err == nil && strings.Contains(string(data), "started") {
 			return

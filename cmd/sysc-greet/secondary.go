@@ -91,6 +91,8 @@ type backgroundChild struct {
 	ready         bool
 	effect        string
 	theme         string
+	launchKey     string
+	started       time.Time
 }
 
 func startBackgroundChild(cmd *exec.Cmd) (*backgroundChild, error) {
@@ -98,7 +100,7 @@ func startBackgroundChild(cmd *exec.Cmd) (*backgroundChild, error) {
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
-	child := &backgroundChild{cmd: cmd, done: make(chan struct{})}
+	child := &backgroundChild{cmd: cmd, done: make(chan struct{}), started: time.Now()}
 	go func() {
 		child.exitErr = cmd.Wait()
 		close(child.done)
@@ -268,6 +270,7 @@ func runSecondaryManager(ctx context.Context, config secondaryConfig, stateBus *
 			child.stop()
 		}
 	}()
+	failures := make(secondaryLaunchFailures)
 
 	var (
 		primary             string
@@ -292,9 +295,10 @@ func runSecondaryManager(ctx context.Context, config secondaryConfig, stateBus *
 			wakePending = false
 		}
 		var childErr error
-		wakePending, childErr = reconcileSecondaryChildren(children, runtime.Screensaver, wakePending, send)
+		wakePending, childErr = reconcileSecondaryChildren(children, runtime.Screensaver, wakePending, send, failures)
 		outputs, focused, listErr := manager.ListOutputs(ctx)
 		if listErr == nil {
+			failures.forgetMissing(outputs)
 			primary = stablePrimaryOutput(primary, outputs, focused)
 			if primary == "" {
 				listErr = fmt.Errorf("no stable primary output is active")
@@ -391,6 +395,7 @@ func runSecondaryManager(ctx context.Context, config secondaryConfig, stateBus *
 						delete(children, output)
 					} else {
 						child.effect, child.theme = want.Background, want.Theme
+						child.launchKey = secondaryLaunchKey(false, want)
 					}
 				}
 			}
@@ -420,12 +425,14 @@ func runSecondaryManager(ctx context.Context, config secondaryConfig, stateBus *
 						if stateBus.load() != runtime {
 							break
 						}
-						if children[output] != nil {
+						launchKey := secondaryLaunchKey(true, runtime)
+						if children[output] != nil || failures.blocked(output, launchKey) {
 							continue
 						}
 						// A compositor can move focus before its IPC call reports an error.
 						focusAttempted = true
 						if err := manager.FocusOutput(ctx, output); err != nil {
+							failures.record(output, launchKey)
 							iterationErr = errors.Join(iterationErr, err)
 							continue
 						}
@@ -435,6 +442,7 @@ func runSecondaryManager(ctx context.Context, config secondaryConfig, stateBus *
 							if stateBus.load() != runtime {
 								break
 							}
+							failures.record(output, launchKey)
 							iterationErr = errors.Join(iterationErr, startErr)
 							continue
 						}
@@ -442,6 +450,7 @@ func runSecondaryManager(ctx context.Context, config secondaryConfig, stateBus *
 							child.stop()
 							break
 						}
+						child.launchKey = launchKey
 						children[output] = child
 						if hasExitedSaver(children) {
 							wakePending = true
@@ -458,16 +467,18 @@ func runSecondaryManager(ctx context.Context, config secondaryConfig, stateBus *
 						if stateBus.load() != runtime {
 							break
 						}
-						if children[output] != nil {
+						want := desired[output]
+						launchKey := secondaryLaunchKey(false, want)
+						if children[output] != nil || failures.blocked(output, launchKey) {
 							continue
 						}
 						socket := filepath.Join(dir, fmt.Sprintf("background-%d.sock", time.Now().UnixNano()))
-						want := desired[output]
 						child, startErr := launchSecondaryBackground(ctx, stateBus, runtime, output, terminalBinary, socket, want.Background, want.Theme)
 						if startErr != nil {
 							if stateBus.load() != runtime {
 								break
 							}
+							failures.record(output, launchKey)
 							iterationErr = errors.Join(iterationErr, fmt.Errorf("background %s: %w", output, startErr))
 							continue
 						}
@@ -475,6 +486,7 @@ func runSecondaryManager(ctx context.Context, config secondaryConfig, stateBus *
 							child.stop()
 							break
 						}
+						child.launchKey = launchKey
 						children[output] = child
 					}
 				}
@@ -520,16 +532,24 @@ func restorePrimaryFocus(ctx context.Context, manager compositorOutputManager, p
 	return false, nil
 }
 
-func reconcileSecondaryChildren(children map[string]*backgroundChild, saverActive, wakePending bool, send func(tea.Msg)) (bool, error) {
+func reconcileSecondaryChildren(children map[string]*backgroundChild, saverActive, wakePending bool, send func(tea.Msg), failures secondaryLaunchFailures) (bool, error) {
 	var childErr error
 	for output, child := range children {
 		select {
 		case <-child.done:
-			if child.kind == secondaryChildScreensaver && saverActive && !wakePending && !child.stopRequested && child.ready && child.exitErr == nil {
+			cleanSaverExit := child.kind == secondaryChildScreensaver && child.exitErr == nil
+			if cleanSaverExit && saverActive && !wakePending && !child.stopRequested && child.ready {
 				wakePending = true
 				sendSecondary(send, secondaryWakeMsg{})
 			} else if child.exitErr != nil {
 				childErr = errors.Join(childErr, fmt.Errorf("secondary output %s exited: %w", output, child.exitErr))
+			}
+			// A helper that dies on its own counts toward the relaunch limit.
+			if failures != nil && !child.stopRequested && !cleanSaverExit && child.launchKey != "" {
+				if time.Since(child.started) >= secondaryStableRun {
+					delete(failures, output)
+				}
+				failures.record(output, child.launchKey)
 			}
 			child.stop()
 			delete(children, output)
