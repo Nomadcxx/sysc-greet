@@ -1,7 +1,6 @@
 package animations
 
 import (
-	"fmt"
 	"math"
 	"math/rand"
 	"strings"
@@ -282,33 +281,33 @@ func (s *SonarAnimation) onRing(x, y int, radius float64) bool {
 	return math.Abs(d-radius) < 0.9
 }
 
-// hexLerp linearly interpolates between two hex colour strings.
-func hexLerp(from, to string, t float64) string {
+// hexToRGBSonar parses a hex color string into its RGB channels.
+func hexToRGBSonar(hex string) [3]int {
+	if len(hex) > 0 && hex[0] == '#' {
+		hex = hex[1:]
+	}
+	if len(hex) != 6 {
+		return [3]int{}
+	}
+	return [3]int{
+		hexPair(hex[0], hex[1]),
+		hexPair(hex[2], hex[3]),
+		hexPair(hex[4], hex[5]),
+	}
+}
+
+func lerpSonarRGB(from, to [3]int, t float64) [3]int {
 	if t <= 0 {
 		return from
 	}
 	if t >= 1 {
 		return to
 	}
-	r1, g1, b1 := hexToRGBSonar(from)
-	r2, g2, b2 := hexToRGBSonar(to)
-	r := r1 + int(math.Round(t*float64(r2-r1)))
-	g := g1 + int(math.Round(t*float64(g2-g1)))
-	b := b1 + int(math.Round(t*float64(b2-b1)))
-	return fmt.Sprintf("#%02x%02x%02x", r, g, b)
-}
-
-// hexToRGBSonar parses a hex color string. Named to avoid clashing with
-// other effects that may define hexToRGB.
-func hexToRGBSonar(hex string) (int, int, int) {
-	if len(hex) > 0 && hex[0] == '#' {
-		hex = hex[1:]
+	return [3]int{
+		from[0] + int(math.Round(t*float64(to[0]-from[0]))),
+		from[1] + int(math.Round(t*float64(to[1]-from[1]))),
+		from[2] + int(math.Round(t*float64(to[2]-from[2]))),
 	}
-	var r, g, b int
-	if len(hex) == 6 {
-		fmt.Sscanf(hex, "%02x%02x%02x", &r, &g, &b)
-	}
-	return r, g, b
 }
 
 // Render produces the current frame.
@@ -361,61 +360,63 @@ func (s *SonarAnimation) Render() string {
 	}
 
 	scanY := s.scanRow()
-	gridColor := s.paletteSlot(0)
-	scanColor := s.paletteSlot(2)
+	gridColor := hexToRGBSonar(s.paletteSlot(0))
+	pulseColor := hexToRGBSonar(s.paletteSlot(1))
+	scanColor := hexToRGBSonar(s.paletteSlot(2))
+	ashColors := [2][3]int{
+		hexToRGBSonar(s.paletteSlot(5)),
+		hexToRGBSonar(s.paletteSlot(6)),
+	}
 
 	for y := 0; y < s.height; y++ {
 		// Run-length SGR state: emit a color code only when the color changes
 		// along the row, reset before default-colored cells and at row end
-		lastR, lastG, lastB := -1, -1, -1
+		lastColor := [3]int{-1, -1, -1}
 
 		for x := 0; x < s.width; x++ {
 			pos := [2]int{x, y}
 
-			var cr, cg, cb int
+			var color [3]int
 			var ch rune
 			colored := true
 
 			if ap, ok := ashMap[pos]; ok {
-				var col string
 				if ap.layer == 0 {
-					col = s.paletteSlot(5)
+					color = ashColors[0]
 				} else {
-					col = s.paletteSlot(6)
+					color = ashColors[1]
 				}
-				cr, cg, cb = hexToRGBSonar(col)
 				ch = ap.char
 			} else if y == scanY {
-				cr, cg, cb = hexToRGBSonar(scanColor)
+				color = scanColor
 				ch = '─'
 			} else if h, ok := ringMap[pos]; ok {
-				col := hexLerp(s.paletteSlot(0), s.paletteSlot(1), h.intensity)
-				cr, cg, cb = hexToRGBSonar(col)
+				color = lerpSonarRGB(gridColor, pulseColor, h.intensity)
 				ch = '·'
 			} else if gch, ok := gridMap[pos]; ok {
-				cr, cg, cb = hexToRGBSonar(gridColor)
+				color = gridColor
 				ch = gch
 			} else {
 				colored = false
 			}
 
 			if !colored {
-				if lastR != -1 {
+				if lastColor[0] != -1 {
 					s.builder.WriteString("\x1b[0m")
-					lastR, lastG, lastB = -1, -1, -1
+					lastColor = [3]int{-1, -1, -1}
 				}
 				s.builder.WriteByte(' ')
 				continue
 			}
 
-			if cr != lastR || cg != lastG || cb != lastB {
-				writeRGBSGR(&s.builder, cr, cg, cb)
-				lastR, lastG, lastB = cr, cg, cb
+			if color != lastColor {
+				writeRGBSGR(&s.builder, color[0], color[1], color[2])
+				lastColor = color
 			}
 			s.builder.WriteRune(ch)
 		}
 
-		if lastR != -1 {
+		if lastColor[0] != -1 {
 			s.builder.WriteString("\x1b[0m")
 		}
 		if y < s.height-1 {

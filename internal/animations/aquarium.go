@@ -3,10 +3,7 @@ package animations
 import (
 	"math"
 	"math/rand"
-	"strings"
 	"time"
-
-	"github.com/charmbracelet/lipgloss/v2"
 )
 
 // AquariumEffect implements an animated aquarium scene
@@ -949,24 +946,20 @@ func (a *AquariumEffect) Render() string {
 	}
 
 	// Convert to colored string
-	var lines []string
+	w := newSGRLineWriter(a.width * a.height * 2)
 	for y := 0; y < a.height; y++ {
-		var line strings.Builder
 		for x := 0; x < a.width; x++ {
 			char := canvas[y][x]
 			if char != ' ' && colors[y][x] != "" {
-				styled := lipgloss.NewStyle().
-					Foreground(lipgloss.Color(colors[y][x])).
-					Render(string(char))
-				line.WriteString(styled)
+				w.WriteCell(colors[y][x], char)
 			} else {
-				line.WriteRune(char)
+				w.WriteCell("", char)
 			}
 		}
-		lines = append(lines, line.String())
+		w.EndRow()
 	}
 
-	return strings.Join(lines, "\n")
+	return w.String()
 }
 
 // Reset restarts the animation
