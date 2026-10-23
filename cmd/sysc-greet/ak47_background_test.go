@@ -73,6 +73,27 @@ func TestAK47BackgroundResizesWithTerminal(t *testing.T) {
 	}
 }
 
+type cellAspectRecorder struct {
+	width, height int
+}
+
+func (r *cellAspectRecorder) SetCellAspect(width, height int) {
+	r.width, r.height = width, height
+}
+
+func TestSetCellAspectUsesTerminalPixelGeometry(t *testing.T) {
+	r := &cellAspectRecorder{}
+	setCellAspect(r, 110, 32, 990, 640)
+	if r.width != 9 || r.height != 20 {
+		t.Fatalf("cell aspect = %dx%d, want 9x20", r.width, r.height)
+	}
+
+	setCellAspect(r, 110, 32, 0, 0)
+	if r.width != 9 || r.height != 20 {
+		t.Fatalf("missing pixel geometry changed cell aspect to %dx%d", r.width, r.height)
+	}
+}
+
 func TestThemeChangeRecreatesAK47Background(t *testing.T) {
 	m := model{
 		config: Config{TestMode: true}, mode: ModeThemesSubmenu,

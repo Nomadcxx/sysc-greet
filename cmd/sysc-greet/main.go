@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"image/color"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -478,6 +479,9 @@ type model struct {
 
 	capsLockOn    bool // CAPS LOCK state detected via kitty keyboard protocol
 	kittyUpgraded bool // Whether we've upgraded kitty keyboard flags for non-US layout support
+	kittyGraphics bool
+	kittyCredit   string
+	kittyImages   kittyImagePresenter
 
 	// ASCII Effects
 	typewriterTicker    *animations.TypewriterTicker  // Typewriter ticker for session roasts
@@ -1021,6 +1025,22 @@ func (m model) Update(msg tea.Msg) (result tea.Model, command tea.Cmd) {
 			current.publishSecondaryRuntime()
 		}
 	}()
+	updated, cmd := m.update(msg)
+	next, ok := updated.(model)
+	if !ok {
+		return updated, cmd
+	}
+	if imageCmd := syncKittyMeshFrame(m, &next, msg); imageCmd != nil {
+		if cmd == nil {
+			cmd = imageCmd
+		} else {
+			cmd = tea.Batch(cmd, imageCmd)
+		}
+	}
+	return next, cmd
+}
+
+func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	if m.config.SecondarySaver {
 		switch msg.(type) {
@@ -1122,12 +1142,15 @@ func (m model) Update(msg tea.Msg) (result tea.Model, command tea.Cmd) {
 		}
 		if m.ak47Effect != nil {
 			m.ak47Effect.Resize(msg.Width, msg.Height)
+			applyTerminalCellAspect(m.ak47Effect)
 		}
 		if m.l2a1SAREffect != nil {
 			m.l2a1SAREffect.Resize(msg.Width, msg.Height)
+			applyTerminalCellAspect(m.l2a1SAREffect)
 		}
 		if m.rotatingModelEffect != nil {
 			m.rotatingModelEffect.Resize(msg.Width, msg.Height)
+			applyTerminalCellAspect(m.rotatingModelEffect)
 		}
 		return m, nil
 
@@ -2482,7 +2505,7 @@ func (m model) View() tea.View {
 	}
 	if canvas, ok := m.borderedLoginCanvas(termWidth, termHeight); ok {
 		view.Layer = canvas
-		view.BackgroundColor = BgBase
+		view.BackgroundColor = m.viewBackgroundColor()
 		return view
 	}
 
@@ -2527,7 +2550,7 @@ func (m model) View() tea.View {
 
 		// Create canvas with two layers: fire at bottom, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, fireY, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = BgBase
+		view.BackgroundColor = m.viewBackgroundColor()
 		return view
 	} else if hasRainBackground {
 		// CHANGED 2025-10-08 - Render ascii-rain as full background
@@ -2542,7 +2565,7 @@ func (m model) View() tea.View {
 
 		// Create canvas with two layers: rain as background, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = BgBase
+		view.BackgroundColor = m.viewBackgroundColor()
 		return view
 	} else if m.selectedBackground == "matrix" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		// Render matrix as full background
@@ -2556,7 +2579,7 @@ func (m model) View() tea.View {
 
 		// Create canvas with two layers: matrix as background, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = BgBase
+		view.BackgroundColor = m.viewBackgroundColor()
 		return view
 	} else if m.selectedBackground == "fireworks" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		// Render fireworks as full background
@@ -2570,7 +2593,7 @@ func (m model) View() tea.View {
 
 		// Create canvas with two layers: fireworks as background, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = BgBase
+		view.BackgroundColor = m.viewBackgroundColor()
 		return view
 	} else if m.selectedBackground == "sonar" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		// Render sonar as full background
@@ -2584,7 +2607,7 @@ func (m model) View() tea.View {
 
 		// Create canvas with two layers: sonar as background, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = BgBase
+		view.BackgroundColor = m.viewBackgroundColor()
 		return view
 	} else if m.selectedBackground == "cracktro" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		// Render cracktro as full background
@@ -2598,7 +2621,7 @@ func (m model) View() tea.View {
 
 		// Create canvas with two layers: cracktro as background, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = BgBase
+		view.BackgroundColor = m.viewBackgroundColor()
 		return view
 	} else if m.selectedBackground == "plasma" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		// Render plasma as full background
@@ -2612,7 +2635,7 @@ func (m model) View() tea.View {
 
 		// Create canvas with two layers: plasma as background, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = BgBase
+		view.BackgroundColor = m.viewBackgroundColor()
 		return view
 	} else if m.selectedBackground == "aquarium" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		// Render aquarium as full background
@@ -2626,7 +2649,7 @@ func (m model) View() tea.View {
 
 		// Create canvas with two layers: aquarium as background, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = BgBase
+		view.BackgroundColor = m.viewBackgroundColor()
 		return view
 	} else if m.selectedBackground == "ak-47" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		backgroundContent := m.addAK47Effect("")
@@ -2637,7 +2660,7 @@ func (m model) View() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = BgBase
+		view.BackgroundColor = m.viewBackgroundColor()
 		return view
 	}
 
@@ -2648,7 +2671,7 @@ func (m model) View() tea.View {
 		uiX := (termWidth - contentWidth) / 2
 		uiY := (termHeight - contentHeight) / 2
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = BgBase
+		view.BackgroundColor = m.viewBackgroundColor()
 		return view
 	}
 
@@ -2659,7 +2682,7 @@ func (m model) View() tea.View {
 		uiX := (termWidth - contentWidth) / 2
 		uiY := (termHeight - contentHeight) / 2
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = BgBase
+		view.BackgroundColor = m.viewBackgroundColor()
 		return view
 	}
 
@@ -2680,7 +2703,7 @@ func (m model) View() tea.View {
 	// Keep a full-terminal backing layer so small popups clear stale cells even
 	// when Bubble Tea is running without alt-screen.
 	view.Layer = m.composeLayer(blankTerminalContent(termWidth, termHeight), 0, 0, content, x, y, termWidth, termHeight)
-	view.BackgroundColor = BgBase
+	view.BackgroundColor = m.viewBackgroundColor()
 	return view
 }
 
@@ -3132,6 +3155,7 @@ func main() {
 		}
 	}
 	m := initialModel(config, screensaverTestMode || config.SecondarySaver)
+	m.kittyGraphics = kittyGraphicsAvailable()
 	m.ambient = collector
 	m.secondaryReadyFile = secondaryReadyFile
 	if config.SecondarySaver {
@@ -3165,7 +3189,14 @@ func main() {
 		secondaryDone = startSecondaryManager(ctx, config.Secondary, m.secondaryRuntime, p.Send)
 	}
 
-	_, err = p.Run()
+	final, err := p.Run()
+	if finalModel, ok := final.(model); ok {
+		if sequence := finalModel.kittyImages.clear(); sequence != "" {
+			if _, clearErr := io.WriteString(os.Stdout, sequence); clearErr != nil {
+				logDebug("Could not clear Kitty mesh background: %v", clearErr)
+			}
+		}
+	}
 	cancel()
 	<-secondaryDone
 	if collector != nil {
