@@ -128,7 +128,7 @@ EOF
           meta = with pkgs.lib; {
             description = "Graphical console greeter for greetd with ASCII art and themes";
             homepage = "https://github.com/Nomadcxx/sysc-greet";
-            license = with licenses; [ gpl3Only cc-by-nc-40 ];
+            license = with licenses; [ gpl3Only ];
             maintainers = [ ];
             platforms = platforms.linux;
             mainProgram = "sysc-greet";
