@@ -35,11 +35,11 @@ func TestReleaseNotesDescribeGreeterSupport(t *testing.T) {
 	applyTheme("dracula", true)
 	notes := stripAnsi((model{}).renderReleaseNotesView(213, 54))
 	for _, text := range []string{
-		"Config ANSI headers use theme colors; sysc-compositor profiles added",
-		"NFO borders default to Minimal; saved styles persist",
+		"Config ANSI headers use theme colors; experimental sysc-compositor art",
+		"NFO, Braille Hairline, and ASCII borders; Minimal is the default",
 		"Removed the SESSIONS divider from bordered layouts",
 		"Backgrounds: Australian SLR, AK-47, and rotating statue/fighter models",
-		"Hyprland 0.55+ Lua greeter is opt-in; physical checks remain",
+		"Hyprland 0.55+ is supported again through an opt-in Lua greeter",
 		"Mango 0.18.2 config and release packages; six themes; shell theme following",
 		"Secondary: mirror effects; video suppresses them; screensaver wins",
 		"PAM authentication handles notices, OTPs, and password changes",

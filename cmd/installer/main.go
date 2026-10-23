@@ -247,7 +247,6 @@ type greeterCompositor struct {
 // greeterCompositors are the backends available in the default installer picker.
 var greeterCompositors = []greeterCompositor{
 	{name: "niri", label: "Tiling compositor with scrollable workspaces (default)", binaries: []string{"niri"}},
-	{name: "sysc-compositor", label: "Niri-compatible compositor (install separately)", binaries: []string{"sysc-compositor"}},
 	{name: "cagebreak", label: "Minimal tiling kiosk", binaries: []string{"cagebreak"}, installable: true},
 	{name: "sway", label: "Stable i3-compatible tiling compositor", binaries: []string{"sway"}},
 	{name: "mango", label: "dwl-based tiling compositor (Arch, Debian 13, Ubuntu 26.04, Fedora 43/44)", binaries: []string{"mango"}, installable: true},
@@ -257,12 +256,23 @@ var hyprlandGreeterCompositor = greeterCompositor{
 	name: "hyprland", label: "Hyprland 0.55+ (explicit opt-in; Lua config)", binaries: []string{"start-hyprland"}, installable: true,
 }
 
+// syscCompositorGreeterCompositor is experimental and listed only when its
+// binary is installed or SYSC_COMPOSITOR=sysc-compositor asks for it.
+var syscCompositorGreeterCompositor = greeterCompositor{
+	name: "sysc-compositor", label: "Experimental Niri-compatible compositor (WIP; install separately)", binaries: []string{"sysc-compositor"},
+}
+
 func compositorPickerOptions() []greeterCompositor {
-	if os.Getenv("SYSC_COMPOSITOR") != "hyprland" {
-		return greeterCompositors
+	requested := os.Getenv("SYSC_COMPOSITOR")
+	options := append([]greeterCompositor(nil), greeterCompositors[:1]...)
+	if requested == syscCompositorGreeterCompositor.name || compositorInstalled(syscCompositorGreeterCompositor.name) {
+		options = append(options, syscCompositorGreeterCompositor)
 	}
-	options := append([]greeterCompositor(nil), greeterCompositors...)
-	return append(options, hyprlandGreeterCompositor)
+	options = append(options, greeterCompositors[1:]...)
+	if requested == "hyprland" {
+		options = append(options, hyprlandGreeterCompositor)
+	}
+	return options
 }
 
 const (
@@ -285,7 +295,7 @@ func niriGreeterQuitCommand(compositor string) string {
 	return ""
 }
 
-const mangoUnsupported = "Mango packages are available only on Arch, Debian 13, Ubuntu 26.04, Fedora 43/44. Use niri, Hyprland, sysc-compositor, cagebreak, or sway instead"
+const mangoUnsupported = "Mango packages are available only on Arch, Debian 13, Ubuntu 26.04, Fedora 43/44. Use niri, cagebreak, sway, or Hyprland instead"
 
 // mangoAvailable reports whether installMango can install mango here
 func mangoAvailable(packageManager string) bool {
@@ -296,6 +306,9 @@ func mangoAvailable(packageManager string) bool {
 func compositorBinaries(name string) []string {
 	if name == "hyprland" {
 		return hyprlandGreeterCompositor.binaries
+	}
+	if name == syscCompositorGreeterCompositor.name {
+		return syscCompositorGreeterCompositor.binaries
 	}
 	for _, c := range greeterCompositors {
 		if c.name == name {

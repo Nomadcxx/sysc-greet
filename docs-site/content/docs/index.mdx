@@ -141,7 +141,7 @@ sudo nixos-rebuild switch --flake .#your-hostname
 **Requirements:**
 - Go 1.25+
 - greetd
-- Wayland compositor: niri (default), cagebreak, sway, mango, sysc-compositor, or Hyprland 0.55+
+- Wayland compositor: niri (default), cagebreak, sway, mango, or Hyprland 0.55+ (sysc-compositor: experimental)
 - socat (cagebreak only — quits the compositor after login)
 - kitty (terminal)
 - gSlapper (wallpaper daemon)
@@ -346,7 +346,7 @@ Screensaver configuration is in `/usr/share/sysc-greet/ascii_configs/screensaver
 
 ### Compositor Setup
 
-sysc-greet runs its greeter under Niri, Cagebreak, Sway, Mango, a separately installed sysc-compositor, or Hyprland 0.55+. Set `SYSC_COMPOSITOR=hyprland` to opt into Hyprland. Check startup, login, and quit on the target machine before enabling greetd. For setup instructions, see:
+sysc-greet runs its greeter under Niri, Cagebreak, Sway, Mango, or Hyprland 0.55+. Set `SYSC_COMPOSITOR=hyprland` to opt into Hyprland. Experimental sysc-compositor builds are detected and run with the Niri config. Check startup, login, and quit on the target machine before enabling greetd. For setup instructions, see:
 
 - [Niri Setup](compositors/niri) — default
 - [Cagebreak Setup](compositors/cagebreak)

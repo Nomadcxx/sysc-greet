@@ -77,15 +77,40 @@ if [ "$1" = "-m" ] && [ "$FAIL_INSTALL" = "1" ]; then exit 1; fi
 }
 
 func TestSyscCompositorGreeterBackend(t *testing.T) {
-	var selected *greeterCompositor
-	for i := range greeterCompositors {
-		if greeterCompositors[i].name == "sysc-compositor" {
-			selected = &greeterCompositors[i]
-			break
+	pickerHas := func() *greeterCompositor {
+		for _, compositor := range compositorPickerOptions() {
+			if compositor.name == "sysc-compositor" {
+				return &compositor
+			}
 		}
+		return nil
 	}
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("SYSC_COMPOSITOR", "")
+	if pickerHas() != nil {
+		t.Fatal("experimental sysc-compositor appeared without its binary or an explicit request")
+	}
+
+	t.Setenv("SYSC_COMPOSITOR", "sysc-compositor")
+	selected := pickerHas()
 	if selected == nil {
-		t.Fatal("sysc-compositor is missing from the greeter picker")
+		t.Fatal("SYSC_COMPOSITOR=sysc-compositor did not enable the picker entry")
+	}
+	if options := compositorPickerOptions(); options[0].name != "niri" || options[1].name != "sysc-compositor" {
+		t.Fatalf("picker order = %s, %s; want niri, sysc-compositor", options[0].name, options[1].name)
+	}
+	if !strings.Contains(selected.label, "Experimental") {
+		t.Fatalf("sysc-compositor label %q does not mark it experimental", selected.label)
+	}
+
+	binDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(binDir, "sysc-compositor"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir)
+	t.Setenv("SYSC_COMPOSITOR", "")
+	if pickerHas() == nil {
+		t.Fatal("installed sysc-compositor binary was not detected")
 	}
 	if selected.installable {
 		t.Fatal("sysc-compositor must be installed separately")

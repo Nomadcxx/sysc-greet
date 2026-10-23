@@ -50,7 +50,7 @@ Access via **F1** → **Wallpaper**.
 
 ## Secondary outputs
 
-On Niri, sysc-compositor, Cagebreak, Sway, Mango, and Hyprland 0.55+, sysc-greet can use an installed `sysc-terminal` to draw the selected effect and theme on secondary outputs. sysc-compositor uses the Niri-compatible IPC exposed over `NIRI_SOCKET`. If no effect is selected, the compositor wallpaper remains. A selected GSlapper video suppresses secondary effects. An explicit `--secondary-effect` supplies a fallback only when the selected effect is None; its default is empty. Effects absent from the installed renderer are skipped without substitution.
+On Niri, Cagebreak, Sway, Mango, and Hyprland 0.55+, sysc-greet can use an installed `sysc-terminal` to draw the selected effect and theme on secondary outputs. Experimental sysc-compositor builds use the same path through the Niri-compatible IPC exposed over `NIRI_SOCKET`. If no effect is selected, the compositor wallpaper remains. A selected GSlapper video suppresses secondary effects. An explicit `--secondary-effect` supplies a fallback only when the selected effect is None; its default is empty. Effects absent from the installed renderer are skipped without substitution.
 
 | Option | Behavior |
 | --- | --- |

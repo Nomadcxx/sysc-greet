@@ -13,7 +13,9 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 - [Full Documentation](https://nomadcxx.github.io/sysc-greet/) - Complete guides, configuration, and usage instructions
 
 > [!NOTE]
-> The greeter supports Niri, Cagebreak, Sway, Mango, and a separately installed sysc-compositor. Hyprland 0.55+ uses the Lua config and requires explicit opt-in with `SYSC_COMPOSITOR=hyprland`. Test startup, login, and quit on the target machine before enabling it for greetd.
+> The greeter supports Niri, Cagebreak, Sway, and Mango. Hyprland 0.55+ uses the Lua config and requires explicit opt-in with `SYSC_COMPOSITOR=hyprland`. Test startup, login, and quit on the target machine before enabling it for greetd.
+>
+> sysc-compositor support is experimental. sysc-compositor is unreleased and WIP; when its binary is installed, the greeter runs it with the Niri config and IPC.
 
 ## Installation
 
@@ -179,7 +181,7 @@ To reuse sysc-shell coordinates and units, set `"weather_location": "sysc-shell"
 
 ## Secondary monitors
 
-On Niri, sysc-compositor, Cagebreak, Sway, Mango, and Hyprland 0.55+, the greeter can draw the selected background effect on each active secondary output with `sysc-terminal`. sysc-compositor uses the Niri-compatible IPC exposed over `NIRI_SOCKET`. With no effect selected, the existing wallpaper remains. A selected GSlapper video suppresses secondary effects. `--secondary-effect pour` opts into a renderer effect only when the greeter background is None; the default is empty. Effects the installed `sysc-terminal` does not provide are skipped without substituting another effect.
+On Niri, Cagebreak, Sway, Mango, and Hyprland 0.55+, the greeter can draw the selected background effect on each active secondary output with `sysc-terminal`. Experimental sysc-compositor builds use the same path through the Niri-compatible IPC exposed over `NIRI_SOCKET`. With no effect selected, the existing wallpaper remains. A selected GSlapper video suppresses secondary effects. `--secondary-effect pour` opts into a renderer effect only when the greeter background is None; the default is empty. Effects the installed `sysc-terminal` does not provide are skipped without substituting another effect.
 
 `--secondary-backgrounds=false` disables secondary background effects, and `--secondary-exclude DP-3,HDMI-A-1` excludes outputs from those effects. The configured screensaver takes precedence over wallpapers and effects and appears in a read-only fullscreen Kitty child on every secondary output. Input in any saver window wakes the primary greeter and closes the other saver windows. Background helpers are removed when outputs disappear or the greeter exits. Install `sysc-terminal` separately to mirror effects; Kitty is already required by the greeter.
 

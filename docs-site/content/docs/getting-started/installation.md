@@ -14,7 +14,7 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.
 ```
 
 The interactive installer will prompt you to:
-1. Choose your greeter backend: Niri (default), Cagebreak, Sway, Mango, or a separately installed sysc-compositor
+1. Choose your greeter backend: Niri (default), Cagebreak, Sway, or Mango. An installed experimental sysc-compositor is also listed
 2. Configure backend settings
 3. Install dependencies automatically
 
@@ -26,7 +26,7 @@ The interactive installer will prompt you to:
 
 - Go 1.25+
 - greetd
-- Wayland backend: Niri (default), Cagebreak, Sway, Mango, sysc-compositor, or Hyprland 0.55+
+- Wayland backend: Niri (default), Cagebreak, Sway, Mango, or Hyprland 0.55+ (sysc-compositor: experimental)
 - kitty (terminal emulator)
 - gSlapper (wallpaper daemon)
 - swww (legacy wallpaper daemon, optional fallback)
@@ -118,14 +118,14 @@ command = "niri -c /etc/greetd/niri-greeter-config.kdl"
 user = "greeter"
 ```
 
-**sysc-compositor (development builds):**
+**sysc-compositor (experimental, WIP):**
 ```toml
 [default_session]
 command = "sysc-compositor -c /etc/greetd/niri-greeter-config.kdl"
 user = "greeter"
 ```
-Install sysc-compositor separately and make it available on greetd's `PATH`. The installer reuses the Niri greeter config and its Niri IPC quit command.
-Set `SYSC_COMPOSITOR=sysc-compositor` to preselect it in the installer.
+sysc-compositor is unreleased and not packaged by sysc-greet. Install a development build separately and make it available on greetd's `PATH`. The installer lists it only when the binary is found, and reuses the Niri greeter config and its Niri IPC quit command.
+Set `SYSC_COMPOSITOR=sysc-compositor` to list and preselect it in the installer.
 
 **Cagebreak:**
 ```toml
