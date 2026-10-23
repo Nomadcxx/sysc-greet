@@ -34,8 +34,9 @@ GRID_COLUMNS=(140 160)
 GRID_LINES=(34 42)
 MAX_BYTES=15728640
 MIN_SECONDS=${DEMO_MIN_SECONDS:-40}
-ENCODE_FPS=24
-ENCODE_QUALITY=70
+MAX_SECONDS=90
+ENCODE_FPS=20
+ENCODE_QUALITIES=(70 65 60 55 50)
 
 fail() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 say() { printf '==> %s\n' "$*"; }
@@ -168,11 +169,19 @@ offset = float(sys.argv[2]) - float(sys.argv[3])
 print("%.3f %.3f" % (marks["start"] + offset, marks["end"] + offset))' \
     "$work/marks.json" "$tour_start" "$recorder_start")
 
-say "Encoding ${trim_start}s-${trim_end}s at $ENCODE_FPS fps, quality $ENCODE_QUALITY"
-ffmpeg -v error -y -ss "$trim_start" -to "$trim_end" -i "$work/capture.mkv" -vf "fps=$ENCODE_FPS" \
-    -c:v libwebp_anim -lossless 0 -q:v "$ENCODE_QUALITY" -compression_level 6 -loop 0 "$work/showcase.webp"
-python3 "$here/webp_report.py" "$work/showcase.webp" --max-bytes "$MAX_BYTES" \
-    --min-seconds "$MIN_SECONDS" --max-seconds 60 --size 1920x1080 || fail "encoded WebP is outside the limits; $OUT unchanged"
+# Over budget, step the WebP quality down before giving up; the capture is reused.
+for quality in "${ENCODE_QUALITIES[@]}"; do
+    say "Encoding ${trim_start}s-${trim_end}s at $ENCODE_FPS fps, quality $quality"
+    ffmpeg -v error -y -ss "$trim_start" -to "$trim_end" -i "$work/capture.mkv" -vf "fps=$ENCODE_FPS" \
+        -c:v libwebp_anim -lossless 0 -q:v "$quality" -compression_level 6 -loop 0 "$work/showcase.webp"
+    if python3 "$here/webp_report.py" "$work/showcase.webp" --max-bytes "$MAX_BYTES" \
+        --min-seconds "$MIN_SECONDS" --max-seconds "$MAX_SECONDS" --size 1920x1080; then
+        ENCODE_QUALITY=$quality
+        break
+    fi
+    ENCODE_QUALITY=
+done
+[ -n "$ENCODE_QUALITY" ] || fail "no quality in ${ENCODE_QUALITIES[*]} met the limits; $OUT unchanged"
 mkdir -p "$(dirname "$OUT")"
 mv "$work/showcase.webp" "$OUT"
 say "Wrote $OUT (encode fps $ENCODE_FPS, quality $ENCODE_QUALITY)"
