@@ -334,14 +334,19 @@ func asciiANSIColor(index int) color.Color {
 // Support multi-variant ASCII with cycling and height normalization
 // Get ASCII art for current session
 func (m model) getSessionASCII() string {
+	art, _ := m.getSessionASCIIWithColors()
+	return art
+}
+
+func (m model) getSessionASCIIWithColors() (string, bool) {
 	if m.selectedSession == nil {
-		return ""
+		return "", false
 	}
 
 	// Extract and map session name to config file.
 	fields := strings.Fields(m.selectedSession.Name)
 	if len(fields) == 0 {
-		return ""
+		return "", false
 	}
 	sessionName := strings.ToLower(fields[0])
 	configFileName := asciiConfigFileName(m.selectedSession.Name)
@@ -352,12 +357,12 @@ func (m model) getSessionASCII() string {
 	asciiConfig, err := loadASCIIConfig(configPath)
 	if err != nil {
 		// Fallback to session name as text
-		return sessionName
+		return sessionName, false
 	}
 
 	if len(asciiConfig.ASCIIVariants) == 0 {
 		// Empty ASCII, return session name
-		return sessionName
+		return sessionName, false
 	}
 
 	// Select current variant based on index
@@ -375,7 +380,7 @@ func (m model) getSessionASCII() string {
 	if asciiConfig.ANSIStyle && m.selectedBackground == "print" {
 		if rendered, hasControls := renderANSIASCII(currentASCII); hasControls {
 			// ponytail: PrintEffect reveals raw runes and would split SGR sequences; render opted-in ANSI art whole.
-			return rendered
+			return rendered, true
 		}
 	}
 
@@ -391,18 +396,18 @@ func (m model) getSessionASCII() string {
 	// Use beams effect if enabled
 	if m.selectedBackground == "beams" && m.beamsEffect != nil {
 		// Beams effect renders with its own colors
-		return m.beamsEffect.Render()
+		return m.beamsEffect.Render(), false
 	}
 
 	// Use pour effect if enabled
 	if m.selectedBackground == "pour" && m.pourEffect != nil {
 		// Pour effect renders with its own colors
-		return m.pourEffect.Render()
+		return m.pourEffect.Render(), false
 	}
 
 	if asciiConfig.ANSIStyle {
 		if rendered, hasControls := renderANSIASCII(currentASCII); hasControls {
-			return rendered
+			return rendered, true
 		}
 	}
 
@@ -418,7 +423,7 @@ func (m model) getSessionASCII() string {
 
 	// Apply color to entire ASCII art block
 	style := lipgloss.NewStyle().Foreground(asciiColor).Background(BgBase)
-	return style.Render(currentASCII)
+	return style.Render(currentASCII), false
 }
 
 // Get color palette for a session type

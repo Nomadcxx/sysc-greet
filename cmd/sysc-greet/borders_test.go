@@ -151,6 +151,10 @@ func TestAuthSuccessPersistsSubmittedUsernameAndSession(t *testing.T) {
 }
 
 func TestDecorativeFitsAt80x24(t *testing.T) {
+	originalDataDir := dataDir
+	dataDir = t.TempDir()
+	t.Cleanup(func() { dataDir = originalDataDir })
+
 	for _, style := range []string{"classic", "modern", "minimal", "ascii1", "ascii2"} {
 		t.Run(style, func(t *testing.T) {
 			m := layoutModel(80, 24)

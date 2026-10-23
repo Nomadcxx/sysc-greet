@@ -2678,10 +2678,16 @@ func (m model) renderMainView(termWidth, termHeight int) string {
 	// shared form for these states until those frames also reuse renderMainForm.
 	needsFeedback := strings.HasPrefix(m.selectedBorderStyle, "ascii") &&
 		(m.mode == ModeLoading || m.errorMessage != "" || m.failedAttempts > 0 || m.capsLockOn)
+	compactHeader := ""
+	if termHeight < 26 && m.selectedSession != nil && m.selectedBorderStyle != "ascii1" && m.selectedBorderStyle != "ascii2" {
+		if art, hasInlineColors := m.getSessionASCIIWithColors(); hasInlineColors {
+			compactHeader = art
+		}
+	}
 	// Decorative frames assume at least 80 columns and 24 rows.
 	if !needsFeedback && termWidth >= 80 && termHeight >= 24 {
 		content := m.renderDualBorderLayout(termWidth, termHeight)
-		if lipgloss.Width(content) <= termWidth && lipgloss.Height(content) <= termHeight {
+		if compactHeader == "" && lipgloss.Width(content) <= termWidth && lipgloss.Height(content) <= termHeight {
 			return content
 		}
 	}
@@ -2704,8 +2710,11 @@ func (m model) renderMainView(termWidth, termHeight int) string {
 	form = lipgloss.JoinVertical(lipgloss.Left, strings.Join(lines, "\n"), "", lipgloss.NewStyle().Foreground(FgMuted).Width(width).Render(help))
 	frame := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).BorderForeground(BorderDefault).Background(BgBase).Padding(0, 2).Render(form)
 	if m.selectedSession != nil {
-		if art := m.getSessionArt(m.selectedSession.Name); art != "" {
-			compact := lipgloss.JoinVertical(lipgloss.Center, art, "", frame)
+		if compactHeader == "" {
+			compactHeader = m.getSessionArt(m.selectedSession.Name)
+		}
+		if compactHeader != "" {
+			compact := lipgloss.JoinVertical(lipgloss.Center, compactHeader, "", frame)
 			// ponytail: show the full ANSI art only when it fits; clipping needs per-line ANSI-aware handling.
 			if lipgloss.Width(compact) <= termWidth && lipgloss.Height(compact) <= termHeight {
 				return compact

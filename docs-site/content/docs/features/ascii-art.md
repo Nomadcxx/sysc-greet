@@ -47,7 +47,11 @@ ascii_1=
 ...
 ```
 
-If `color=` is set, that color is used for ASCII art. If omitted, the theme's primary color is used.
+For plain art, `color=` sets its color. If omitted, sysc-greet uses the active theme's primary color.
+
+## Theme-aware ANSI art
+
+For art with embedded SGR colors, set `ansi_style=true`. sysc-greet maps the 16 ANSI color slots to roles in the active theme and strips unsupported terminal control sequences.
 
 ## Creating Custom ASCII
 
