@@ -604,6 +604,33 @@ func (m *model) applyInputTheme() {
 	}
 }
 
+func normalizeTestSessionOption(testMode bool, name string) (string, error) {
+	name = strings.TrimSpace(name)
+	if !testMode {
+		return "", fmt.Errorf("--test-session requires --test")
+	}
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
+		return "", fmt.Errorf("invalid --test-session profile: use a name without path separators")
+	}
+	return name, nil
+}
+
+func selectTestSession(available []sessions.Session, name string) ([]sessions.Session, *sessions.Session, int) {
+	for i := range available {
+		if strings.EqualFold(available[i].Name, name) {
+			return available, &available[i], i
+		}
+	}
+
+	available = append(available, sessions.Session{Name: name, Exec: name, Type: "Wayland"})
+	index := len(available) - 1
+	return available, &available[index], index
+}
+
+func sessionCommand(execLine string) []string {
+	return strings.Fields(execLine)
+}
+
 func initialModel(config Config, screensaverMode bool) model {
 	// Setup username input with proper styling
 	ti := textinput.New()
@@ -676,20 +703,7 @@ func initialModel(config Config, screensaverMode bool) model {
 		}
 	}
 	if config.TestMode && config.TestSession != "" {
-		name := config.TestSession
-		selectedSession = nil
-		for i := range sess {
-			if strings.EqualFold(sess[i].Name, name) {
-				selectedSession = &sess[i]
-				sessionIndex = i
-				break
-			}
-		}
-		if selectedSession == nil {
-			sess = append(sess, sessions.Session{Name: name, Exec: name, Type: "Wayland"})
-			sessionIndex = len(sess) - 1
-			selectedSession = &sess[sessionIndex]
-		}
+		sess, selectedSession, sessionIndex = selectTestSession(sess, config.TestSession)
 	}
 
 	// Default to first session if none selected
@@ -2789,7 +2803,7 @@ func (m model) authenticate(username, password string) tea.Cmd {
 				// FIXED 2026-01-17 - Add --unsupported-gpu flag for Sway sessions (NVIDIA compatibility)
 				// This ensures NVIDIA users can log in without being kicked back to greeter
 				// Use filepath.Base() to handle full paths (e.g., /usr/bin/sway) and preserve original Exec
-				execParts := strings.Fields(m.selectedSession.Exec)
+				execParts := sessionCommand(m.selectedSession.Exec)
 				if len(execParts) > 0 && filepath.Base(execParts[0]) == "sway" {
 					// Check if --unsupported-gpu is already present (avoid duplicates)
 					hasFlag := false
@@ -2851,7 +2865,7 @@ func main() {
 	flag.BoolVar(&showVersion, "v", false, "Show version information (shorthand)")
 	flag.BoolVar(&startWallpaperDaemon, "wallpaper-daemon", false, "Start gSlapper with the cached greeter wallpaper")
 	flag.BoolVar(&config.TestMode, "test", false, "Enable test mode (no actual authentication)")
-	flag.StringVar(&config.TestSession, "test-session", "", "Display an ASCII profile by session/profile name in test mode")
+	flag.StringVar(&config.TestSession, "test-session", "", "Select a session profile for visual testing (requires --test)")
 	flag.BoolVar(&config.Debug, "debug", false, "Enable debug output")
 	flag.BoolVar(&screensaverTestMode, "screensaver", false, "Start directly in screensaver mode for testing")
 	flag.BoolVar(&followShell, "follow-shell", true, "Follow the installed shell account theme by default")
@@ -2906,8 +2920,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "    	Start directly in screensaver mode for testing\n")
 		fmt.Fprintf(os.Stderr, "  -test\n")
 		fmt.Fprintf(os.Stderr, "    	Enable test mode (no actual authentication)\n")
-		fmt.Fprintf(os.Stderr, "  -test-session PROFILE\n")
-		fmt.Fprintf(os.Stderr, "    Display a session ASCII profile in test mode\n")
+		fmt.Fprintf(os.Stderr, "  -test-session string\n")
+		fmt.Fprintf(os.Stderr, "    \tSelect a session profile for visual testing (requires -test)\n")
 		fmt.Fprintf(os.Stderr, "  -theme string\n")
 		fmt.Fprintf(os.Stderr, "    	Theme name (dracula, gruvbox, material, nord, tokyo-night, catppuccin, solarized, monochrome, transishardjob, eldritch)\n")
 		fmt.Fprintf(os.Stderr, "  -v	Show version information (shorthand)\n")
@@ -2929,13 +2943,12 @@ func main() {
 
 	flag.Parse()
 	if config.TestSession != "" {
-		name := strings.TrimSpace(config.TestSession)
-		if name == "" || filepath.Base(name) != name || name == "." || name == ".." {
-			fmt.Fprintln(os.Stderr, "invalid --test-session profile: use a name without path separators")
+		name, err := normalizeTestSessionOption(config.TestMode, config.TestSession)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
 			os.Exit(2)
 		}
 		config.TestSession = name
-		config.TestMode = true
 	}
 	flag.Visit(func(f *flag.Flag) {
 		if f.Name == "follow-shell" {

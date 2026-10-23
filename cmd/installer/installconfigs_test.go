@@ -75,3 +75,48 @@ if [ "$1" = "-m" ] && [ "$FAIL_INSTALL" = "1" ]; then exit 1; fi
 		})
 	}
 }
+
+func TestSyscCompositorGreeterBackend(t *testing.T) {
+	var selected *greeterCompositor
+	for i := range greeterCompositors {
+		if greeterCompositors[i].name == "sysc-compositor" {
+			selected = &greeterCompositors[i]
+			break
+		}
+	}
+	if selected == nil {
+		t.Fatal("sysc-compositor is missing from the greeter picker")
+	}
+	if selected.installable {
+		t.Fatal("sysc-compositor must be installed separately")
+	}
+	if got := compositorBinaries(selected.name); len(got) != 1 || got[0] != "sysc-compositor" {
+		t.Fatalf("compositorBinaries(%q) = %v", selected.name, got)
+	}
+
+	for _, tc := range []struct {
+		compositor string
+		want       string
+	}{
+		{"niri", "niri -c /etc/greetd/niri-greeter-config.kdl"},
+		{"sysc-compositor", "sysc-compositor -c /etc/greetd/niri-greeter-config.kdl"},
+	} {
+		if got := niriGreeterCommand(tc.compositor); got != tc.want {
+			t.Errorf("niriGreeterCommand(%q) = %q, want %q", tc.compositor, got, tc.want)
+		}
+	}
+}
+
+func TestNiriGreeterQuitCommand(t *testing.T) {
+	for _, tc := range []struct {
+		compositor string
+		want       string
+	}{
+		{"niri", "niri msg action quit --skip-confirmation"},
+		{"sysc-compositor", "sysc-compositor msg action quit --skip-confirmation"},
+	} {
+		if got := niriGreeterQuitCommand(tc.compositor); got != tc.want {
+			t.Errorf("niriGreeterQuitCommand(%q) = %q, want %q", tc.compositor, got, tc.want)
+		}
+	}
+}

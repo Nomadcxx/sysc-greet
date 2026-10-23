@@ -229,8 +229,8 @@ type model struct {
 	needsGreetd        bool
 	uninstallMode      bool
 	selectedOption     int      // 0 = Install, 1 = Uninstall
-	selectedCompositor string   // a greeterCompositors name, or "hyprland" via SYSC_COMPOSITOR only
-	compositorIndex    int      // Current selection in compositor menu; -1 = SYSC_COMPOSITOR=hyprland
+	selectedCompositor string   // a greeterCompositors name
+	compositorIndex    int      // Current selection in compositor menu
 	debugMode          bool     // Show verbose output
 	logFile            *os.File // Installer log file
 	beams              *BeamsTextEffect
@@ -244,21 +244,37 @@ type greeterCompositor struct {
 	installable bool // installCompositor can install it when missing
 }
 
-// greeterCompositors is the picker. Hyprland is deliberately absent until its
-// opt-in Lua startup, login, and quit handoff pass physical verification.
+// greeterCompositors is the set of supported greeter backends.
 var greeterCompositors = []greeterCompositor{
 	{name: "niri", label: "Tiling compositor with scrollable workspaces (default)", binaries: []string{"niri"}},
+	{name: "hyprland", label: "Dynamic tiling compositor", binaries: []string{"start-hyprland"}, installable: true},
+	{name: "sysc-compositor", label: "Niri-compatible compositor (install separately)", binaries: []string{"sysc-compositor"}},
 	{name: "cagebreak", label: "Minimal tiling kiosk", binaries: []string{"cagebreak"}, installable: true},
 	{name: "sway", label: "Stable i3-compatible tiling compositor", binaries: []string{"sway"}},
 	{name: "mango", label: "dwl-based tiling compositor (Arch, Debian 13, Ubuntu 26.04, Fedora 43/44)", binaries: []string{"mango"}, installable: true},
 }
 
 const (
+	niriGreeterConfigPath     = "/etc/greetd/niri-greeter-config.kdl"
 	hyprlandGreeterConfigPath = "/etc/greetd/hyprland-greeter-config.lua"
-	hyprlandGreetdCommand     = "start-hyprland -- --config /etc/greetd/hyprland-greeter-config.lua"
+	hyprlandGreetdCommand     = "start-hyprland -- --config " + hyprlandGreeterConfigPath
 )
 
-const mangoUnsupported = "no mango package for this distro (Arch, Debian 13, Ubuntu 26.04, Fedora 43/44 only) — use niri, cagebreak, or sway"
+func niriGreeterCommand(compositor string) string {
+	if compositor == "niri" || compositor == "sysc-compositor" {
+		return compositor + " -c " + niriGreeterConfigPath
+	}
+	return ""
+}
+
+func niriGreeterQuitCommand(compositor string) string {
+	if compositor == "niri" || compositor == "sysc-compositor" {
+		return compositor + " msg action quit --skip-confirmation"
+	}
+	return ""
+}
+
+const mangoUnsupported = "Mango packages are available only on Arch, Debian 13, Ubuntu 26.04, Fedora 43/44. Use niri, Hyprland, sysc-compositor, cagebreak, or sway instead"
 
 // mangoAvailable reports whether installMango can install mango here
 func mangoAvailable(packageManager string) bool {
@@ -353,7 +369,7 @@ func newModel(debugMode bool, logFile *os.File) model {
 	detectPackageManager(&m)
 
 	// Check for pre-selected compositor from environment variable
-	// Preserve explicit environment selection; Hyprland remains hidden at index -1.
+	// Preselect the requested compositor when it is available in the picker.
 	if comp := os.Getenv("SYSC_COMPOSITOR"); comp != "" {
 		m.step = stepCompositorSelect
 		m.compositorIndex = -1
@@ -362,9 +378,7 @@ func newModel(debugMode bool, logFile *os.File) model {
 				m.compositorIndex = i
 			}
 		}
-		if comp == "hyprland" {
-			m.selectedCompositor = comp
-		} else if m.compositorIndex == -1 {
+		if m.compositorIndex == -1 {
 			m.compositorIndex = 0
 			m.errors = append(m.errors, fmt.Sprintf("SYSC_COMPOSITOR=%s is not a supported greeter compositor", comp))
 		}
@@ -443,13 +457,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 			} else if m.step == stepCompositorSelect {
-				// Index -1 keeps SYSC_COMPOSITOR=hyprland, which has no picker row
-				installable := false
-				if m.compositorIndex >= 0 {
-					c := greeterCompositors[m.compositorIndex]
-					m.selectedCompositor = c.name
-					installable = c.installable
+				if m.compositorIndex < 0 || m.compositorIndex >= len(greeterCompositors) {
+					m.errors = append(m.errors, "choose a compositor from the list")
+					return m, nil
 				}
+				c := greeterCompositors[m.compositorIndex]
+				m.selectedCompositor = c.name
+				installable := c.installable
 
 				// Installable compositors are installed by installCompositor;
 				// everything else must be present up front
@@ -632,12 +646,6 @@ func (m model) renderCompositorSelect() string {
 		}
 		b.WriteString(prefix + comp.name + "\n")
 		b.WriteString("    " + comp.label + "\n\n")
-	}
-
-	b.WriteString(lipgloss.NewStyle().Foreground(FgMuted).Render("Hyprland stays opt-in; it requires start-hyprland and the Lua config"))
-	if m.compositorIndex == -1 {
-		b.WriteString("\n")
-		b.WriteString(lipgloss.NewStyle().Foreground(ErrorColor).Render("⚠ SYSC_COMPOSITOR=hyprland: experimental opt-in; verify startup, login, and quit on hardware. Enter continues; ↓ picks another compositor."))
 	}
 
 	// Show errors if any
@@ -2001,7 +2009,11 @@ func configureGreetd(m *model) error {
 	var configPath string
 
 	switch m.selectedCompositor {
-	case "niri":
+	case "niri", "sysc-compositor":
+		quitCommand := niriGreeterQuitCommand(m.selectedCompositor)
+		if quitCommand == "" {
+			return fmt.Errorf("unknown Niri-compatible greeter compositor: %s", m.selectedCompositor)
+		}
 		compositorConfig = `// SYSC-Greet Niri config for greetd greeter session
 // Monitors auto-detected by niri at runtime
 
@@ -2047,13 +2059,13 @@ animations {
 
 spawn-sh-at-startup "cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state /usr/local/bin/sysc-greet --wallpaper-daemon"
 
-spawn-sh-at-startup "cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
+spawn-sh-at-startup "cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/greeter/.cache XDG_CONFIG_HOME=/var/lib/greeter/.config XDG_STATE_HOME=/var/lib/greeter/.local/state kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; ` + quitCommand + `"
 
 binds {
 }
 `
-		configPath = "/etc/greetd/niri-greeter-config.kdl"
-		greetdCommand = "niri -c /etc/greetd/niri-greeter-config.kdl"
+		configPath = niriGreeterConfigPath
+		greetdCommand = niriGreeterCommand(m.selectedCompositor)
 
 	case "hyprland":
 		data, err := os.ReadFile("config/hyprland-greeter-config.lua")

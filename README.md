@@ -14,6 +14,7 @@ A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd
 
 > [!WARNING]
 > Hyprland greeter support is deprecated. Supported: niri (default), cagebreak, sway, and mango.
+> Development builds can also use a separately installed sysc-compositor.
 
 ## Installation
 

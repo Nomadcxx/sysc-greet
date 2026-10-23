@@ -14,7 +14,7 @@ curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.
 ```
 
 The interactive installer will prompt you to:
-1. Choose your greeter backend: niri (default), cagebreak, sway, or mango
+1. Choose your greeter backend: niri (default), cagebreak, sway, mango, or a preinstalled sysc-compositor in development builds
 2. Configure backend settings
 3. Install dependencies automatically
 
@@ -117,6 +117,15 @@ Change the `command` line to your preferred compositor:
 command = "niri -c /etc/greetd/niri-greeter-config.kdl"
 user = "greeter"
 ```
+
+**sysc-compositor (development builds):**
+```toml
+[default_session]
+command = "sysc-compositor -c /etc/greetd/niri-greeter-config.kdl"
+user = "greeter"
+```
+Install sysc-compositor separately and make it available on greetd's `PATH`. The installer reuses the Niri greeter config and its Niri IPC quit command.
+Set `SYSC_COMPOSITOR=sysc-compositor` to preselect it in the installer.
 
 **Cagebreak:**
 ```toml

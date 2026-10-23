@@ -8,6 +8,8 @@
 test-*
 *test*
 !*testing.md
+!cmd/sysc-greet/ascii_sysc_compositor_test.go
+!internal/sessions/sessions_test.go
 !cmd/sysc-greet/border_registry_test.go
 !cmd/sysc-greet/border_golden_test.go
 !cmd/sysc-greet/prefs_test.go
