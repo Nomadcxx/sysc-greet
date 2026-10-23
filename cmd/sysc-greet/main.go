@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"image/color"
@@ -453,7 +454,12 @@ type model struct {
 	enableFire bool
 
 	// CHANGED 2025-10-05 - Add error message for authentication failures
-	errorMessage string
+	errorMessage    string
+	authNotice      string
+	authPromptText  string
+	authPromptType  ipc.AuthMessageType
+	authPromptReply chan authPromptResult
+	sendMessage     func(tea.Msg)
 
 	// CHANGED 2025-10-10 - Screensaver fields
 	idleTimer         time.Time               // Time when idle started
@@ -1192,7 +1198,7 @@ func (m model) Update(msg tea.Msg) (result tea.Model, command tea.Cmd) {
 		}
 
 		// Check for screensaver activation using configurable timeout
-		if m.mode == ModeLogin || m.mode == ModePassword {
+		if (m.mode == ModeLogin || m.mode == ModePassword) && m.authPromptReply == nil {
 			ssConfig := m.ssConfig
 			idleDuration := time.Since(m.idleTimer)
 			if idleDuration >= time.Duration(ssConfig.IdleTimeout)*time.Minute && m.mode != ModeScreensaver {
@@ -1403,10 +1409,20 @@ func (m model) Update(msg tea.Msg) (result tea.Model, command tea.Cmd) {
 		}
 
 	case authSuccessMsg:
+		m.clearAuthPrompt()
 		m.failedAttempts = 0
+		m.authNotice = ""
 		m.saveSuccessfulLogin(msg.Username, msg.Session)
 		fmt.Println("Session started successfully")
 		return m, tea.Quit
+
+	case authNoticeMsg:
+		m.authNotice = string(msg)
+		return m, nil
+
+	case authPromptMsg:
+		m = m.handleAuthPromptMessage(msg)
+		return m, textinput.Blink
 
 	case string:
 		// FIXED 2025-10-17 - Return to login mode (not password mode) so user can fix username
@@ -1421,9 +1437,13 @@ func (m model) Update(msg tea.Msg) (result tea.Model, command tea.Cmd) {
 		return m, textinput.Blink
 	case error:
 		// FIXED 2025-10-17 - Return to password mode so user can retry
+		m.clearAuthPrompt()
+		m.authNotice = ""
 		m.errorMessage = msg.Error()
 		m.borderFailureAt = time.Now()
-		m.failedAttempts++ // Track failed authentication attempts
+		if !errors.Is(msg, errAuthPromptCancelled) && !errors.Is(msg, errAuthPromptTimeout) {
+			m.failedAttempts++ // Track failed authentication attempts
+		}
 		m.mode = ModePassword
 		// Keep username, only clear password
 		m.passwordInput.SetValue("")
@@ -1446,6 +1466,10 @@ func (m model) Update(msg tea.Msg) (result tea.Model, command tea.Cmd) {
 			}
 			logDebug("KEY: %q | Mod=%08b (%d) | CapsLock=%v",
 				keyText, key.Mod, key.Mod, m.capsLockOn)
+		}
+		if m.authPromptReply != nil {
+			m, cmd := m.handleKeyInput(msg)
+			return m, cmd
 		}
 
 		// CHANGED 2025-10-12 - Handle screensaver exit on any key press
@@ -1508,6 +1532,9 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			keyStr = "<redacted>"
 		}
 		logDebug("KEY DEBUG: String='%s'", keyStr)
+	}
+	if m.authPromptReply != nil {
+		return m.handleAuthPromptKey(msg)
 	}
 
 	switch msg.String() {
@@ -2415,6 +2442,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 						return m, tea.Quit
 					}
 					m.mode = ModeLoading
+					m.passwordInput.SetValue("")
+					m.authNotice = ""
 					return m, m.authenticate(username, password)
 				}
 			}
@@ -2712,7 +2741,7 @@ func (m model) renderMainView(termWidth, termHeight int) string {
 	// ponytail: legacy ASCII frames omit some authentication feedback; use the
 	// shared form for these states until those frames also reuse renderMainForm.
 	needsFeedback := strings.HasPrefix(m.selectedBorderStyle, "ascii") &&
-		(m.mode == ModeLoading || m.errorMessage != "" || m.failedAttempts > 0 || m.capsLockOn)
+		(m.mode == ModeLoading || m.errorMessage != "" || m.failedAttempts > 0 || m.capsLockOn || m.authPromptReply != nil)
 	compactHeader := ""
 	if termHeight < 26 && m.selectedSession != nil && m.selectedBorderStyle != "ascii1" && m.selectedBorderStyle != "ascii2" {
 		if art, hasInlineColors := m.getSessionASCIIWithColors(); hasInlineColors {
@@ -2735,7 +2764,9 @@ func (m model) renderMainView(termWidth, termHeight int) string {
 		}
 	}
 	help := "Enter Continue • Tab Focus • F1 Menu"
-	if m.sessionDropdownOpen {
+	if m.authPromptReply != nil {
+		help = "Enter Submit • Esc Cancel"
+	} else if m.sessionDropdownOpen {
 		help = "↑↓ Navigate • Enter Select • Esc Close"
 	} else if m.mode == ModeLoading {
 		help = "Please wait..."
@@ -2786,100 +2817,78 @@ func (m model) renderMainView(termWidth, termHeight int) string {
 
 func (m model) authenticate(username, password string) tea.Cmd {
 	return func() tea.Msg {
-		// CHANGED 2025-10-05 - Add nil check for IPC client
+		defer func() { password = "" }()
 		if m.ipcClient == nil {
 			return fmt.Errorf("IPC client not initialized - greeter must be run by greetd")
 		}
 
-		// Create session
 		if err := m.ipcClient.CreateSession(username); err != nil {
 			return err
 		}
-		// Receive auth message
-		resp, err := m.ipcClient.ReceiveResponse()
-		if err != nil {
-			// Cancel session on error
-			m.ipcClient.CancelSession()
-			return err
+
+		cancelWithError := func(cause error) error {
+			if err := m.ipcClient.CancelSession(); err != nil {
+				return fmt.Errorf("%w; failed to cancel greetd session: %v", cause, err)
+			}
+			return cause
 		}
 
-		// CHANGED 2025-10-05 - Handle Error response from CreateSession
-		if errResp, ok := resp.(ipc.Error); ok {
-			// Cancel session on error
-			m.ipcClient.CancelSession()
-			return fmt.Errorf("authentication failed: %s - %s", errResp.ErrorType, errResp.Description)
-		}
-
-		if _, ok := resp.(ipc.AuthMessage); ok {
+		firstSecret := true
+		terminal, err := m.ipcClient.Converse(func(message ipc.AuthMessage) (*string, error) {
 			if m.config.Debug {
-				logDebug(" Received auth message")
+				logDebug(" Received auth message type: %s", message.AuthMessageType)
 			}
-			// Send password as response
-			// FIXED: Pass password as value instead of pointer to avoid capture issues
-			passwordCopy := password
-			if err := m.ipcClient.PostAuthMessageResponse(&passwordCopy); err != nil {
-				// Cancel session on error
-				m.ipcClient.CancelSession()
-				return err
-			}
-			// Receive success or error
-			resp, err := m.ipcClient.ReceiveResponse()
-			if err != nil {
-				// Cancel session on error
-				m.ipcClient.CancelSession()
-				return err
-			}
-
-			// CHANGED 2025-10-05 - Handle Error response (wrong password)
-			if errResp, ok := resp.(ipc.Error); ok {
-				// Cancel session on authentication failure
-				m.ipcClient.CancelSession()
-				return fmt.Errorf("authentication failed: %s - %s", errResp.ErrorType, errResp.Description)
-			}
-
-			if _, ok := resp.(ipc.Success); ok {
-				// Start session
-				if m.selectedSession == nil {
-					// Cancel session if no session selected
-					m.ipcClient.CancelSession()
-					return fmt.Errorf("no session selected")
+			switch message.AuthMessageType {
+			case ipc.AuthMessageTypeInfo, ipc.AuthMessageTypeError:
+				if err := m.sendAuthNotice(message.AuthMessage); err != nil {
+					return nil, err
 				}
-				// FIXED 2026-01-17 - Add --unsupported-gpu flag for Sway sessions (NVIDIA compatibility)
-				// This ensures NVIDIA users can log in without being kicked back to greeter
-				// Use filepath.Base() to handle full paths (e.g., /usr/bin/sway) and preserve original Exec
-				execParts := sessionCommand(m.selectedSession.Exec)
-				if len(execParts) > 0 && filepath.Base(execParts[0]) == "sway" {
-					// Check if --unsupported-gpu is already present (avoid duplicates)
-					hasFlag := false
-					for _, part := range execParts {
-						if part == "--unsupported-gpu" {
-							hasFlag = true
-							break
-						}
-					}
-					if !hasFlag {
-						// Insert --unsupported-gpu after the binary name but before other args
-						execParts = append([]string{execParts[0], "--unsupported-gpu"}, execParts[1:]...)
+				return nil, nil
+			case ipc.AuthMessageTypeSecret:
+				if firstSecret {
+					firstSecret = false
+					response := password
+					password = ""
+					return &response, nil
+				}
+				fallthrough
+			case ipc.AuthMessageTypeVisible:
+				return m.requestAuthPrompt(message)
+			default:
+				return nil, fmt.Errorf("unsupported greetd authentication message type %q", message.AuthMessageType)
+			}
+		})
+		password = ""
+		if err != nil {
+			return cancelWithError(err)
+		}
+
+		switch response := terminal.(type) {
+		case ipc.Error:
+			return cancelWithError(fmt.Errorf("authentication failed: %s - %s", sanitizeAuthText(response.ErrorType), sanitizeAuthText(response.Description)))
+		case ipc.Success:
+			if m.selectedSession == nil {
+				return cancelWithError(fmt.Errorf("no session selected"))
+			}
+			execParts := sessionCommand(m.selectedSession.Exec)
+			if len(execParts) > 0 && filepath.Base(execParts[0]) == "sway" {
+				hasFlag := false
+				for _, part := range execParts {
+					if part == "--unsupported-gpu" {
+						hasFlag = true
+						break
 					}
 				}
-				// Use parsed Exec (with --unsupported-gpu added if needed)
-				cmd := execParts
-				env := []string{} // Can be populated if needed
-				if err := m.ipcClient.StartSession(cmd, env); err != nil {
-					// Cancel session on StartSession failure
-					m.ipcClient.CancelSession()
-					return err
+				if !hasFlag {
+					execParts = append([]string{execParts[0], "--unsupported-gpu"}, execParts[1:]...)
 				}
-				return authSuccessMsg{Username: username, Session: m.selectedSession.Name}
-			} else {
-				// Cancel session on unexpected response
-				m.ipcClient.CancelSession()
-				return fmt.Errorf("expected success or error, got %T", resp)
 			}
-		} else {
-			// Cancel session on unexpected response
-			m.ipcClient.CancelSession()
-			return fmt.Errorf("expected auth message or error, got %T", resp)
+			if err := m.ipcClient.StartSession(execParts, []string{}); err != nil {
+				return cancelWithError(err)
+			}
+			return authSuccessMsg{Username: username, Session: m.selectedSession.Name}
+		default:
+			return cancelWithError(fmt.Errorf("unexpected greetd authentication response %T", terminal))
 		}
 	}
 }
@@ -3140,7 +3149,13 @@ func main() {
 		m.altScreen = true
 	}
 
-	p := tea.NewProgram(m, tea.WithContext(ctx))
+	var p *tea.Program
+	m.sendMessage = func(message tea.Msg) {
+		if p != nil {
+			p.Send(message)
+		}
+	}
+	p = tea.NewProgram(m, tea.WithContext(ctx))
 	var secondaryDone <-chan struct{}
 	if config.SecondarySaver {
 		done := make(chan struct{})

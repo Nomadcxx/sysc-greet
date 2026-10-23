@@ -12,6 +12,7 @@ import (
 // Message types for requests and responses
 type RequestType string
 type ResponseType string
+type AuthMessageType string
 
 const (
 	CreateSessionRequest           RequestType = "create_session"
@@ -22,6 +23,11 @@ const (
 	SuccessResponse     ResponseType = "success"
 	ErrorResponse       ResponseType = "error"
 	AuthMessageResponse ResponseType = "auth_message"
+
+	AuthMessageTypeVisible AuthMessageType = "visible"
+	AuthMessageTypeSecret  AuthMessageType = "secret"
+	AuthMessageTypeInfo    AuthMessageType = "info"
+	AuthMessageTypeError   AuthMessageType = "error"
 )
 
 // Request structures
@@ -57,9 +63,9 @@ type Error struct {
 }
 
 type AuthMessage struct {
-	Type            ResponseType `json:"type"`
-	AuthMessageType string       `json:"auth_message_type"`
-	AuthMessage     string       `json:"auth_message"`
+	Type            ResponseType    `json:"type"`
+	AuthMessageType AuthMessageType `json:"auth_message_type"`
+	AuthMessage     string          `json:"auth_message"`
 }
 
 // Client for communicating with greetd
@@ -159,6 +165,33 @@ func (c *Client) ReceiveResponse() (interface{}, error) {
 		return resp, nil
 	default:
 		return nil, fmt.Errorf("unknown response type: %s", respType)
+	}
+}
+
+// Converse answers each authentication message until greetd returns success
+// or an error. Informational and error messages are still passed to respond;
+// their nullable response is posted exactly like any other message.
+func (c *Client) Converse(respond func(AuthMessage) (*string, error)) (interface{}, error) {
+	for {
+		response, err := c.ReceiveResponse()
+		if err != nil {
+			return nil, err
+		}
+
+		switch message := response.(type) {
+		case AuthMessage:
+			answer, err := respond(message)
+			if err != nil {
+				return nil, fmt.Errorf("failed to answer auth message: %w", err)
+			}
+			if err := c.PostAuthMessageResponse(answer); err != nil {
+				return nil, fmt.Errorf("failed to post auth message response: %w", err)
+			}
+		case Success, Error:
+			return response, nil
+		default:
+			return nil, fmt.Errorf("expected auth message, success or error, got %T", response)
+		}
 	}
 }
 

@@ -136,11 +136,17 @@ func (m model) renderMainForm(width int) string {
 		}
 
 	case ModePassword:
+		passwordLabelText := "Password:"
+		if m.authPromptText != "" {
+			passwordLabelText = m.authPromptText
+		}
+		m.passwordInput.SetWidth(max(1, width-lipgloss.Width(passwordLabelText)-4))
+		m.passwordInput.SetCursor(m.passwordInput.Position())
 		passwordLabel := lipgloss.NewStyle().
 			Bold(true).
 			Foreground(m.getFocusColor(FocusPassword)).
-			Width(10).
-			Render("Password:")
+			Width(lipgloss.Width(passwordLabelText)).
+			Render(passwordLabelText)
 
 		// Remove Foreground, use BgBase only
 		inputStyle := lipgloss.NewStyle().
@@ -207,6 +213,10 @@ func (m model) renderMainForm(width int) string {
 		// Show animated spinner
 		loadingText := loadingStyle.Render("Authenticating... " + m.spinner.View())
 		parts = append(parts, loadingText)
+	}
+	if m.authNotice != "" {
+		noticeStyle := lipgloss.NewStyle().Foreground(FgSecondary).Width(width)
+		parts = append(parts, "", noticeStyle.Render(m.authNotice))
 	}
 
 	if row := m.renderAmbientRow(width); row != "" {
@@ -397,6 +407,9 @@ func fitHelpItems(width int, items []helpItem) string {
 // renderMainHelpFit renders the help text at the bottom of the screen,
 // dropping lower-priority items until the line fits the given display width.
 func (m model) renderMainHelpFit(width int) string {
+	if m.authPromptReply != nil {
+		return fitHelpItems(width, []helpItem{{0, "Enter Submit"}, {1, "Esc Cancel"}})
+	}
 	switch m.mode {
 	case ModeLogin, ModePassword:
 		if m.sessionDropdownOpen {

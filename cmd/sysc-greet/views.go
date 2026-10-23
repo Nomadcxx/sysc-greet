@@ -220,6 +220,7 @@ func (m model) renderReleaseNotesView(termWidth, termHeight int) string {
 		"  • Removed the SESSIONS divider from bordered layouts",
 		"  • Backgrounds: Australian SLR, AK-47, L2A1 SAR, statue and fighter rotations",
 		"  • Secondary displays mirror effects; screensaver takes priority; video suppresses effects",
+		"  • PAM authentication handles notices, OTPs, and password changes",
 		"  • Hyprland 0.55+ Lua greeter is opt-in; physical checks remain",
 		"  • Mango 0.18.2 config and release packages; six themes; shell theme following",
 		"  • CPU, RAM, and weather widgets",
