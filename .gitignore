@@ -10,6 +10,7 @@ test-*
 !*testing.md
 !cmd/sysc-greet/ascii_sysc_compositor_test.go
 !internal/sessions/sessions_test.go
+!scripts/demo/test_demo.py
 !cmd/sysc-greet/border_registry_test.go
 !cmd/sysc-greet/border_golden_test.go
 !cmd/sysc-greet/border_preference_test.go
