@@ -282,7 +282,7 @@ func suppressOuterBorder(background string) bool {
 	case "fire", "ascii-rain", "matrix", "ticker", "fire+rain", "fireworks", "sonar", "cracktro", "aquarium", "plasma", "ak-47", "l2a1-sar":
 		return true
 	default:
-		return false
+		return isRotatingModelBackground(background)
 	}
 }
 

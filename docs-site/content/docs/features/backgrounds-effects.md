@@ -16,6 +16,16 @@ Access via **F1** → **Backgrounds**:
 | ASCII Rain | Falling characters (theme colors) |
 | Fireworks | Random particle explosions |
 | Aquarium | Fish, bubbles, and seaweed |
+| Jesus Christ Statue | Upright horizontal rotation |
+| Jason | Upright horizontal rotation |
+| Nymphe der Flora | Upright horizontal rotation |
+| Löwe | Upright horizontal rotation |
+| Roman Gladiator | Upright horizontal rotation |
+| Grabfigur | Upright horizontal rotation |
+
+Each statue turns around its vertical axis with a fixed camera angle. Its
+frame displays the model title, creator, and license. `THIRD_PARTY_NOTICES.md`
+lists the source links and full license terms.
 
 ## ASCII Effects
 

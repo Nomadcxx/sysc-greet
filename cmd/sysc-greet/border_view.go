@@ -135,6 +135,10 @@ func (m model) borderBackgroundLayers(termWidth, termHeight int) []*lipgloss.Lay
 		background = m.addAK47Effect("")
 	case "l2a1-sar":
 		background = m.addL2A1SAREffect("")
+	default:
+		if isRotatingModelBackground(m.selectedBackground) {
+			background = m.addRotatingModelEffect("")
+		}
 	}
 	if background != "" {
 		layers = append(layers, lipgloss.NewLayer(background).X(0).Y(0))

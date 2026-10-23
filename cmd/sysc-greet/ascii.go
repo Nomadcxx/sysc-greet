@@ -17,6 +17,16 @@ import (
 // ascii.go - ASCII art configuration, loading, rendering, and animations
 // Extracted from main.go on 2025-10-11 for better code organization
 
+// isASCIIConfigKey identifies config assignments that can follow unquoted art.
+func isASCIIConfigKey(key string) bool {
+	switch key {
+	case "ascii", "name", "color", "colors", "ansi_style", "animation_style", "animation_speed", "animation_direction", "roasts":
+		return true
+	default:
+		return strings.HasPrefix(key, "ascii_")
+	}
+}
+
 func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 	var config ASCIIConfig
 
@@ -65,6 +75,11 @@ func loadASCIIConfig(configPath string) (ASCIIConfig, error) {
 			parts := strings.SplitN(trimmedLine, "=", 2)
 			key := strings.TrimSpace(parts[0])
 			value := strings.TrimSpace(parts[1])
+			isConfigAssignment := isASCIIConfigKey(key) && parts[0] == key && parts[1] == value
+			if inASCII && !isConfigAssignment {
+				currentVariantLines = append(currentVariantLines, line)
+				continue
+			}
 
 			// Check if this is a new ASCII variant (ascii_1, ascii_2, etc.)
 			if strings.HasPrefix(key, "ascii_") || key == "ascii" {
