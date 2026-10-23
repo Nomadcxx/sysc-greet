@@ -279,3 +279,26 @@ func BenchmarkIdleFlushSameViewCachedLayer(b *testing.B) {
 	}
 	b.ReportMetric(float64(writer.bytes)/float64(b.N), "termbytes/op")
 }
+
+func TestCachedMenuRedrawsAfterLoginFrame(t *testing.T) {
+	const width, height = 132, 40
+	m := initialModel(Config{TestMode: true}, false)
+	m.width, m.height = width, height
+	// The renderer draws every frame into one buffer for the program's life.
+	screen := uv.NewScreenBuffer(width, height)
+	draw := func(next model) string {
+		next.View().Layer.Draw(screen, screen.Bounds())
+		return screen.Buffer.String()
+	}
+
+	menu := m.navigateToMainMenu()
+	if !strings.Contains(draw(menu), "Close Menu") {
+		t.Fatal("first menu frame missing")
+	}
+	if strings.Contains(draw(m), "Close Menu") {
+		t.Fatal("login frame still shows the menu")
+	}
+	if !strings.Contains(draw(menu), "Close Menu") {
+		t.Fatal("reopened menu reused its cached layer and left the login frame on screen")
+	}
+}

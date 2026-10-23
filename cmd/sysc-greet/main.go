@@ -2486,8 +2486,14 @@ func (m model) passwordInputActive() bool {
 	return m.mode == ModePassword && m.focusState == FocusPassword
 }
 
-// Return tea.View with BackgroundColor set
 func (m model) View() tea.View {
+	view := m.buildView()
+	m.frameCache.track(view.Layer)
+	return view
+}
+
+// Return tea.View with BackgroundColor set
+func (m model) buildView() tea.View {
 	// Use full terminal dimensions
 	termWidth := m.width
 	termHeight := m.height

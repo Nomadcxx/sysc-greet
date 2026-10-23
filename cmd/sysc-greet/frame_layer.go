@@ -110,6 +110,18 @@ func (m model) composeLayer(background string, backgroundX, backgroundY int, con
 	return layer
 }
 
+// track drops the cached layer when a view draws any other layer. The renderer
+// keeps one screen buffer, so that frame overwrites the cells a reused layer
+// would skip redrawing.
+func (c *frameCache) track(layer tea.Layer) {
+	if c == nil {
+		return
+	}
+	if _, ok := layer.(*stableLayer); !ok {
+		c.layer = nil
+	}
+}
+
 func (m model) composeLoginLayer(background string, backgroundX, backgroundY int, content string, contentX, contentY, terminalW, terminalH int) tea.Layer {
 	loginContent := m.loginContentLayer(content)
 	if plainContent, ok := loginContent.(string); ok {
