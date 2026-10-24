@@ -102,6 +102,8 @@ func checkPackageInstalled(pkg, packageManager string) bool {
 		return strings.Contains(string(output), "install ok installed")
 	case "dnf", "yum", "zypper":
 		cmd = exec.Command("rpm", "-q", pkg)
+	case "xbps":
+		cmd = exec.Command("xbps-query", xbpsQueryArgs(pkg, false)...)
 	default:
 		return false
 	}
@@ -122,6 +124,8 @@ func checkPackageExists(pkg, packageManager string) bool {
 		cmd = exec.Command("yum", "info", pkg)
 	case "zypper":
 		cmd = exec.Command("zypper", "info", pkg)
+	case "xbps":
+		cmd = exec.Command("xbps-query", xbpsQueryArgs(pkg, true)...)
 	default:
 		return false
 	}
@@ -225,6 +229,10 @@ type model struct {
 	spinner            spinner.Model
 	errors             []string
 	packageManager     string
+	initSystem         string
+	distroID           string
+	greeterUser        string
+	greeterHome        string
 	greetdInstalled    bool
 	needsGreetd        bool
 	uninstallMode      bool
@@ -391,6 +399,7 @@ func newModel(debugMode bool, logFile *os.File) model {
 
 	// Detect package manager during initialization (not in async task)
 	detectPackageManager(&m)
+	detectPlatform(&m)
 
 	// Check for pre-selected compositor from environment variable
 	// Preselect the requested compositor when it is available in the picker.
@@ -962,8 +971,9 @@ func detectPackageManager(m *model) {
 		{"apt", "/usr/bin/apt"},
 		{"apt", "/usr/bin/apt-get"}, // Fallback for older Debian/Ubuntu
 		{"dnf", "/usr/bin/dnf"},
-		{"yum", "/usr/bin/yum"},       // Older Fedora/RHEL
-		{"zypper", "/usr/bin/zypper"}, // openSUSE
+		{"yum", "/usr/bin/yum"},           // Older Fedora/RHEL
+		{"zypper", "/usr/bin/zypper"},     // openSUSE
+		{"xbps", "/usr/bin/xbps-install"}, // Void Linux
 	}
 
 	for _, pm := range packageManagers {
@@ -993,8 +1003,9 @@ func checkDependencies(m *model) error {
 	if _, err := exec.LookPath("go"); err != nil {
 		missing = append(missing, "go")
 	}
-	if _, err := exec.LookPath("systemctl"); err != nil {
-		missing = append(missing, "systemd")
+	// The greeter service lives in systemd or runit, nothing else can host it.
+	if m.initSystem == "" {
+		return fmt.Errorf("no supported init system found (need systemd or runit)")
 	}
 
 	if len(missing) > 0 {
@@ -1059,6 +1070,10 @@ func installGreetd(m *model) error {
 	case "zypper":
 		cmd = exec.Command("zypper", "install", "-y", "greetd")
 
+	case "xbps":
+		// Void Linux
+		cmd = exec.Command("xbps-install", xbpsInstallArgs("greetd")...)
+
 	default:
 		return fmt.Errorf("unsupported package manager '%s' - install greetd manually", m.packageManager)
 	}
@@ -1097,6 +1112,10 @@ func installKitty(m *model) error {
 
 	case "zypper":
 		cmd = exec.Command("zypper", "install", "-y", "kitty")
+
+	case "xbps":
+		// Void Linux
+		cmd = exec.Command("xbps-install", xbpsInstallArgs("kitty")...)
 
 	default:
 		return fmt.Errorf("unsupported package manager '%s' - install kitty manually", m.packageManager)
@@ -1563,6 +1582,19 @@ func installCompositor(m *model) error {
 			return fmt.Errorf("%s may not be in zypper repos - install manually", m.selectedCompositor)
 		}
 
+	case "xbps":
+		// Void Linux
+		switch m.selectedCompositor {
+		case "niri":
+			cmd = exec.Command("xbps-install", xbpsInstallArgs("niri")...)
+		case "sway":
+			cmd = exec.Command("xbps-install", xbpsInstallArgs("sway")...)
+		case "cagebreak":
+			cmd = exec.Command("xbps-install", xbpsInstallArgs("cagebreak")...)
+		default:
+			return fmt.Errorf("%s is not in the Void Linux repos - install manually", m.selectedCompositor)
+		}
+
 	default:
 		return fmt.Errorf("unsupported package manager '%s' - install %s manually", m.packageManager, m.selectedCompositor)
 	}
@@ -1663,6 +1695,18 @@ func getGStreamerDeps(packageManager string) []string {
 			"wayland-devel",
 			"wayland-protocols-devel",
 		}
+	case "xbps":
+		// Void Linux - the build needs the development packages
+		return []string{
+			"gstreamer1-devel",
+			"gst-plugins-base1-devel",
+			"gst-plugins-good1-devel",
+			"gst-plugins-bad1-devel",
+			"wayland-devel",
+			"wayland-protocols",
+			"mesa",
+			"pkg-config",
+		}
 	default:
 		return []string{}
 	}
@@ -1733,6 +1777,8 @@ func installGStreamerDeps(m *model) error {
 	case "zypper":
 		args := append([]string{"install", "-y"}, result.toInstall...)
 		cmd = exec.Command("zypper", args...)
+	case "xbps":
+		cmd = exec.Command("xbps-install", xbpsInstallArgs(result.toInstall...)...)
 	default:
 		return fmt.Errorf("unsupported package manager for GStreamer deps")
 	}
@@ -1793,6 +1839,8 @@ func buildGslapperFromSource(m *model) error {
 		case "zypper":
 			args := append([]string{"install", "-y"}, missingPackages...)
 			cmd = exec.Command("zypper", args...)
+		case "xbps":
+			cmd = exec.Command("xbps-install", xbpsInstallArgs(missingPackages...)...)
 		default:
 			updateSubTaskStatus(m, 3, statusFailed)
 			return fmt.Errorf("missing build tools: %s", strings.Join(missingBinaries, ", "))
@@ -1970,6 +2018,10 @@ func copyDirContents(src, dst string) error {
 }
 
 func setupCache(m *model) error {
+	if m.greeterUser == "" {
+		resolveGreeterAccount(m)
+	}
+
 	account := os.Getenv("SYSC_THEME_USER")
 	if account == "" {
 		account = os.Getenv("SUDO_USER")
@@ -1982,10 +2034,10 @@ func setupCache(m *model) error {
 	// shader caches, and sysc-greet preferences.
 	dirs := []string{
 		"/var/cache/sysc-greet",
-		"/var/lib/greeter/Pictures/wallpapers",
-		"/var/lib/greeter/.cache",
-		"/var/lib/greeter/.config",
-		"/var/lib/greeter/.local/state",
+		filepath.Join(m.greeterHome, "Pictures/wallpapers"),
+		filepath.Join(m.greeterHome, ".cache"),
+		filepath.Join(m.greeterHome, ".config"),
+		filepath.Join(m.greeterHome, ".local/state"),
 		"/tmp/greeter-cache",
 	}
 	for _, dir := range dirs {
@@ -1994,7 +2046,7 @@ func setupCache(m *model) error {
 		}
 	}
 
-	if err := exec.Command("chmod", "755", "/var/lib/greeter").Run(); err != nil {
+	if err := exec.Command("chmod", "755", m.greeterHome).Run(); err != nil {
 		return fmt.Errorf("permissions change failed")
 	}
 
@@ -2002,25 +2054,29 @@ func setupCache(m *model) error {
 	// FIXED 2025-10-15 - Add render group for modern Intel/AMD iGPU support
 	// Modern Linux uses 'render' group for /dev/dri/renderD* (non-privileged GPU access)
 	// Both 'video' and 'render' groups needed for laptop iGPU compatibility
-	cmd := exec.Command("id", "greeter")
-	if err := cmd.Run(); err != nil {
-		// User doesn't exist - create with video,render,input groups
-		cmd = exec.Command("useradd", "-M", "-d", "/var/lib/greeter", "-G", "video,render,input", "-s", "/usr/bin/nologin", "greeter")
+	groups := greeterGroups()
+	if !userExists(m.greeterUser) {
+		// User doesn't exist - create with the groups the greeter needs
+		cmd := exec.Command("useradd", "-M", "-d", m.greeterHome, "-G", groups, "-s", "/usr/bin/nologin", m.greeterUser)
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("greeter user creation failed")
 		}
 	} else {
 		// User exists - ensure they have required groups and a writable home.
 		// CRITICAL: This fixes laptops where greeter user exists but lacks render group
-		if err := exec.Command("usermod", "-d", "/var/lib/greeter", "-aG", "video,render,input", "greeter").Run(); err != nil {
+		if err := exec.Command("usermod", "-d", m.greeterHome, "-aG", groups, m.greeterUser).Run(); err != nil {
 			return fmt.Errorf("greeter user update failed")
 		}
 	}
 
 	// Set ownership
-	paths := []string{"/var/cache/sysc-greet", "/var/lib/greeter", "/tmp/greeter-cache"}
+	owner := m.greeterUser
+	if groupExists(m.greeterUser) {
+		owner = m.greeterUser + ":" + m.greeterUser
+	}
+	paths := []string{"/var/cache/sysc-greet", m.greeterHome, "/tmp/greeter-cache"}
 	for _, path := range paths {
-		if err := exec.Command("chown", "-R", "greeter:greeter", path).Run(); err != nil {
+		if err := exec.Command("chown", "-R", owner, path).Run(); err != nil {
 			return fmt.Errorf("ownership change failed for %s", path)
 		}
 	}
@@ -2029,6 +2085,10 @@ func setupCache(m *model) error {
 }
 
 func configureGreetd(m *model) error {
+	if m.greeterUser == "" {
+		resolveGreeterAccount(m)
+	}
+
 	var compositorConfig string
 	var greetdCommand string
 	var configPath string
@@ -2163,8 +2223,10 @@ exec cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/gr
 			return fmt.Errorf("mango greeter config missing: %v", err)
 		}
 		compositorConfig = string(data)
-		if err := exec.Command("install", "-Dm755", "config/mango-greeter-session.sh", "/etc/greetd/mango-greeter-session.sh").Run(); err != nil {
-			return fmt.Errorf("mango greeter session script install failed")
+		// The session script hardcodes the greeter home, so it has to be
+		// rewritten for the account this system uses.
+		if err := writeGreeterScript("config/mango-greeter-session.sh", "/etc/greetd/mango-greeter-session.sh", m.greeterUser, m.greeterHome); err != nil {
+			return fmt.Errorf("mango greeter session script install failed: %w", err)
 		}
 		configPath = "/etc/greetd/mango-greeter-config.conf"
 		greetdCommand = "mango -c /etc/greetd/mango-greeter-config.conf -s /etc/greetd/mango-greeter-session.sh"
@@ -2174,22 +2236,23 @@ exec cd /var/lib/greeter && env HOME=/var/lib/greeter XDG_CACHE_HOME=/var/lib/gr
 	}
 
 	// Write compositor config
+	compositorConfig = substituteGreeterPaths(compositorConfig, m.greeterUser, m.greeterHome)
 	if err := os.WriteFile(configPath, []byte(compositorConfig), 0644); err != nil {
 		return fmt.Errorf("compositor config write failed")
 	}
 
 	// Write greetd config
 	greetdConfig := fmt.Sprintf(`[terminal]
-vt = 1
+vt = %d
 
 [default_session]
 command = "%s"
-user = "greeter"
+user = "%s"
 
 [initial_session]
 command = "%s"
-user = "greeter"
-`, greetdCommand, greetdCommand)
+user = "%s"
+`, greeterVT, greetdCommand, m.greeterUser, greetdCommand, m.greeterUser)
 
 	// Keep the previous config when it differs, as the AUR .install scripts do
 	if old, err := os.ReadFile("/etc/greetd/config.toml"); err == nil && string(old) != greetdConfig {
@@ -2217,6 +2280,7 @@ user = "greeter"
 	if err := os.MkdirAll("/etc/polkit-1/rules.d", 0755); err != nil {
 		return fmt.Errorf("polkit rules directory creation failed")
 	}
+	polkitRule = substituteGreeterPaths(polkitRule, m.greeterUser, m.greeterHome)
 	if err := os.WriteFile("/etc/polkit-1/rules.d/85-greeter.rules", []byte(polkitRule), 0644); err != nil {
 		return fmt.Errorf("polkit rule write failed")
 	}
@@ -2225,30 +2289,44 @@ user = "greeter"
 }
 
 func enableService(m *model) error {
-	// Remove existing display-manager.service symlink
-	symlinkPath := "/etc/systemd/system/display-manager.service"
-	if _, err := os.Lstat(symlinkPath); err == nil {
-		os.Remove(symlinkPath)
-	}
+	switch m.initSystem {
+	case initRunit:
+		return enableRunitGreetd()
+	case initSystemd:
+		// Remove existing display-manager.service symlink
+		symlinkPath := "/etc/systemd/system/display-manager.service"
+		if _, err := os.Lstat(symlinkPath); err == nil {
+			os.Remove(symlinkPath)
+		}
 
-	// Enable greetd
-	cmd := exec.Command("systemctl", "enable", "greetd.service")
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("service enable failed")
-	}
+		// Enable greetd
+		cmd := exec.Command("systemctl", "enable", "greetd.service")
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("service enable failed")
+		}
 
-	return nil
+		return nil
+	default:
+		return fmt.Errorf("no supported init system detected (need systemd or runit)")
+	}
 }
 
 // Uninstall functions
 
 func disableService(m *model) error {
-	// Disable greetd service
-	if err := exec.Command("systemctl", "disable", "greetd.service").Run(); err != nil {
-		// Not a critical error if it's already disabled
+	switch m.initSystem {
+	case initRunit:
+		return disableRunitGreetd()
+	case initSystemd:
+		// Disable greetd service
+		if err := exec.Command("systemctl", "disable", "greetd.service").Run(); err != nil {
+			// Not a critical error if it's already disabled
+			return nil
+		}
+		return nil
+	default:
 		return nil
 	}
-	return nil
 }
 
 func removeBinary(m *model) error {

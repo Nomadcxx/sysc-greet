@@ -20,6 +20,14 @@ The interactive installer will prompt you to:
 
 > Set `SYSC_COMPOSITOR=hyprland` when running the installer to opt into Hyprland 0.55+. The installer then shows its Lua based backend option. Check startup, login, and quit on the target machine before enabling greetd.
 
+### Void Linux
+
+Void is supported through the Go installer (xbps packages, runit service). See the [Void Linux guide](../getting-started/void-linux).
+
+```bash
+SYSC_COMPOSITOR=cagebreak sudo ./install.sh
+```
+
 ## Manual Build
 
 ### Prerequisites
