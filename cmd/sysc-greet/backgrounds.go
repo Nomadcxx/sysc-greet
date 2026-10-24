@@ -6,8 +6,6 @@ import (
 	"strings"
 
 	syscgoanimations "github.com/Nomadcxx/sysc-Go/animations"
-	tea "github.com/charmbracelet/bubbletea/v2"
-	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/termios"
 )
 
@@ -26,89 +24,14 @@ func setCellAspect(effect interface{ SetCellAspect(int, int) }, cols, rows, pixe
 	effect.SetCellAspect((pixelWidth+cols/2)/cols, (pixelHeight+rows/2)/rows)
 }
 
-func (m model) usesKittyMeshBackground() bool {
-	return m.kittyGraphics && (m.mode == ModeLogin || m.mode == ModePassword) &&
-		(m.selectedBackground == "ak-47" || m.selectedBackground == "l2a1-sar" || isRotatingModelBackground(m.selectedBackground))
+type meshBackgroundEffect interface {
+	syscgoanimations.Animation
+	Resize(int, int)
+	SetCellAspect(int, int)
 }
 
-func (m model) viewBackgroundColor() color.Color {
-	if m.usesKittyMeshBackground() {
-		return nil
-	}
-	return BgBase
-}
-
-func (m model) kittyCreditBackground() string {
-	width, height := m.width, m.height
-	if width <= 0 {
-		width = 80
-	}
-	if height <= 0 {
-		height = 30
-	}
-	background := blankTerminalContent(width, height)
-	if m.kittyCredit == "" {
-		return background
-	}
-	lines := strings.Split(background, "\n")
-	creditLines := strings.Split(lipgloss.NewStyle().Width(width).Align(lipgloss.Right).Render(m.kittyCredit), "\n")
-	if len(creditLines) > height {
-		creditLines = creditLines[len(creditLines)-height:]
-	}
-	copy(lines[height-len(creditLines):], creditLines)
-	return strings.Join(lines, "\n")
-}
-
-func (m model) renderKittyMeshFrame() (syscgoanimations.MeshFrame, bool) {
-	switch m.selectedBackground {
-	case "ak-47":
-		if m.ak47Effect != nil {
-			return m.ak47Effect.RenderFrame(), true
-		}
-	case "l2a1-sar":
-		if m.l2a1SAREffect != nil {
-			return m.l2a1SAREffect.RenderFrame(), true
-		}
-	default:
-		if isRotatingModelBackground(m.selectedBackground) && m.rotatingModelEffect != nil {
-			return m.rotatingModelEffect.RenderFrame(), true
-		}
-	}
-	return syscgoanimations.MeshFrame{}, false
-}
-
-func syncKittyMeshFrame(previous model, next *model, msg tea.Msg) tea.Cmd {
-	if !next.usesKittyMeshBackground() {
-		next.kittyCredit = ""
-		return next.kittyImages.write(next.kittyImages.clear())
-	}
-
-	refresh := !previous.usesKittyMeshBackground() ||
-		previous.width != next.width || previous.height != next.height ||
-		previous.selectedBackground != next.selectedBackground || previous.currentTheme != next.currentTheme
-	switch msg.(type) {
-	case bgTickMsg, tea.WindowSizeMsg:
-		refresh = true
-	}
-	if !refresh {
-		return nil
-	}
-	frame, ok := next.renderKittyMeshFrame()
-	if !ok {
-		return nil
-	}
-	sequence, err := next.kittyImages.render(frame, next.width, next.height)
-	if err != nil {
-		logDebug("Could not render Kitty mesh background: %v", err)
-		next.kittyGraphics = false
-		next.kittyCredit = ""
-		return next.kittyImages.write(next.kittyImages.clear())
-	}
-	next.kittyCredit = frame.Credit
-	return next.kittyImages.write(sequence)
-}
-
-var rotatingModelBackgrounds = [...]struct{ id, label string }{
+var meshBackgrounds = [...]struct{ id, label string }{
+	{"higgs-field", "Higgs Field"},
 	{"jesus-christ-statue", "Jesus Christ Statue"},
 	{"jason", "Jason"},
 	{"nymphe-der-flora", "Nymphe der Flora"},
@@ -131,8 +54,8 @@ var rotatingModelBackgrounds = [...]struct{ id, label string }{
 	{"fa-18e-super-hornet", "F/A-18E Super Hornet"},
 }
 
-func isRotatingModelBackground(id string) bool {
-	for _, background := range rotatingModelBackgrounds {
+func isMeshBackground(id string) bool {
+	for _, background := range meshBackgrounds {
 		if background.id == id {
 			return true
 		}
@@ -140,8 +63,8 @@ func isRotatingModelBackground(id string) bool {
 	return false
 }
 
-func rotatingModelBackgroundID(label string) (string, bool) {
-	for _, background := range rotatingModelBackgrounds {
+func meshBackgroundID(label string) (string, bool) {
+	for _, background := range meshBackgrounds {
 		if background.label == label {
 			return background.id, true
 		}
@@ -156,8 +79,8 @@ func rotatingModelBackgroundID(label string) (string, bool) {
 
 // applyBackgroundAnimation routes to the appropriate background effect based on selection
 func (m model) applyBackgroundAnimation(content string) string {
-	if isRotatingModelBackground(m.selectedBackground) {
-		return m.addRotatingModelEffect(content)
+	if isMeshBackground(m.selectedBackground) {
+		return m.addMeshBackgroundEffect(content)
 	}
 	switch m.selectedBackground {
 	case "fire": // Add fire effect rendering
@@ -206,9 +129,6 @@ func (m model) addAK47Effect(content string) string {
 	if m.ak47Effect == nil {
 		return content
 	}
-	if m.usesKittyMeshBackground() {
-		return m.kittyCreditBackground()
-	}
 	return m.ak47Effect.Render()
 }
 
@@ -230,13 +150,10 @@ func (m model) addL2A1SAREffect(content string) string {
 	if m.l2a1SAREffect == nil {
 		return content
 	}
-	if m.usesKittyMeshBackground() {
-		return m.kittyCreditBackground()
-	}
 	return m.l2a1SAREffect.Render()
 }
 
-func (m model) newRotatingModelEffect(id string) *syscgoanimations.RotatingModelAnimation {
+func (m model) newMeshBackgroundEffect(id string) meshBackgroundEffect {
 	width, height := m.width, m.height
 	if width <= 0 {
 		width = 80
@@ -245,6 +162,11 @@ func (m model) newRotatingModelEffect(id string) *syscgoanimations.RotatingModel
 		height = 30
 	}
 	theme := strings.ReplaceAll(m.currentTheme, " ", "-")
+	if id == "higgs-field" {
+		effect := syscgoanimations.NewHiggsFieldEffect(width, height, theme)
+		applyTerminalCellAspect(effect)
+		return effect
+	}
 	effect, err := syscgoanimations.NewRotatingModelEffect(id, width, height, theme)
 	if err != nil {
 		logDebug("Could not create rotating model background %q: %v", id, err)
@@ -254,14 +176,11 @@ func (m model) newRotatingModelEffect(id string) *syscgoanimations.RotatingModel
 	return effect
 }
 
-func (m model) addRotatingModelEffect(content string) string {
-	if m.rotatingModelEffect == nil {
+func (m model) addMeshBackgroundEffect(content string) string {
+	if m.meshEffect == nil {
 		return content
 	}
-	if m.usesKittyMeshBackground() {
-		return m.kittyCreditBackground()
-	}
-	return m.rotatingModelEffect.Render()
+	return m.meshEffect.Render()
 }
 
 // addFireEffect renders the fire background (render only, no state mutation)

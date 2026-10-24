@@ -159,7 +159,7 @@ func (m model) navigateToBackgroundsSubmenu() (tea.Model, tea.Cmd) {
 		formatCheckbox("AK-47", ak47Enabled),
 		formatCheckbox("Australian SLR", l2a1SAREnabled),
 	}
-	for _, background := range rotatingModelBackgrounds {
+	for _, background := range meshBackgrounds {
 		m.menuOptions = append(m.menuOptions, formatCheckbox(background.label, m.selectedBackground == background.id))
 	}
 	m.menuOptions = append(m.menuOptions, formatSpeedSelector(m.animSpeed))

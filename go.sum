@@ -1,7 +1,7 @@
 github.com/BurntSushi/toml v1.5.0 h1:W5quZX/G/csjUnuI8SUYlsHs9M38FC7znL0lIO+DvMg=
 github.com/BurntSushi/toml v1.5.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
-github.com/Nomadcxx/sysc-Go v1.0.10-0.20261023095908-32b454d77096 h1:P2gXEEiaAQKKijepL0qScyw3Eg6dCrQcn5USeQdsR7A=
-github.com/Nomadcxx/sysc-Go v1.0.10-0.20261023095908-32b454d77096/go.mod h1:S9t8hMUeDhrMuzoG3PfMGLGrFrf355PhKBvQk6CbZwQ=
+github.com/Nomadcxx/sysc-Go v1.0.10 h1:tCNgt/PLpIB4n7SiO323hzd598EGZ+myVXeOxCVlbVY=
+github.com/Nomadcxx/sysc-Go v1.0.10/go.mod h1:S9t8hMUeDhrMuzoG3PfMGLGrFrf355PhKBvQk6CbZwQ=
 github.com/Nomadcxx/sysc-metrics v0.7.1 h1:rgtOJ5mKnhwJqe19l/tFCOkX/+ogUzUzD2jDOo3UgkE=
 github.com/Nomadcxx/sysc-metrics v0.7.1/go.mod h1:qIgYyJuuD0Ql7wlh3cN0kiHsSG/LEMczrq+vXA7rIQs=
 github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=

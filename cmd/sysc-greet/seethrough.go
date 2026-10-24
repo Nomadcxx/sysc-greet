@@ -193,7 +193,7 @@ func (m model) effectiveFormMode() formMode {
 	case "matrix", "fire", "ascii-rain", "fireworks", "aquarium":
 		return formFrosted
 	default:
-		if isRotatingModelBackground(m.selectedBackground) {
+		if isMeshBackground(m.selectedBackground) {
 			return formSeeThrough
 		}
 		return formOpaque

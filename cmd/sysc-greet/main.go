@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"image/color"
-	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -479,24 +478,21 @@ type model struct {
 
 	capsLockOn    bool // CAPS LOCK state detected via kitty keyboard protocol
 	kittyUpgraded bool // Whether we've upgraded kitty keyboard flags for non-US layout support
-	kittyGraphics bool
-	kittyCredit   string
-	kittyImages   kittyImagePresenter
 
 	// ASCII Effects
-	typewriterTicker    *animations.TypewriterTicker  // Typewriter ticker for session roasts
-	printEffect         *animations.PrintEffect       // Print effect for ASCII art
-	beamsEffect         *animations.BeamsTextEffect   // Beams text effect for ASCII art
-	pourEffect          *animations.PourEffect        // Pour effect for ASCII art
-	aquariumEffect      *animations.AquariumEffect    // Aquarium background effect
-	sonarEffect         *animations.SonarAnimation    // Sonar background effect
-	cracktroEffect      *animations.CracktroAnimation // Cracktro background effect
-	plasmaEffect        *animations.PlasmaAnimation   // Plasma background effect
-	ak47Effect          *syscgoanimations.AK47Animation
-	l2a1SAREffect       *syscgoanimations.L2A1SARAnimation
-	rotatingModelEffect *syscgoanimations.RotatingModelAnimation
-	selectedWallpaper   string // gslapper video wallpaper (separate from background effect)
-	gslapperLaunched    bool   // Track if gslapper was launched from cache
+	typewriterTicker  *animations.TypewriterTicker  // Typewriter ticker for session roasts
+	printEffect       *animations.PrintEffect       // Print effect for ASCII art
+	beamsEffect       *animations.BeamsTextEffect   // Beams text effect for ASCII art
+	pourEffect        *animations.PourEffect        // Pour effect for ASCII art
+	aquariumEffect    *animations.AquariumEffect    // Aquarium background effect
+	sonarEffect       *animations.SonarAnimation    // Sonar background effect
+	cracktroEffect    *animations.CracktroAnimation // Cracktro background effect
+	plasmaEffect      *animations.PlasmaAnimation   // Plasma background effect
+	ak47Effect        *syscgoanimations.AK47Animation
+	l2a1SAREffect     *syscgoanimations.L2A1SARAnimation
+	meshEffect        meshBackgroundEffect
+	selectedWallpaper string // gslapper video wallpaper (separate from background effect)
+	gslapperLaunched  bool   // Track if gslapper was launched from cache
 }
 
 type sessionSelectedMsg sessions.Session
@@ -597,7 +593,7 @@ func (m model) backgroundEffectActive() bool {
 	case "fire", "fire+rain", "ascii-rain", "matrix", "fireworks", "sonar", "cracktro", "plasma", "aquarium", "ak-47", "l2a1-sar":
 		return true
 	default:
-		return isRotatingModelBackground(m.selectedBackground)
+		return isMeshBackground(m.selectedBackground)
 	}
 }
 
@@ -1025,19 +1021,7 @@ func (m model) Update(msg tea.Msg) (result tea.Model, command tea.Cmd) {
 			current.publishSecondaryRuntime()
 		}
 	}()
-	updated, cmd := m.update(msg)
-	next, ok := updated.(model)
-	if !ok {
-		return updated, cmd
-	}
-	if imageCmd := syncKittyMeshFrame(m, &next, msg); imageCmd != nil {
-		if cmd == nil {
-			cmd = imageCmd
-		} else {
-			cmd = tea.Batch(cmd, imageCmd)
-		}
-	}
-	return next, cmd
+	return m.update(msg)
 }
 
 func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -1148,9 +1132,9 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.l2a1SAREffect.Resize(msg.Width, msg.Height)
 			applyTerminalCellAspect(m.l2a1SAREffect)
 		}
-		if m.rotatingModelEffect != nil {
-			m.rotatingModelEffect.Resize(msg.Width, msg.Height)
-			applyTerminalCellAspect(m.rotatingModelEffect)
+		if m.meshEffect != nil {
+			m.meshEffect.Resize(msg.Width, msg.Height)
+			applyTerminalCellAspect(m.meshEffect)
 		}
 		return m, nil
 
@@ -1273,8 +1257,8 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selectedBackground == "l2a1-sar" && m.l2a1SAREffect == nil {
 			m.l2a1SAREffect = m.newL2A1SAREffect()
 		}
-		if isRotatingModelBackground(m.selectedBackground) && m.rotatingModelEffect == nil {
-			m.rotatingModelEffect = m.newRotatingModelEffect(m.selectedBackground)
+		if isMeshBackground(m.selectedBackground) && m.meshEffect == nil {
+			m.meshEffect = m.newMeshBackgroundEffect(m.selectedBackground)
 		}
 
 		if (m.enableFire || m.selectedBackground == "fire" || m.selectedBackground == "fire+rain") && m.fireEffect != nil {
@@ -1324,8 +1308,8 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.selectedBackground == "l2a1-sar" && m.l2a1SAREffect != nil {
 			m.l2a1SAREffect.Update()
 		}
-		if isRotatingModelBackground(m.selectedBackground) && m.rotatingModelEffect != nil {
-			m.rotatingModelEffect.Update()
+		if isMeshBackground(m.selectedBackground) && m.meshEffect != nil {
+			m.meshEffect.Update()
 		}
 
 		cmds = append(cmds, doBgTick(m.animSpeed))
@@ -2106,21 +2090,21 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.aquariumEffect = nil
 				}
 			default:
-				if id, ok := rotatingModelBackgroundID(optionName); ok {
+				if id, ok := meshBackgroundID(optionName); ok {
 					m.enableFire = false
 					if m.selectedBackground != id {
 						m.selectedBackground = id
-						m.rotatingModelEffect = m.newRotatingModelEffect(id)
+						m.meshEffect = m.newMeshBackgroundEffect(id)
 					} else {
 						m.selectedBackground = "none"
-						m.rotatingModelEffect = nil
+						m.meshEffect = nil
 					}
 				}
 			}
 
 			if m.enableFire {
 				m.selectedBackground = "fire"
-			} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" && m.selectedBackground != "sonar" && m.selectedBackground != "cracktro" && m.selectedBackground != "plasma" && m.selectedBackground != "aquarium" && m.selectedBackground != "ak-47" && m.selectedBackground != "l2a1-sar" && m.selectedBackground != "ticker" && !isRotatingModelBackground(m.selectedBackground) {
+			} else if m.selectedBackground != "pattern" && m.selectedBackground != "ascii-rain" && m.selectedBackground != "matrix" && m.selectedBackground != "fireworks" && m.selectedBackground != "sonar" && m.selectedBackground != "cracktro" && m.selectedBackground != "plasma" && m.selectedBackground != "aquarium" && m.selectedBackground != "ak-47" && m.selectedBackground != "l2a1-sar" && m.selectedBackground != "ticker" && !isMeshBackground(m.selectedBackground) {
 				m.selectedBackground = "none"
 			}
 
@@ -2202,8 +2186,8 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					if m.selectedBackground == "l2a1-sar" {
 						m.l2a1SAREffect = m.newL2A1SAREffect()
 					}
-					if isRotatingModelBackground(m.selectedBackground) {
-						m.rotatingModelEffect = m.newRotatingModelEffect(m.selectedBackground)
+					if isMeshBackground(m.selectedBackground) {
+						m.meshEffect = m.newMeshBackgroundEffect(m.selectedBackground)
 					}
 					// CHANGED 2025-10-03 - Save theme preference
 					// CHANGED 2025-10-03 - Skip saving in test mode
@@ -2491,7 +2475,7 @@ func (m model) buildView() tea.View {
 	}
 	if canvas, ok := m.borderedLoginCanvas(termWidth, termHeight); ok {
 		view.Layer = canvas
-		view.BackgroundColor = m.viewBackgroundColor()
+		view.BackgroundColor = BgBase
 		return view
 	}
 
@@ -2536,7 +2520,7 @@ func (m model) buildView() tea.View {
 
 		// Create canvas with two layers: fire at bottom, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, fireY, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = m.viewBackgroundColor()
+		view.BackgroundColor = BgBase
 		return view
 	} else if hasRainBackground {
 		// CHANGED 2025-10-08 - Render ascii-rain as full background
@@ -2551,7 +2535,7 @@ func (m model) buildView() tea.View {
 
 		// Create canvas with two layers: rain as background, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = m.viewBackgroundColor()
+		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "matrix" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		// Render matrix as full background
@@ -2565,7 +2549,7 @@ func (m model) buildView() tea.View {
 
 		// Create canvas with two layers: matrix as background, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = m.viewBackgroundColor()
+		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "fireworks" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		// Render fireworks as full background
@@ -2579,7 +2563,7 @@ func (m model) buildView() tea.View {
 
 		// Create canvas with two layers: fireworks as background, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = m.viewBackgroundColor()
+		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "sonar" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		// Render sonar as full background
@@ -2593,7 +2577,7 @@ func (m model) buildView() tea.View {
 
 		// Create canvas with two layers: sonar as background, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = m.viewBackgroundColor()
+		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "cracktro" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		// Render cracktro as full background
@@ -2607,7 +2591,7 @@ func (m model) buildView() tea.View {
 
 		// Create canvas with two layers: cracktro as background, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = m.viewBackgroundColor()
+		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "plasma" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		// Render plasma as full background
@@ -2621,7 +2605,7 @@ func (m model) buildView() tea.View {
 
 		// Create canvas with two layers: plasma as background, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = m.viewBackgroundColor()
+		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "aquarium" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		// Render aquarium as full background
@@ -2635,7 +2619,7 @@ func (m model) buildView() tea.View {
 
 		// Create canvas with two layers: aquarium as background, UI centered on top
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = m.viewBackgroundColor()
+		view.BackgroundColor = BgBase
 		return view
 	} else if m.selectedBackground == "ak-47" && (m.mode == ModeLogin || m.mode == ModePassword) {
 		backgroundContent := m.addAK47Effect("")
@@ -2646,7 +2630,7 @@ func (m model) buildView() tea.View {
 		uiY := (termHeight - contentHeight) / 2
 
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = m.viewBackgroundColor()
+		view.BackgroundColor = BgBase
 		return view
 	}
 
@@ -2657,18 +2641,18 @@ func (m model) buildView() tea.View {
 		uiX := (termWidth - contentWidth) / 2
 		uiY := (termHeight - contentHeight) / 2
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = m.viewBackgroundColor()
+		view.BackgroundColor = BgBase
 		return view
 	}
 
-	if isRotatingModelBackground(m.selectedBackground) && (m.mode == ModeLogin || m.mode == ModePassword) {
-		backgroundContent := m.addRotatingModelEffect("")
+	if isMeshBackground(m.selectedBackground) && (m.mode == ModeLogin || m.mode == ModePassword) {
+		backgroundContent := m.addMeshBackgroundEffect("")
 		contentWidth := lipgloss.Width(content)
 		contentHeight := lipgloss.Height(content)
 		uiX := (termWidth - contentWidth) / 2
 		uiY := (termHeight - contentHeight) / 2
 		view.Layer = m.composeLoginLayer(backgroundContent, 0, 0, content, uiX, uiY, termWidth, termHeight)
-		view.BackgroundColor = m.viewBackgroundColor()
+		view.BackgroundColor = BgBase
 		return view
 	}
 
@@ -2689,7 +2673,7 @@ func (m model) buildView() tea.View {
 	// Keep a full-terminal backing layer so small popups clear stale cells even
 	// when Bubble Tea is running without alt-screen.
 	view.Layer = m.composeLayer(blankTerminalContent(termWidth, termHeight), 0, 0, content, x, y, termWidth, termHeight)
-	view.BackgroundColor = m.viewBackgroundColor()
+	view.BackgroundColor = BgBase
 	return view
 }
 
@@ -3141,7 +3125,6 @@ func main() {
 		}
 	}
 	m := initialModel(config, screensaverTestMode || config.SecondarySaver)
-	m.kittyGraphics = kittyGraphicsAvailable()
 	m.ambient = collector
 	m.secondaryReadyFile = secondaryReadyFile
 	if config.SecondarySaver {
@@ -3175,14 +3158,7 @@ func main() {
 		secondaryDone = startSecondaryManager(ctx, config.Secondary, m.secondaryRuntime, p.Send)
 	}
 
-	final, err := p.Run()
-	if finalModel, ok := final.(model); ok {
-		if sequence := finalModel.kittyImages.clear(); sequence != "" {
-			if _, clearErr := io.WriteString(os.Stdout, sequence); clearErr != nil {
-				logDebug("Could not clear Kitty mesh background: %v", clearErr)
-			}
-		}
-	}
+	_, err = p.Run()
 	cancel()
 	<-secondaryDone
 	if collector != nil {

@@ -136,8 +136,8 @@ func (m model) borderBackgroundLayers(termWidth, termHeight int) []*lipgloss.Lay
 	case "l2a1-sar":
 		background = m.addL2A1SAREffect("")
 	default:
-		if isRotatingModelBackground(m.selectedBackground) {
-			background = m.addRotatingModelEffect("")
+		if isMeshBackground(m.selectedBackground) {
+			background = m.addMeshBackgroundEffect("")
 		}
 	}
 	if background != "" {

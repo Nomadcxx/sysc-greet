@@ -19,6 +19,7 @@ func renderRotatingModelLayer(view tea.View, width, height int) string {
 
 func TestRotatingModelBackgroundsMenuAndLifecycle(t *testing.T) {
 	models := []struct{ id, label, credit string }{
+		{"higgs-field", "Higgs Field", ""},
 		{"jesus-christ-statue", "Jesus Christ Statue", "Jesus Christ Statue / amcgi / CC BY 4.0"},
 		{"jason", "Jason", "Jason / noe-3d.at / CC BY-NC 4.0"},
 		{"nymphe-der-flora", "Nymphe der Flora", "Nymphe der Flora / noe-3d.at / CC BY-NC 4.0"},
@@ -97,7 +98,7 @@ func TestRotatingModelBackgroundRecreatesOnThemeChange(t *testing.T) {
 		t.Fatal("Jason menu option not found")
 	}
 	m, _ = m.handleKeyInput(tea.KeyPressMsg{Code: tea.KeySpace})
-	oldEffect := m.rotatingModelEffect
+	oldEffect := m.meshEffect
 	before := oldEffect.Render()
 
 	m.mode = ModeThemesSubmenu
@@ -107,10 +108,10 @@ func TestRotatingModelBackgroundRecreatesOnThemeChange(t *testing.T) {
 	if m.currentTheme != "Nord" {
 		t.Fatalf("selected theme = %q, want Nord", m.currentTheme)
 	}
-	if m.rotatingModelEffect == oldEffect {
+	if m.meshEffect == oldEffect {
 		t.Fatal("theme selection reused the old rotating model effect")
 	}
-	if after := m.rotatingModelEffect.Render(); after == before {
+	if after := m.meshEffect.Render(); after == before {
 		t.Fatal("rotating model rendering did not apply the selected theme")
 	}
 }
