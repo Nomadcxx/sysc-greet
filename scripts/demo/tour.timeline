@@ -1,4 +1,4 @@
-# sysc-greet README tour (v1.2.0, laptop testbench, 1920x1080).
+# sysc-greet README tour (v1.3.0, laptop testbench, 1920x1080).
 # Each step must start after the previous step's keys finish; tour.py checks this.
 #
 # Opening state (= closing state): Tokyo Night, Minimal border, frosted form (record-tour.sh
@@ -10,8 +10,8 @@
 #     Nord, Tokyo Night 5, Gruvbox, Material, Solarized, Monochrome 9,
 #     TransIsHardJob, Eldritch 11, RAMA 12
 #   Backgrounds (Space toggles, one at a time; Esc Esc closes): Back, Fire 1,
-#     ASCII Rain, Matrix 3, ..., AK-47 9, Australian SLR 10, ..., Laocoon 17,
-#     Laocoon 17, Napoleon Bust 18, Roman Gladiator 15, Engel 21, Lion Statue 26, F-14 Tomcat 27
+#     ASCII Rain, Matrix 3, ..., AK-47 9, Australian SLR 10, Higgs Field 11,
+#     Laocoon 18, Napoleon Bust 19, Roman Gladiator 16, Engel 22, Lion Statue 27, F-14 Tomcat 28
 #   Sessions on the laptop (filename order, X11 first): bspwm 0, Cinnamon 1-2, Qtile 3-4,
 #     Xfce 5, Cinnamon Wayland 6, dwl 7, GNOME 8, Hyprland uwsm 9, Hyprland 10, Mango 11,
 #     Niri 12, Plasma 13, Qtile Wayland 14-15, River 16, Sway 17, sysc-compositor 18,
@@ -24,8 +24,6 @@
 #     Hyprland: ascii_1-10 ANSI, ascii_11-27 ASCII.
 # Models: picked by how they read at README width (AK-47, Australian SLR, Lowe, St George,
 #   Brandenburg Gate, Jesus Christ Statue and F-22 read poorly).
-
-
 
 
 # Lead-in, trimmed from the video: shared header index on ascii_6, session bspwm (top).
@@ -72,107 +70,113 @@
 15.45  expect Matrix
 15.65  keys space esc esc
 
-# Rotating models, in descending menu order.
+# Higgs field: leave time for the particle field to develop.
 18.00  keys@0.12 f1 down down down enter
-18.68  keys@0.06 down down down down down down down down down down down down down down down down down down down down down down down down down down down
-20.44  expect F-14 Tomcat
-20.64  keys space esc esc
-23.09  keys@0.12 f1 down down down enter
-23.77  keys@0.06 down down down down down down down down down down down down down down down down down down down down down down down down down down
-25.47  expect Lion Statue
-25.67  keys space esc esc
-28.12  keys@0.12 f1 down down down enter
-28.80  keys@0.06 down down down down down down down down down down down down down down down down down down down down down
-30.20  expect Engel
-30.40  keys space esc esc
-32.85  keys@0.12 f1 down down down enter
-33.53  keys@0.06 down down down down down down down down down down down down down down down down down down
-34.75  expect Napoleon Bust
-34.95  keys space esc esc
-37.40  keys@0.12 f1 down down down enter
-38.08  keys@0.06 down down down down down down down down down down down down down down down down down
-39.24  expect Laocoon and His Sons
-39.44  keys space esc esc
-41.89  keys@0.12 f1 down down down enter
-42.57  keys@0.06 down down down down down down down down down down down down down down down
-43.61  expect Roman Gladiator
-43.81  keys space esc esc
+18.68  keys@0.06 down down down down down down down down down down down
+19.48  expect Higgs Field
+19.68  keys space esc esc
+
+# Rotating models, in descending menu order.
+24.00  keys@0.12 f1 down down down enter
+24.68  keys@0.06 down down down down down down down down down down down down down down down down down down down down down down down down down down down down
+26.44  expect F-14 Tomcat
+26.64  keys space esc esc
+29.09  keys@0.12 f1 down down down enter
+29.77  keys@0.06 down down down down down down down down down down down down down down down down down down down down down down down down down down down
+31.47  expect Lion Statue
+31.67  keys space esc esc
+34.12  keys@0.12 f1 down down down enter
+34.80  keys@0.06 down down down down down down down down down down down down down down down down down down down down down down
+36.20  expect Engel
+36.40  keys space esc esc
+38.85  keys@0.12 f1 down down down enter
+39.53  keys@0.06 down down down down down down down down down down down down down down down down down down down
+40.75  expect Napoleon Bust
+40.95  keys space esc esc
+43.40  keys@0.12 f1 down down down enter
+44.08  keys@0.06 down down down down down down down down down down down down down down down down down down
+45.24  expect Laocoon and His Sons
+45.44  keys space esc esc
+47.89  keys@0.12 f1 down down down enter
+48.57  keys@0.06 down down down down down down down down down down down down down down down down
+49.61  expect Roman Gladiator
+49.81  keys space esc esc
 
 # Roman Gladiator off: plain background for the header art.
-46.26  keys@0.12 f1 down down down enter
-46.94  keys@0.06 down down down down down down down down down down down down down down down
-47.98  expect Roman Gladiator
-48.18  keys space esc esc
+52.26  keys@0.12 f1 down down down enter
+52.94  keys@0.06 down down down down down down down down down down down down down down down down
+53.98  expect Roman Gladiator
+54.18  keys space esc esc
 
 # Hyprland only: one row up from Mango with the field focused, then page through its art.
-49.23  keys up
-49.63  keys@0.35 pgdn pgdn pgdn pgdn pgdn pgdn pgdn pgdn
+55.23  keys up
+55.63  keys@0.35 pgdn pgdn pgdn pgdn pgdn pgdn pgdn pgdn
 
-# Mango only: the first PgDn wraps the shared index to 0, then lands on ascii_6.
-52.58  keys down
-52.98  keys@0.45 pgdn pgdn pgdn pgdn pgdn pgdn
+# Mango only: PgDn normalizes the stale Hyprland index to 0, then advances to ascii_6.
+58.58  keys down
+58.98  keys@0.45 pgdn pgdn pgdn pgdn pgdn
 
 # Themes on the ASCII header, ending on the opening Tokyo Night.
-55.83  keys@0.12 f1 down enter
-56.27  keys@0.06 down down down down down down down down down down down down
-57.13  expect Theme: RAMA
-57.33  keys enter
-57.93  keys@0.12 f1 down enter
-58.37  keys@0.06 down down down down down down down down down down down
-59.17  expect Theme: Eldritch
-59.37  keys enter
-59.97  keys@0.12 f1 down enter
-60.41  keys@0.06 down down down down down down down down down
-61.09  expect Theme: Monochrome
-61.29  keys enter
-61.89  keys@0.12 f1 down enter
-62.33  keys@0.06 down down down down down
-62.77  expect Theme: Tokyo Night
-62.97  keys enter
+61.83  keys@0.12 f1 down enter
+62.27  keys@0.06 down down down down down down down down down down down down
+63.13  expect Theme: RAMA
+63.33  keys enter
+63.93  keys@0.12 f1 down enter
+64.37  keys@0.06 down down down down down down down down down down down
+65.17  expect Theme: Eldritch
+65.37  keys enter
+65.97  keys@0.12 f1 down enter
+66.41  keys@0.06 down down down down down down down down down
+67.09  expect Theme: Monochrome
+67.29  keys enter
+67.89  keys@0.12 f1 down enter
+68.33  keys@0.06 down down down down down
+68.77  expect Theme: Tokyo Night
+68.97  keys enter
 
 # Border tour with no background, ending on the default Minimal.
-63.52  keys@0.12 f1 down down enter
-64.08  keys down
-64.28  expect Style: Classic
-64.48  keys enter
-65.43  keys@0.12 f1 down down enter
-65.99  keys@0.06 down down
-66.25  expect Style: Modern
-66.45  keys enter
-67.40  keys@0.12 f1 down down enter
-67.96  keys@0.06 down down down down
-68.34  expect Style: ASCII-1
-68.54  keys enter
-69.49  keys@0.12 f1 down down enter
-70.05  keys@0.06 down down down down down
-70.49  expect Style: ASCII-2
-70.69  keys enter
-71.64  keys@0.12 f1 down down enter
-72.20  keys@0.06 down down down down down down
-72.70  expect Style: NFO 01
-72.90  keys enter
-73.85  keys@0.12 f1 down down enter
-74.41  keys@0.06 down down down down down down down
-74.97  expect Style: NFO 02
-75.17  keys enter
-76.12  keys@0.12 f1 down down enter
-76.68  keys@0.06 down down down down down down down down
-77.30  expect Style: NFO 03
-77.50  keys enter
-78.45  keys@0.12 f1 down down enter
-79.01  keys@0.06 down down down down down down down down down
-79.69  expect Style: Braille Hairline
-79.89  keys enter
-80.84  keys@0.12 f1 down down enter
-81.40  keys@0.06 down down down down down down down down down down
-82.14  expect Style: Sextant Bevel
-82.34  keys enter
-83.29  keys@0.12 f1 down down enter
-83.85  keys@0.06 down down down
-84.17  expect Style: Minimal
-84.37  keys enter
+69.52  keys@0.12 f1 down down enter
+70.08  keys down
+70.28  expect Style: Classic
+70.48  keys enter
+71.43  keys@0.12 f1 down down enter
+71.99  keys@0.06 down down
+72.25  expect Style: Modern
+72.45  keys enter
+73.40  keys@0.12 f1 down down enter
+73.96  keys@0.06 down down down down
+74.34  expect Style: ASCII-1
+74.54  keys enter
+75.49  keys@0.12 f1 down down enter
+76.05  keys@0.06 down down down down down
+76.49  expect Style: ASCII-2
+76.69  keys enter
+77.64  keys@0.12 f1 down down enter
+78.20  keys@0.06 down down down down down down
+78.70  expect Style: NFO 01
+78.90  keys enter
+79.85  keys@0.12 f1 down down enter
+80.41  keys@0.06 down down down down down down down
+80.97  expect Style: NFO 02
+81.17  keys enter
+82.12  keys@0.12 f1 down down enter
+82.68  keys@0.06 down down down down down down down down
+83.30  expect Style: NFO 03
+83.50  keys enter
+84.45  keys@0.12 f1 down down enter
+85.01  keys@0.06 down down down down down down down down down
+85.69  expect Style: Braille Hairline
+85.89  keys enter
+86.84  keys@0.12 f1 down down enter
+87.40  keys@0.06 down down down down down down down down down down
+88.14  expect Style: Sextant Bevel
+88.34  keys enter
+89.29  keys@0.12 f1 down down enter
+89.85  keys@0.06 down down down
+90.17  expect Style: Minimal
+90.37  keys enter
 
 # Back to bspwm with the username field focused: the closing frame matches the opening one.
-84.92  keys@0.1 up up up up up up up up up up up
-86.12  keys tab
-87.12  mark end
+90.92  keys@0.1 up up up up up up up up up up up
+92.12  keys tab
+93.12  mark end

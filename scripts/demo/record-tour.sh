@@ -25,14 +25,14 @@ done
 
 SYSC_GREET_BIN=${SYSC_GREET_BIN:-/usr/local/bin/sysc-greet}
 DEMO_FONT_SIZE=${DEMO_FONT_SIZE:-13}
-WANT_VERSION=v1.2.0
+WANT_VERSION=v1.3.0
 OPENING_THEME=tokyo-night
 OPENING_SESSION=mango
 FORM_MODE=frosted
 OUTPUT_NAME=eDP-1
 GRID_COLUMNS=(140 160)
 GRID_LINES=(34 42)
-MAX_BYTES=15728640
+MAX_BYTES=20971520
 MIN_SECONDS=${DEMO_MIN_SECONDS:-40}
 MAX_SECONDS=90
 ENCODE_FPS=20
@@ -121,7 +121,7 @@ mkdir -p "$work/home"
 niri msg action spawn -- kitty --class sysc-greet-demo --config /etc/greetd/kitty.conf \
     -o background_opacity=1.0 -o allow_remote_control=socket-only -o mouse_hide_wait=0 \
     -o "font_size=$DEMO_FONT_SIZE" --listen-on "unix:$socket" --start-as=fullscreen \
-    env "HOME=$work/home" "$SYSC_GREET_BIN" --test --test-session "$OPENING_SESSION" --theme "$OPENING_THEME" --form-mode "$FORM_MODE" --follow-shell=false
+    env -u NO_COLOR "HOME=$work/home" "$SYSC_GREET_BIN" --test --test-session "$OPENING_SESSION" --theme "$OPENING_THEME" --form-mode "$FORM_MODE" --follow-shell=false
 for _ in $(seq 100); do [ -S "$socket" ] && break; sleep 0.1; done
 [ -S "$socket" ] || fail "Kitty did not open its control socket within 10 s"
 
@@ -173,7 +173,7 @@ print("%.3f %.3f" % (marks["start"] + offset, marks["end"] + offset))' \
 for quality in "${ENCODE_QUALITIES[@]}"; do
     say "Encoding ${trim_start}s-${trim_end}s at $ENCODE_FPS fps, quality $quality"
     ffmpeg -v error -y -ss "$trim_start" -to "$trim_end" -i "$work/capture.mkv" -vf "fps=$ENCODE_FPS" \
-        -c:v libwebp_anim -lossless 0 -q:v "$quality" -compression_level 6 -loop 0 "$work/showcase.webp"
+        -c:v libwebp_anim -lossless 0 -q:v "$quality" -compression_level 4 -loop 0 "$work/showcase.webp"
     if python3 "$here/webp_report.py" "$work/showcase.webp" --max-bytes "$MAX_BYTES" \
         --min-seconds "$MIN_SECONDS" --max-seconds "$MAX_SECONDS" --size 1920x1080; then
         ENCODE_QUALITY=$quality

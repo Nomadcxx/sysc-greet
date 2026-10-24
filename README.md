@@ -2,7 +2,7 @@
 
 A graphical console greeter for [greetd](https://git.sr.ht/~kennylevinsen/greetd), written in Go with the Bubble Tea framework.
 
-<img src="assets/showcase.webp" alt="sysc-greet tour: compositor headers, background effects, header art, themes, and border styles" width="100%">
+<img src="assets/showcase.webp" alt="sysc-greet tour: compositor headers, Higgs Field, Napoleon and other particle backgrounds, themes, and border styles" width="100%">
 
 ## Quick Links
 
