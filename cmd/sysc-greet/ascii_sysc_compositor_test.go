@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Nomadcxx/sysc-greet/internal/sessions"
+	tea "github.com/charmbracelet/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 )
@@ -268,5 +269,30 @@ func writeASCIIConfigForTest(t *testing.T, config string) {
 	}
 	if err := os.WriteFile(filepath.Join(configDir, "sysc-compositor.conf"), []byte(config), 0o600); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestASCIIHeaderPagingNormalizesStaleVariantIndex(t *testing.T) {
+	writeASCIIConfigForTest(t, "ascii_1=\nfirst\nascii_2=\nsecond\n")
+
+	for _, tt := range []struct {
+		name string
+		key  rune
+	}{
+		{name: "page up", key: tea.KeyPgUp},
+		{name: "page down", key: tea.KeyPgDown},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			m := model{
+				config:          Config{TestMode: true},
+				mode:            ModeLogin,
+				selectedSession: &sessions.Session{Name: "sysc-compositor"},
+				asciiArtIndex:   5,
+			}
+			m, _ = m.handleKeyInput(tea.KeyPressMsg{Code: tt.key})
+			if m.asciiArtIndex != 1 {
+				t.Fatalf("ASCII index = %d, want 1 after paging from displayed first variant", m.asciiArtIndex)
+			}
+		})
 	}
 }

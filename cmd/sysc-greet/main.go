@@ -1781,6 +1781,9 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.asciiMaxHeight = asciiConfig.MaxASCIIHeight
 
 					// Cycle backwards (decrement index with wraparound)
+					if m.asciiArtIndex < 0 || m.asciiArtIndex >= m.asciiArtCount {
+						m.asciiArtIndex = 0
+					}
 					m.asciiArtIndex--
 					if m.asciiArtIndex < 0 {
 						m.asciiArtIndex = m.asciiArtCount - 1
@@ -1850,6 +1853,9 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 					m.asciiMaxHeight = asciiConfig.MaxASCIIHeight
 
 					// Cycle forwards (increment index with wraparound)
+					if m.asciiArtIndex < 0 || m.asciiArtIndex >= m.asciiArtCount {
+						m.asciiArtIndex = 0
+					}
 					m.asciiArtIndex++
 					if m.asciiArtIndex >= m.asciiArtCount {
 						m.asciiArtIndex = 0
@@ -1934,6 +1940,26 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		}
 
 	case "space":
+		if m.mode == ModeBordersSubmenu {
+			if m.menuIndex < 0 || m.menuIndex >= len(m.menuOptions) {
+				return m, nil
+			}
+			selectedOption := m.menuOptions[m.menuIndex]
+			if selectedOption == "← Back" {
+				return m, nil
+			}
+			selectedName := borderMenuOptionName(selectedOption)
+			m = m.applyBorderMenuOption(selectedOption)
+			updated, cmd := m.navigateToBordersSubmenu()
+			m2 := updated.(model)
+			for i, option := range m2.menuOptions {
+				if borderMenuOptionName(option) == selectedName {
+					m2.menuIndex = i
+					break
+				}
+			}
+			return m2, cmd
+		}
 		// Space toggles options in backgrounds submenu
 		if m.mode == ModeBackgroundsSubmenu {
 			selectedOption := m.menuOptions[m.menuIndex]
@@ -2198,53 +2224,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				return m, nil
 
 			case ModeBordersSubmenu:
-				optionName := strings.TrimPrefix(selectedOption, "[✓] ")
-				optionName = strings.TrimPrefix(optionName, "[ ] ")
-				if strings.HasPrefix(optionName, "Style: ") && m.borderRegistry != nil {
-					label := strings.TrimPrefix(optionName, "Style: ")
-					for _, renderer := range m.borderRegistry.styles() {
-						if renderer.Label() == label {
-							m.selectedBorderStyle = renderer.ID()
-							break
-						}
-					}
-				} else {
-					switch optionName {
-					case "Style: Classic":
-						m.selectedBorderStyle = "classic"
-					case "Style: Modern":
-						m.selectedBorderStyle = "modern"
-					case "Style: Minimal":
-						m.selectedBorderStyle = "minimal"
-					case "Style: ASCII-1":
-						m.selectedBorderStyle = "ascii1"
-					case "Style: ASCII-2":
-						m.selectedBorderStyle = "ascii2"
-					case "Effect: Shimmer":
-						if renderer := m.borderRegistry.get(m.selectedBorderStyle); renderer != nil && renderer.SupportsEffect("shimmer") {
-							m.borderEffect = "shimmer"
-						}
-					case "Effect: Off":
-						m.borderEffect = "off"
-					case "Palette: Theme":
-						m.borderPaletteMode = "theme"
-					case "Palette: VGA":
-						m.borderPaletteMode = "vga"
-					case "Palette: Terminal":
-						m.borderPaletteMode = "terminal"
-					case "Form: Auto":
-						m.formMode = "auto"
-					case "Form: Opaque":
-						m.formMode = "opaque"
-					case "Form: See-through":
-						m.formMode = "seethrough"
-					case "Form: Frosted":
-						m.formMode = "frosted"
-					}
-				}
-				// CHANGED 2025-10-03 - Save border preference
-				// CHANGED 2025-10-03 - Skip saving in test mode
-				m.savePreferences()
+				m = m.applyBorderMenuOption(selectedOption)
 				m.mode = ModeLogin
 				return m, nil
 

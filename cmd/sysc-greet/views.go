@@ -158,6 +158,8 @@ func (m model) renderMenuView(termWidth, termHeight int) string {
 	helpStyle := lipgloss.NewStyle().Foreground(FgMuted)
 	if m.mode == ModeBackgroundsSubmenu {
 		content = append(content, helpStyle.Render("↑↓ Navigate • Space Toggle • Enter Done"))
+	} else if m.mode == ModeBordersSubmenu {
+		content = append(content, helpStyle.Render("↑↓ Navigate • Space Apply • Enter Apply & Close • Esc Close"))
 	} else {
 		content = append(content, helpStyle.Render("↑↓ Navigate • Enter Select • Esc Close"))
 	}

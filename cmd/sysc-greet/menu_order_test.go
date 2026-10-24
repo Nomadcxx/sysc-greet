@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea/v2"
@@ -43,5 +45,25 @@ func TestMainMenuOrderStable(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestLongMenuScrollsSelectedOptionIntoView(t *testing.T) {
+	options := make([]string, 12)
+	for i := range options {
+		options[i] = fmt.Sprintf("Choice-%02d", i)
+	}
+	m := model{mode: ModeMenu, menuOptions: options}
+
+	m.menuIndex = len(options) - 1
+	bottom := m.renderMenuView(120, 40)
+	if !strings.Contains(bottom, "More above") || strings.Contains(bottom, "More below") || !strings.Contains(bottom, options[len(options)-1]) || strings.Contains(bottom, options[0]) {
+		t.Fatalf("bottom scroll window is incorrect: %q", bottom)
+	}
+
+	m.menuIndex = 0
+	top := m.renderMenuView(120, 40)
+	if strings.Contains(top, "More above") || !strings.Contains(top, "More below") || !strings.Contains(top, options[0]) || strings.Contains(top, options[len(options)-1]) {
+		t.Fatalf("top scroll window is incorrect: %q", top)
 	}
 }

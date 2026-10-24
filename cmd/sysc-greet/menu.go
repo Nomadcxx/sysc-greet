@@ -1,6 +1,8 @@
 package main
 
 import (
+	"strings"
+
 	tea "github.com/charmbracelet/bubbletea/v2"
 )
 
@@ -74,6 +76,59 @@ func (m model) navigateToBordersSubmenu() (tea.Model, tea.Cmd) {
 	m.mode = ModeBordersSubmenu
 	m.menuIndex = 0
 	return m, nil
+}
+
+func borderMenuOptionName(option string) string {
+	option = strings.TrimPrefix(option, "[✓] ")
+	return strings.TrimPrefix(option, "[ ] ")
+}
+
+func (m model) applyBorderMenuOption(selectedOption string) model {
+	optionName := borderMenuOptionName(selectedOption)
+	if strings.HasPrefix(optionName, "Style: ") && m.borderRegistry != nil {
+		label := strings.TrimPrefix(optionName, "Style: ")
+		for _, renderer := range m.borderRegistry.styles() {
+			if renderer.Label() == label {
+				m.selectedBorderStyle = renderer.ID()
+				break
+			}
+		}
+	} else {
+		switch optionName {
+		case "Style: Classic":
+			m.selectedBorderStyle = "classic"
+		case "Style: Modern":
+			m.selectedBorderStyle = "modern"
+		case "Style: Minimal":
+			m.selectedBorderStyle = "minimal"
+		case "Style: ASCII-1":
+			m.selectedBorderStyle = "ascii1"
+		case "Style: ASCII-2":
+			m.selectedBorderStyle = "ascii2"
+		case "Effect: Shimmer":
+			if renderer := m.borderRegistry.get(m.selectedBorderStyle); renderer != nil && renderer.SupportsEffect("shimmer") {
+				m.borderEffect = "shimmer"
+			}
+		case "Effect: Off":
+			m.borderEffect = "off"
+		case "Palette: Theme":
+			m.borderPaletteMode = "theme"
+		case "Palette: VGA":
+			m.borderPaletteMode = "vga"
+		case "Palette: Terminal":
+			m.borderPaletteMode = "terminal"
+		case "Form: Auto":
+			m.formMode = "auto"
+		case "Form: Opaque":
+			m.formMode = "opaque"
+		case "Form: See-through":
+			m.formMode = "seethrough"
+		case "Form: Frosted":
+			m.formMode = "frosted"
+		}
+	}
+	m.savePreferences()
+	return m
 }
 
 // navigateToBackgroundsSubmenu switches to the backgrounds submenu

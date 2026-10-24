@@ -91,3 +91,37 @@ func TestFunctionKeyBindings(t *testing.T) {
 		})
 	}
 }
+
+func TestTabFocusSwitchesSessionsWithArrowKeys(t *testing.T) {
+	available := []sessions.Session{
+		{Name: "First", Exec: "first", Type: "Wayland"},
+		{Name: "Second", Exec: "second", Type: "Wayland"},
+	}
+	m := model{
+		config:          Config{TestMode: true},
+		mode:            ModeLogin,
+		sessions:        available,
+		selectedSession: &available[0],
+		sessionIndex:    0,
+		focusState:      FocusUsername,
+		usernameInput:   textinput.New(),
+		passwordInput:   textinput.New(),
+	}
+
+	m, _ = m.handleKeyInput(tea.KeyPressMsg{Code: tea.KeyTab})
+	if m.focusState != FocusSession {
+		t.Fatalf("Tab focus = %v, want session", m.focusState)
+	}
+	for _, tt := range []struct {
+		key  rune
+		want string
+	}{
+		{key: tea.KeyDown, want: "Second"},
+		{key: tea.KeyUp, want: "First"},
+	} {
+		m, _ = m.handleKeyInput(tea.KeyPressMsg{Code: tt.key})
+		if m.selectedSession == nil || m.selectedSession.Name != tt.want || m.sessionDropdownOpen {
+			t.Fatalf("selected session = %#v, dropdown open = %v; want %q with dropdown closed", m.selectedSession, m.sessionDropdownOpen, tt.want)
+		}
+	}
+}

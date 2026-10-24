@@ -97,6 +97,170 @@ func TestBordersMenuUsesRegisteredStylesAndEffects(t *testing.T) {
 	}
 }
 
+func TestBordersMenuSpaceAppliesPaletteAndFormWithoutClosing(t *testing.T) {
+	m := model{
+		config:              Config{TestMode: true},
+		borderRegistry:      newBorderRegistry(""),
+		selectedBorderStyle: "nfo01",
+		borderEffect:        "off",
+		borderPaletteMode:   "theme",
+		formMode:            "auto",
+	}
+	updated, _ := m.navigateToBordersSubmenu()
+	m = updated.(model)
+
+	for _, tc := range []struct {
+		option string
+		check  func(model) bool
+	}{
+		{option: "Palette: VGA", check: func(m model) bool { return m.borderPaletteMode == "vga" }},
+		{option: "Form: Frosted", check: func(m model) bool { return m.formMode == "frosted" }},
+	} {
+		t.Run(tc.option, func(t *testing.T) {
+			option := "[ ] " + tc.option
+			for i, candidate := range m.menuOptions {
+				if candidate == option {
+					m.menuIndex = i
+					break
+				}
+			}
+			if m.menuOptions[m.menuIndex] != option {
+				t.Fatalf("menu omitted %q: %v", option, m.menuOptions)
+			}
+
+			updated, _ := m.handleKeyInput(tea.KeyPressMsg{Code: ' '})
+			m = updated
+			if m.mode != ModeBordersSubmenu {
+				t.Fatalf("mode = %s after Space; want Borders submenu to remain open", m.mode)
+			}
+			if !tc.check(m) {
+				t.Fatalf("Space did not apply %q", tc.option)
+			}
+			if m.menuOptions[m.menuIndex] != "[✓] "+tc.option {
+				t.Fatalf("selected row = %q, want checked %q", m.menuOptions[m.menuIndex], tc.option)
+			}
+		})
+	}
+}
+
+func TestBordersMenuAppliesBorderOptionsWithEnter(t *testing.T) {
+	m := model{
+		config:              Config{TestMode: true},
+		mode:                ModeMenu,
+		menuOptions:         []string{"Close Menu", "Themes", "Borders"},
+		menuIndex:           2,
+		borderRegistry:      newBorderRegistry(""),
+		selectedBorderStyle: "minimal",
+		borderEffect:        "off",
+	}
+	selectOption := func(option string) {
+		t.Helper()
+		optionIndex := -1
+		for i, candidate := range m.menuOptions {
+			if candidate == option {
+				optionIndex = i
+				break
+			}
+		}
+		if optionIndex < 0 {
+			t.Fatalf("menu omitted %q: %v", option, m.menuOptions)
+		}
+		for m.menuIndex < optionIndex {
+			m, _ = m.handleKeyInput(tea.KeyPressMsg{Code: tea.KeyDown})
+		}
+		m, _ = m.handleKeyInput(tea.KeyPressMsg{Code: tea.KeyEnter})
+	}
+
+	selectOption("Borders")
+	selectOption("[ ] Style: NFO 01: Cyan Bevel")
+	if m.mode != ModeLogin || m.selectedBorderStyle != "nfo01" {
+		t.Fatalf("mode = %s, border style = %q; want login with NFO 01 selected", m.mode, m.selectedBorderStyle)
+	}
+
+	m = m.navigateToMainMenu()
+	selectOption("Borders")
+	selectOption("[ ] Effect: Shimmer")
+	if m.mode != ModeLogin || m.borderEffect != "shimmer" {
+		t.Fatalf("mode = %s, border effect = %q; want login with shimmer applied", m.mode, m.borderEffect)
+	}
+
+	m = m.navigateToMainMenu()
+	selectOption("Borders")
+	selectOption("[ ] Effect: Off")
+	if m.borderEffect != "off" {
+		t.Fatalf("border effect = %q, want off", m.borderEffect)
+	}
+
+	m = m.navigateToMainMenu()
+	selectOption("Borders")
+	selectOption("[ ] Palette: VGA")
+	if m.borderPaletteMode != "vga" {
+		t.Fatalf("border palette = %q, want vga", m.borderPaletteMode)
+	}
+
+	m = m.navigateToMainMenu()
+	selectOption("Borders")
+	selectOption("[ ] Form: Frosted")
+	if m.formMode != "frosted" {
+		t.Fatalf("form mode = %q, want frosted", m.formMode)
+	}
+}
+
+func TestANSIAndNFOBordersApplyPaletteFormAndShimmer(t *testing.T) {
+	useBorderGoldenTheme(t)
+	registry := newBorderRegistry("")
+	for _, id := range []string{"ascii1", "ascii2", "nfo01", "nfo02", "nfo03"} {
+		t.Run(id, func(t *testing.T) {
+			m := layoutModel(132, 40)
+			m.config = Config{BorderLayout: "hug", FormDim: 0.55, FormHalo: 1}
+			m.selectedSession = nil
+			m.sessions = nil
+			m.borderRegistry = registry
+			m.selectedBorderStyle = id
+			m.borderPaletteMode = "theme"
+			m.formMode = "opaque"
+			m.borderEffect = "off"
+			m.idleTimer = time.Now().Add(-10*time.Second - 25*time.Millisecond)
+
+			render := func() string {
+				t.Helper()
+				canvas, ok := m.borderedLoginCanvas(m.width, m.height)
+				if !ok {
+					t.Fatal("bordered login did not fit")
+				}
+				return canvas.Render()
+			}
+			theme := render()
+
+			m.borderPaletteMode = "vga"
+			if vga := render(); vga == theme {
+				t.Fatal("VGA palette did not change the rendered border")
+			}
+
+			m.borderPaletteMode = "theme"
+			m.formMode = "frosted"
+			if frosted := render(); frosted == theme {
+				t.Fatal("Frosted form mode did not change the rendered login view")
+			}
+
+			m.formMode = "opaque"
+			m.borderEffect = "shimmer"
+			changed := false
+			for frame := 0; frame < 120; frame++ {
+				elapsed := time.Duration(frame)*50*time.Millisecond + 25*time.Millisecond
+				m.idleTimer = time.Now().Add(-10*time.Second - elapsed)
+				if render() != theme {
+					changed = true
+					break
+				}
+			}
+			if !changed {
+				t.Fatal("Shimmer did not change the rendered border over 6 seconds of animation")
+			}
+		})
+	}
+}
+
 func TestCustomBorderLabelsRemainSelectableWhenDuplicated(t *testing.T) {
 	dir := t.TempDir()
 	for _, id := range []string{"one", "two"} {
