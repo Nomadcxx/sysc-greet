@@ -1,8 +1,8 @@
 package main
 
 import (
+	"os"
 	"os/exec"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -34,10 +34,10 @@ func powerTestModel() model {
 func TestPowerActionsAskLogin1(t *testing.T) {
 	for _, tt := range []struct {
 		action string
-		want   []string
+		verb   string
 	}{
-		{"Reboot", []string{"loginctl", "--no-ask-password", "reboot"}},
-		{"Shutdown", []string{"loginctl", "--no-ask-password", "poweroff"}},
+		{"Reboot", "reboot"},
+		{"Shutdown", "poweroff"},
 	} {
 		t.Run(tt.action, func(t *testing.T) {
 			asked := stubPowerCommand(t, exec.Command("true"))
@@ -51,10 +51,22 @@ func TestPowerActionsAskLogin1(t *testing.T) {
 			if msg := cmd(); msg != nil {
 				t.Fatalf("accepted request returned %#v; want nil so the greeter stays up", msg)
 			}
-			if !reflect.DeepEqual(*asked, tt.want) {
-				t.Fatalf("power request = %v; want %v", *asked, tt.want)
+			if len(*asked) != 3 || (*asked)[1] != "--no-ask-password" || (*asked)[2] != tt.verb {
+				t.Fatalf("power request = %v; want a noninteractive %s request", *asked, tt.verb)
 			}
 		})
+	}
+}
+
+func TestSystemdPowerActionsUseSystemctl(t *testing.T) {
+	if _, err := os.Stat("/run/systemd/system"); err != nil {
+		t.Skip("requires a systemd host; elogind commands are checked in the Void VM")
+	}
+	asked := stubPowerCommand(t, exec.Command("true"))
+	_, cmd := powerTestModel().Update(powerSelectedMsg("Reboot"))
+	cmd()
+	if len(*asked) == 0 || (*asked)[0] != "systemctl" {
+		t.Fatalf("systemd power request = %v; systemd loginctl has no reboot verb", *asked)
 	}
 }
 

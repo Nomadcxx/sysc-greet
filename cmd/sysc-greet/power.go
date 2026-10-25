@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 
@@ -20,15 +21,20 @@ type powerFailedMsg struct {
 	reason string
 }
 
-// requestPower asks login1 to reboot or power off. systemd and elogind both
-// ship loginctl, and 85-greeter.rules lets the greeter account do this without
-// a password. --no-ask-password keeps polkit from prompting on the greeter's
+// requestPower asks login1 to reboot or power off. systemd uses systemctl;
+// elogind's loginctl adds power verbs absent from systemd's loginctl.
+// 85-greeter.rules permits these actions without a password.
+// --no-ask-password keeps polkit from prompting on the greeter's
 // terminal. An accepted request returns no message: the greeter stays alive
 // because systemd 260+ kills the session scope when the greeter exits, which
 // races with the request.
 func requestPower(action, verb string) tea.Cmd {
 	return func() tea.Msg {
-		output, err := powerCommand("loginctl", "--no-ask-password", verb).CombinedOutput()
+		tool := "loginctl"
+		if _, err := os.Stat("/run/systemd/system"); err == nil {
+			tool = "systemctl"
+		}
+		output, err := powerCommand(tool, "--no-ask-password", verb).CombinedOutput()
 		if err == nil {
 			return nil
 		}
