@@ -22,6 +22,7 @@ test-*
 !internal/ansiart/upscale_test.go
 !internal/cache/cache_test.go
 !cmd/installer/packages_test.go
+!cmd/sysc-greet/power_test.go
 !cmd/sysc-greet/testdata/
 !cmd/sysc-greet/testdata/borders/
 !cmd/sysc-greet/testdata/borders/*.golden

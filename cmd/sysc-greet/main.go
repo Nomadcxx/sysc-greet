@@ -8,7 +8,6 @@ import (
 	"image/color"
 	"log"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -1390,23 +1389,15 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				fmt.Println("Test mode: Would reboot system")
 				return m, tea.Quit
 			}
-			// FIXED 2026-03-23 - Don't quit greeter after issuing reboot
-			// systemd 260+ kills all processes in session scope on greeter exit,
-			// which races with the reboot command. Stay alive and let reboot kill us.
-			exec.Command("systemctl", "reboot").Start()
 			m.mode = ModeLoading
-			return m, nil
+			return m, requestPower(action, "reboot")
 		case "Shutdown":
 			if m.config.TestMode {
 				fmt.Println("Test mode: Would shutdown system")
 				return m, tea.Quit
 			}
-			// FIXED 2026-03-23 - Don't quit greeter after issuing shutdown
-			// systemd 260+ kills all processes in session scope on greeter exit,
-			// which races with the poweroff command. Stay alive and let shutdown kill us.
-			exec.Command("systemctl", "poweroff").Start()
 			m.mode = ModeLoading
-			return m, nil
+			return m, requestPower(action, "poweroff")
 		case "Cancel":
 			m.mode = ModeLogin
 			m.focusState = FocusUsername
@@ -1414,6 +1405,15 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.passwordInput.Blur()
 			cmds = append(cmds, textinput.Blink)
 		}
+
+	case powerFailedMsg:
+		m.errorMessage = fmt.Sprintf("%s failed: %s", msg.action, msg.reason)
+		m.borderFailureAt = time.Now()
+		m.mode = ModeLogin
+		m.focusState = FocusUsername
+		m.usernameInput.Focus()
+		m.passwordInput.Blur()
+		return m, textinput.Blink
 
 	case authSuccessMsg:
 		m.clearAuthPrompt()
