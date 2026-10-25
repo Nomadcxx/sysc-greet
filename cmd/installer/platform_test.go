@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -211,5 +213,53 @@ func TestWriteGreeterScriptSetsTheExecutableBitOnAnExistingFile(t *testing.T) {
 	}
 	if info.Mode().Perm() != 0755 {
 		t.Errorf("session script mode = %v; want 0755", info.Mode().Perm())
+	}
+}
+
+func TestLoginServicePackages(t *testing.T) {
+	if got := loginServicePackages(initSystemd); got != nil {
+		t.Errorf("loginServicePackages(systemd) = %v; want nil, systemd-logind covers it", got)
+	}
+	want := []string{"elogind", "dbus", "polkit"}
+	if got := loginServicePackages(initRunit); !reflect.DeepEqual(got, want) {
+		t.Errorf("loginServicePackages(runit) = %v; want %v", got, want)
+	}
+}
+
+func TestEnableRunitGreetdLinksTheLoginServices(t *testing.T) {
+	root := t.TempDir()
+	const live = "etc/runit/runsvdir/default"
+	for _, service := range []string{"greetd", "dbus", "elogind", "agetty-tty1"} {
+		writeServiceTree(t, root, service, live)
+	}
+	if err := linkRunitService(root, "agetty-tty1"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := enableRunitGreetd(root); err != nil {
+		t.Fatalf("enableRunitGreetd: %v", err)
+	}
+	for _, service := range []string{"dbus", "elogind", "greetd"} {
+		if _, err := os.Lstat(filepath.Join(root, live, service)); err != nil {
+			t.Errorf("%s not linked: %v", service, err)
+		}
+	}
+	if _, err := os.Lstat(filepath.Join(root, live, "agetty-tty1")); !os.IsNotExist(err) {
+		t.Error("agetty-tty1 still holds the greeter VT")
+	}
+}
+
+func TestEnableRunitGreetdNeedsElogind(t *testing.T) {
+	root := t.TempDir()
+	const live = "etc/runit/runsvdir/default"
+	for _, service := range []string{"greetd", "dbus"} {
+		writeServiceTree(t, root, service, live)
+	}
+	err := enableRunitGreetd(root)
+	if err == nil || !strings.Contains(err.Error(), "elogind") {
+		t.Fatalf("enableRunitGreetd without elogind = %v; want an error naming elogind", err)
+	}
+	if _, err := os.Lstat(filepath.Join(root, live, "greetd")); !os.IsNotExist(err) {
+		t.Error("greetd enabled without a seat provider")
 	}
 }

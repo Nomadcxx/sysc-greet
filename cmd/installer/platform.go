@@ -195,29 +195,53 @@ func markServiceDown(root, name string) error {
 	return os.WriteFile(filepath.Join(dir, "down"), nil, 0644)
 }
 
-// enableRunitGreetd enables the greetd runit service and clears the login
-// prompt from the greeter's virtual terminal.
-func enableRunitGreetd() error {
-	if _, err := os.Stat("/etc/sv/greetd"); err != nil {
-		return fmt.Errorf("runit service missing at /etc/sv/greetd - reinstall greetd")
+// loginServices are the runit services elogind needs, in start order: dbus
+// carries the login1 interface, elogind provides the seat the compositor
+// opens and the login1 power actions the greeter's polkit rule allows.
+var loginServices = []string{"dbus", "elogind"}
+
+// loginServicePackages returns the packages that provide the seat and the
+// power actions on an init system without systemd-logind. polkit is started
+// on demand by dbus, so it needs no service of its own.
+func loginServicePackages(initSystem string) []string {
+	if initSystem == initSystemd {
+		return nil
 	}
-	if err := linkRunitService("/", "greetd"); err != nil {
-		return err
-	}
-	return disableAgetty(greeterVT)
+	return []string{"elogind", "dbus", "polkit"}
 }
 
-// disableRunitGreetd disables the greetd runit service.
+// enableRunitGreetd enables the login services and the greetd runit service
+// under root, and clears the login prompt from the greeter's virtual
+// terminal. greetd is linked last, so it is never enabled without a seat.
+func enableRunitGreetd(root string) error {
+	for _, name := range append(append([]string{}, loginServices...), "greetd") {
+		if _, err := os.Stat(filepath.Join(root, "etc/sv", name)); err != nil {
+			return fmt.Errorf("runit service missing at /etc/sv/%s - reinstall %s", name, name)
+		}
+	}
+	for _, name := range loginServices {
+		if err := linkRunitService(root, name); err != nil {
+			return err
+		}
+	}
+	if err := linkRunitService(root, "greetd"); err != nil {
+		return err
+	}
+	return disableAgetty(root, greeterVT)
+}
+
+// disableRunitGreetd disables the greetd runit service. The login services
+// stay enabled: other sessions use them too.
 func disableRunitGreetd() error {
 	return unlinkRunitService("/", "greetd")
 }
 
 // disableAgetty stops the login prompt that would otherwise hold the greeter's
 // virtual terminal. Void's greetd README asks for exactly this.
-func disableAgetty(vt int) error {
+func disableAgetty(root string, vt int) error {
 	name := fmt.Sprintf("agetty-tty%d", vt)
-	if err := unlinkRunitService("/", name); err != nil {
+	if err := unlinkRunitService(root, name); err != nil {
 		return err
 	}
-	return markServiceDown("/", name)
+	return markServiceDown(root, name)
 }

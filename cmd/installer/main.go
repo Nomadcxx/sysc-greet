@@ -313,6 +313,7 @@ func newModel(debugMode bool, logFile *os.File) model {
 		{name: "Check packages", description: "Checking for a distro-managed sysc-greet", execute: checkNoDistroPackage, status: statusPending},
 		{name: "Check dependencies", description: "Checking system dependencies", execute: checkDependencies, status: statusPending},
 		{name: "Install greetd", description: "Installing greetd daemon", execute: installGreetd, optional: false, status: statusPending},
+		{name: "Install login services", description: "Installing elogind, dbus and polkit (non-systemd)", execute: installLoginServices, status: statusPending},
 		{name: "Install kitty", description: "Installing kitty terminal", execute: installKitty, optional: false, status: statusPending},
 		{name: "Install compositor", description: "Installing Wayland compositor", execute: installCompositor, optional: false, status: statusPending},
 		{
@@ -1006,6 +1007,19 @@ func installGreetd(m *model) error {
 		return fmt.Errorf("failed to install greetd (try: manual installation)")
 	}
 
+	return nil
+}
+
+// installLoginServices installs elogind, dbus and polkit where no
+// systemd-logind provides the seat and the power actions.
+func installLoginServices(m *model) error {
+	packages := loginServicePackages(m.initSystem)
+	if len(packages) == 0 {
+		return nil
+	}
+	if err := installPackages(m, "Install login services", packages...); err != nil {
+		return fmt.Errorf("failed to install %s - the greeter needs them for its seat and power menu", strings.Join(packages, ", "))
+	}
 	return nil
 }
 
@@ -2126,7 +2140,7 @@ user = "%s"
 func enableService(m *model) error {
 	switch m.initSystem {
 	case initRunit:
-		return enableRunitGreetd()
+		return enableRunitGreetd("/")
 	case initSystemd:
 		// Remove existing display-manager.service symlink
 		symlinkPath := "/etc/systemd/system/display-manager.service"
