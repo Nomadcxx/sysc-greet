@@ -103,7 +103,9 @@ func checkPackageInstalled(pkg, packageManager string) bool {
 	case "dnf", "yum", "zypper":
 		cmd = exec.Command("rpm", "-q", pkg)
 	case "xbps":
-		cmd = exec.Command("xbps-query", xbpsQueryArgs(pkg, false)...)
+		// Void Linux. The show mode exits non-zero when the package is not
+		// in the package database, so it reports presence exactly.
+		cmd = exec.Command("xbps-query", xbpsShowArgs(pkg, false)...)
 	default:
 		return false
 	}
@@ -125,7 +127,7 @@ func checkPackageExists(pkg, packageManager string) bool {
 	case "zypper":
 		cmd = exec.Command("zypper", "info", pkg)
 	case "xbps":
-		cmd = exec.Command("xbps-query", xbpsQueryArgs(pkg, true)...)
+		cmd = exec.Command("xbps-query", xbpsShowArgs(pkg, true)...)
 	default:
 		return false
 	}
@@ -1658,11 +1660,12 @@ func getGStreamerDeps(packageManager string) []string {
 			"wayland-protocols-devel",
 		}
 	case "xbps":
-		// Void Linux - the build needs the development packages
+		// Void Linux - the build needs the development packages. The good
+		// plugins ship no -devel subpackage, so the main package is listed.
 		return []string{
 			"gstreamer1-devel",
 			"gst-plugins-base1-devel",
-			"gst-plugins-good1-devel",
+			"gst-plugins-good1",
 			"gst-plugins-bad1-devel",
 			"wayland-devel",
 			"wayland-protocols",

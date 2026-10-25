@@ -60,14 +60,14 @@ func TestXbpsInstallArgs(t *testing.T) {
 	}
 }
 
-func TestXbpsQueryArgs(t *testing.T) {
-	local := xbpsQueryArgs("greetd", false)
-	if len(local) != 2 || local[0] != "-s" || local[1] != "^greetd$" {
-		t.Errorf("xbpsQueryArgs local = %v; want [-s ^greetd$]", local)
+func TestXbpsShowArgs(t *testing.T) {
+	local := xbpsShowArgs("greetd", false)
+	if len(local) != 2 || local[0] != "-S" || local[1] != "greetd" {
+		t.Errorf("xbpsShowArgs local = %v; want [-S greetd]", local)
 	}
-	remote := xbpsQueryArgs("greetd", true)
-	if len(remote) != 3 || remote[0] != "-R" || remote[1] != "-s" || remote[2] != "^greetd$" {
-		t.Errorf("xbpsQueryArgs remote = %v; want [-R -s ^greetd$]", remote)
+	remote := xbpsShowArgs("greetd", true)
+	if len(remote) != 3 || remote[0] != "-R" || remote[1] != "-S" || remote[2] != "greetd" {
+		t.Errorf("xbpsShowArgs remote = %v; want [-R -S greetd]", remote)
 	}
 }
 

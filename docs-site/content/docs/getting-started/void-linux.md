@@ -77,7 +77,7 @@ Install build deps manually:
 
 ```bash
 xbps-install -Sy meson ninja git pkg-config gstreamer1-devel gst-plugins-base1-devel \
-  gst-plugins-good1-devel gst-plugins-bad1-devel wayland-devel wayland-protocols
+  gst-plugins-good1 gst-plugins-bad1-devel wayland-devel wayland-protocols
 ```
 
 Or switch to cagebreak: re-run the installer with `SYSC_COMPOSITOR=cagebreak`.

@@ -27,7 +27,7 @@ These were read from the official package index and the packages themselves
   `vt = 7`.
 - Package names in the Void repos: `greetd`, `kitty`, `niri`, `sway`, `cage`,
   `cagebreak`, `socat`, `gstreamer1-devel`, `gst-plugins-base1-devel`,
-  `gst-plugins-good1-devel`, `gst-plugins-bad1-devel`, `wayland-devel`,
+  `gst-plugins-good1`, `gst-plugins-bad1-devel`, `wayland-devel`,
   `wayland-protocols`, `mesa`, `pkg-config`, `meson`, `ninja`, `git`. There is
   no `gslapper`, no `mango` and no `hyprland`.
 

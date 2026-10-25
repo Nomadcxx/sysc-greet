@@ -140,14 +140,18 @@ func xbpsInstallArgs(packages ...string) []string {
 	return append([]string{"-Sy"}, packages...)
 }
 
-// xbpsQueryArgs returns the xbps-query arguments that look for one exact
-// package name. The pattern is anchored because xbps-query matches loosely.
-func xbpsQueryArgs(pkg string, remote bool) []string {
+// xbpsShowArgs returns the xbps-query arguments that look for one exact
+// package name. Only the show mode reports presence through its exit status:
+// it resolves the name against the database and returns ENOENT when the
+// package is absent. The search mode cannot answer the question, because it
+// matches the whole pkgver loosely, treats the pattern as plain text without
+// --regex, and still exits 0 when it finds nothing.
+func xbpsShowArgs(pkg string, remote bool) []string {
 	args := []string{}
 	if remote {
 		args = append(args, "-R")
 	}
-	return append(args, "-s", "^"+pkg+"$")
+	return append(args, "-S", pkg)
 }
 
 // liveRunitDirs returns the runit service directories that exist under root.
