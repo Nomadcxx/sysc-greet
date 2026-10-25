@@ -47,30 +47,6 @@ subject.user == "_greeter"
 	}
 }
 
-func TestXbpsInstallArgs(t *testing.T) {
-	got := xbpsInstallArgs("greetd", "kitty")
-	want := []string{"-Sy", "greetd", "kitty"}
-	if len(got) != len(want) {
-		t.Fatalf("xbpsInstallArgs = %v; want %v", got, want)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Fatalf("xbpsInstallArgs = %v; want %v", got, want)
-		}
-	}
-}
-
-func TestXbpsShowArgs(t *testing.T) {
-	local := xbpsShowArgs("greetd", false)
-	if len(local) != 2 || local[0] != "-S" || local[1] != "greetd" {
-		t.Errorf("xbpsShowArgs local = %v; want [-S greetd]", local)
-	}
-	remote := xbpsShowArgs("greetd", true)
-	if len(remote) != 3 || remote[0] != "-R" || remote[1] != "-S" || remote[2] != "greetd" {
-		t.Errorf("xbpsShowArgs remote = %v; want [-R -S greetd]", remote)
-	}
-}
-
 // writeServiceTree builds a runit tree under root: the service directory in
 // /etc/sv and the live service links in the given directories.
 func writeServiceTree(t *testing.T, root string, service string, liveDirs ...string) {

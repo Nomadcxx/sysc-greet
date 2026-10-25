@@ -87,56 +87,6 @@ func getBinaryPackageName(binary, packageManager string) string {
 	return binary // Default: package name matches binary name
 }
 
-// checkPackageInstalled checks if a package is already installed
-func checkPackageInstalled(pkg, packageManager string) bool {
-	var cmd *exec.Cmd
-	switch packageManager {
-	case "pacman":
-		cmd = exec.Command("pacman", "-Q", pkg)
-	case "apt":
-		cmd = exec.Command("dpkg-query", "-W", "-f=${Status}", pkg)
-		output, err := cmd.Output()
-		if err != nil {
-			return false
-		}
-		return strings.Contains(string(output), "install ok installed")
-	case "dnf", "yum", "zypper":
-		cmd = exec.Command("rpm", "-q", pkg)
-	case "xbps":
-		// Void Linux. The show mode exits non-zero when the package is not
-		// in the package database, so it reports presence exactly.
-		cmd = exec.Command("xbps-query", xbpsShowArgs(pkg, false)...)
-	default:
-		return false
-	}
-	return cmd.Run() == nil
-}
-
-// checkPackageExists checks if a package exists in repos (can be installed)
-func checkPackageExists(pkg, packageManager string) bool {
-	var cmd *exec.Cmd
-	switch packageManager {
-	case "pacman":
-		cmd = exec.Command("pacman", "-Si", pkg)
-	case "apt":
-		cmd = exec.Command("apt-cache", "show", pkg)
-	case "dnf":
-		cmd = exec.Command("dnf", "info", pkg)
-	case "yum":
-		cmd = exec.Command("yum", "info", pkg)
-	case "zypper":
-		cmd = exec.Command("zypper", "info", pkg)
-	case "xbps":
-		cmd = exec.Command("xbps-query", xbpsShowArgs(pkg, true)...)
-	default:
-		return false
-	}
-	// Suppress output
-	cmd.Stdout = nil
-	cmd.Stderr = nil
-	return cmd.Run() == nil
-}
-
 // packageCheckResult holds the categorized packages for installation
 type packageCheckResult struct {
 	toInstall        []string // Packages that exist and need installation
@@ -244,6 +194,10 @@ type model struct {
 	debugMode          bool     // Show verbose output
 	logFile            *os.File // Installer log file
 	beams              *BeamsTextEffect
+
+	// packageListsRefreshed records that installPackages already updated
+	// the package lists in this run.
+	packageListsRefreshed bool
 }
 
 // greeterCompositor is one row of the compositor picker
@@ -1026,61 +980,29 @@ func installGreetd(m *model) error {
 		return fmt.Errorf("package manager not detected - install greetd manually")
 	}
 
-	var cmd *exec.Cmd
-	var updateCmd *exec.Cmd
-
-	switch m.packageManager {
-	case "pacman":
-		// Try AUR helper first if available, fall back to pacman
-		if _, err := exec.LookPath("yay"); err == nil {
-			// Use yay for AUR access (greetd might be in AUR)
-			// IMPORTANT: yay must NOT be run as root, but needs sudo internally
+	// On Arch, prefer an AUR helper (greetd might be in the AUR). AUR helpers
+	// must NOT run as root, so drop to the invoking user; the helper asks for
+	// sudo itself. Without a non-root user, fall back to pacman.
+	var aurCmd *exec.Cmd
+	if m.packageManager == "pacman" {
+		for _, helper := range []string{"yay", "paru"} {
+			if _, err := exec.LookPath(helper); err != nil {
+				continue
+			}
 			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" && sudoUser != "root" {
-				// Drop privileges to run yay as the original user
-				// yay will ask for sudo password when needed
-				cmd = exec.Command("su", "-", sudoUser, "-c", "yay -S --noconfirm greetd")
-			} else {
-				// Fallback to pacman if we can't determine non-root user
-				cmd = exec.Command("pacman", "-S", "--noconfirm", "greetd")
+				aurCmd = exec.Command("su", "-", sudoUser, "-c", helper+" -S --noconfirm greetd")
 			}
-		} else if _, err := exec.LookPath("paru"); err == nil {
-			// Alternative AUR helper
-			// IMPORTANT: paru must NOT be run as root, but needs sudo internally
-			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "root" && sudoUser != "" {
-				cmd = exec.Command("su", "-", sudoUser, "-c", "paru -S --noconfirm greetd")
-			} else {
-				// Fallback to pacman if we can't determine non-root user
-				cmd = exec.Command("pacman", "-S", "--noconfirm", "greetd")
-			}
-		} else {
-			// Standard pacman (official repos only)
-			cmd = exec.Command("pacman", "-S", "--noconfirm", "greetd")
+			break
 		}
-
-	case "apt":
-		// Update package list first for apt-based systems
-		updateCmd = exec.Command("apt-get", "update")
-		updateCmd.Run() // Ignore errors, proceed anyway
-		cmd = exec.Command("apt-get", "install", "-y", "greetd")
-
-	case "dnf":
-		cmd = exec.Command("dnf", "install", "-y", "greetd")
-
-	case "yum":
-		cmd = exec.Command("yum", "install", "-y", "greetd")
-
-	case "zypper":
-		cmd = exec.Command("zypper", "install", "-y", "greetd")
-
-	case "xbps":
-		// Void Linux
-		cmd = exec.Command("xbps-install", xbpsInstallArgs("greetd")...)
-
-	default:
-		return fmt.Errorf("unsupported package manager '%s' - install greetd manually", m.packageManager)
 	}
 
-	if err := cmd.Run(); err != nil {
+	var err error
+	if aurCmd != nil {
+		err = runCommand("Install greetd", aurCmd, m)
+	} else {
+		err = installPackages(m, "Install greetd", "greetd")
+	}
+	if err != nil {
 		return fmt.Errorf("failed to install greetd (try: manual installation)")
 	}
 
@@ -1097,33 +1019,7 @@ func installKitty(m *model) error {
 		return fmt.Errorf("package manager not detected - install kitty manually")
 	}
 
-	var cmd *exec.Cmd
-
-	switch m.packageManager {
-	case "pacman":
-		cmd = exec.Command("pacman", "-S", "--noconfirm", "kitty")
-
-	case "apt":
-		cmd = exec.Command("apt-get", "install", "-y", "kitty")
-
-	case "dnf":
-		cmd = exec.Command("dnf", "install", "-y", "kitty")
-
-	case "yum":
-		cmd = exec.Command("yum", "install", "-y", "kitty")
-
-	case "zypper":
-		cmd = exec.Command("zypper", "install", "-y", "kitty")
-
-	case "xbps":
-		// Void Linux
-		cmd = exec.Command("xbps-install", xbpsInstallArgs("kitty")...)
-
-	default:
-		return fmt.Errorf("unsupported package manager '%s' - install kitty manually", m.packageManager)
-	}
-
-	if err := cmd.Run(); err != nil {
+	if err := installPackages(m, "Install kitty", "kitty"); err != nil {
 		return fmt.Errorf("failed to install kitty")
 	}
 
@@ -1158,22 +1054,10 @@ func ensureSocat(m *model) error {
 	if _, err := exec.LookPath("socat"); err == nil {
 		return nil
 	}
-	var cmd *exec.Cmd
-	switch m.packageManager {
-	case "pacman":
-		cmd = exec.Command("pacman", "-S", "--noconfirm", "socat")
-	case "apt":
-		cmd = exec.Command("apt-get", "install", "-y", "socat")
-	case "dnf":
-		cmd = exec.Command("dnf", "install", "-y", "socat")
-	case "yum":
-		cmd = exec.Command("yum", "install", "-y", "socat")
-	case "zypper":
-		cmd = exec.Command("zypper", "install", "-y", "socat")
-	default:
+	if installCommand(m.packageManager, "socat") == nil {
 		return fmt.Errorf("socat is required for cagebreak — install it manually")
 	}
-	if err := cmd.Run(); err != nil {
+	if err := installPackages(m, "Install socat", "socat"); err != nil {
 		return fmt.Errorf("failed to install socat (cagebreak cannot quit after login without it)")
 	}
 	return nil
@@ -1400,20 +1284,7 @@ func buildCagebreakFromSource(m *model) error {
 		deps = append(deps, wlrootsDev)
 	}
 
-	var cmd *exec.Cmd
-	switch m.packageManager {
-	case "apt":
-		cmd = exec.Command("apt-get", append([]string{"install", "-y"}, deps...)...)
-	case "dnf":
-		cmd = exec.Command("dnf", append([]string{"install", "-y"}, deps...)...)
-	case "yum":
-		cmd = exec.Command("yum", append([]string{"install", "-y"}, deps...)...)
-	case "zypper":
-		cmd = exec.Command("zypper", append([]string{"install", "-y"}, deps...)...)
-	}
-	if cmd != nil {
-		runCommand("Install cagebreak build deps", cmd, m) // Best effort; verified below
-	}
+	installPackages(m, "Install cagebreak build deps", deps...) // Best effort; verified below
 
 	for _, tool := range []string{"meson", "ninja", "git", "pkg-config"} {
 		if _, err := exec.LookPath(tool); err != nil {
@@ -1462,7 +1333,7 @@ func installMango(m *model) error {
 	if !compositorInstalled("mango") {
 		switch {
 		case m.packageManager == "pacman":
-			if err := runCommand("Install mangowm", exec.Command("pacman", "-S", "--noconfirm", "mangowm"), m); err != nil {
+			if err := installPackages(m, "Install mangowm", "mangowm"); err != nil {
 				return fmt.Errorf("failed to install mangowm - install it manually: pacman -S mangowm")
 			}
 		case mangoArtifact() != "":
@@ -1500,7 +1371,11 @@ func installCompositor(m *model) error {
 		return fmt.Errorf("package manager not detected - install %s manually", m.selectedCompositor)
 	}
 
+	// cmd carries a special install path (an AUR helper); pkg names a plain
+	// package for the detected package manager
 	var cmd *exec.Cmd
+	var pkg string
+	var err error
 
 	// Map compositor names to package names per distro
 	switch m.packageManager {
@@ -1525,9 +1400,9 @@ func installCompositor(m *model) error {
 				return fmt.Errorf("niri requires AUR helper (yay/paru) - install manually")
 			}
 		case "hyprland":
-			cmd = exec.Command("pacman", "-S", "--noconfirm", "hyprland")
+			pkg = "hyprland"
 		case "sway":
-			cmd = exec.Command("pacman", "-S", "--noconfirm", "sway")
+			pkg = "sway"
 		case "cagebreak":
 			return installCagebreakArch()
 		}
@@ -1540,7 +1415,7 @@ func installCompositor(m *model) error {
 		case "hyprland":
 			return fmt.Errorf("hyprland not in standard apt repos - see https://hyprland.org for installation")
 		case "sway":
-			cmd = exec.Command("apt-get", "install", "-y", "sway")
+			pkg = "sway"
 		case "cagebreak":
 			return installCagebreakPrebuilt(m)
 		}
@@ -1553,7 +1428,7 @@ func installCompositor(m *model) error {
 		case "hyprland":
 			return fmt.Errorf("hyprland not in standard dnf repos - see https://hyprland.org for installation")
 		case "sway":
-			cmd = exec.Command("dnf", "install", "-y", "sway")
+			pkg = "sway"
 		case "cagebreak":
 			return installCagebreakPrebuilt(m)
 		}
@@ -1562,7 +1437,7 @@ func installCompositor(m *model) error {
 		// RHEL/CentOS
 		switch m.selectedCompositor {
 		case "sway":
-			cmd = exec.Command("yum", "install", "-y", "sway")
+			pkg = "sway"
 		default:
 			return fmt.Errorf("%s not available via yum - install manually", m.selectedCompositor)
 		}
@@ -1573,10 +1448,10 @@ func installCompositor(m *model) error {
 		case "hyprland":
 			return fmt.Errorf("hyprland may require Tumbleweed or manual install")
 		case "sway":
-			cmd = exec.Command("zypper", "install", "-y", "sway")
+			pkg = "sway"
 		case "cagebreak":
 			// Packaged in Tumbleweed; source build covers anything else
-			if err := exec.Command("zypper", "install", "-y", "cagebreak").Run(); err != nil {
+			if err := installPackages(m, "Install cagebreak", "cagebreak"); err != nil {
 				return buildCagebreakFromSource(m)
 			}
 			return nil
@@ -1588,11 +1463,11 @@ func installCompositor(m *model) error {
 		// Void Linux
 		switch m.selectedCompositor {
 		case "niri":
-			cmd = exec.Command("xbps-install", xbpsInstallArgs("niri")...)
+			pkg = "niri"
 		case "sway":
-			cmd = exec.Command("xbps-install", xbpsInstallArgs("sway")...)
+			pkg = "sway"
 		case "cagebreak":
-			cmd = exec.Command("xbps-install", xbpsInstallArgs("cagebreak")...)
+			pkg = "cagebreak"
 		default:
 			return fmt.Errorf("%s is not in the Void Linux repos - install manually", m.selectedCompositor)
 		}
@@ -1601,11 +1476,14 @@ func installCompositor(m *model) error {
 		return fmt.Errorf("unsupported package manager '%s' - install %s manually", m.packageManager, m.selectedCompositor)
 	}
 
-	if cmd == nil {
+	if cmd != nil {
+		err = runCommand("Install "+m.selectedCompositor, cmd, m)
+	} else if pkg != "" {
+		err = installPackages(m, "Install "+m.selectedCompositor, pkg)
+	} else {
 		return fmt.Errorf("%s installation command not configured", m.selectedCompositor)
 	}
-
-	if err := cmd.Run(); err != nil {
+	if err != nil {
 		return fmt.Errorf("failed to install %s - you may need to install manually", m.selectedCompositor)
 	}
 
@@ -1761,32 +1639,7 @@ func installGStreamerDeps(m *model) error {
 		}
 	}
 
-	var cmd *exec.Cmd
-	switch m.packageManager {
-	case "pacman":
-		args := append([]string{"-S", "--noconfirm", "--needed"}, result.toInstall...)
-		cmd = exec.Command("pacman", args...)
-	case "apt":
-		// Update first
-		exec.Command("apt-get", "update").Run()
-		args := append([]string{"install", "-y"}, result.toInstall...)
-		cmd = exec.Command("apt-get", args...)
-	case "dnf":
-		args := append([]string{"install", "-y"}, result.toInstall...)
-		cmd = exec.Command("dnf", args...)
-	case "yum":
-		args := append([]string{"install", "-y"}, result.toInstall...)
-		cmd = exec.Command("yum", args...)
-	case "zypper":
-		args := append([]string{"install", "-y"}, result.toInstall...)
-		cmd = exec.Command("zypper", args...)
-	case "xbps":
-		cmd = exec.Command("xbps-install", xbpsInstallArgs(result.toInstall...)...)
-	default:
-		return fmt.Errorf("unsupported package manager for GStreamer deps")
-	}
-
-	if err := runCommand("Install GStreamer deps", cmd, m); err != nil {
+	if err := installPackages(m, "Install GStreamer deps", result.toInstall...); err != nil {
 		return fmt.Errorf("failed to install GStreamer dependencies: %s", strings.Join(result.toInstall, ", "))
 	}
 	return nil
@@ -1825,32 +1678,11 @@ func buildGslapperFromSource(m *model) error {
 				strings.Join(missingBinaries, ", "), strings.Join(missingPackages, ", "))
 		}
 
-		var cmd *exec.Cmd
-		switch m.packageManager {
-		case "pacman":
-			args := append([]string{"-S", "--noconfirm", "--needed"}, missingPackages...)
-			cmd = exec.Command("pacman", args...)
-		case "apt":
-			args := append([]string{"install", "-y"}, missingPackages...)
-			cmd = exec.Command("apt-get", args...)
-		case "dnf":
-			args := append([]string{"install", "-y"}, missingPackages...)
-			cmd = exec.Command("dnf", args...)
-		case "yum":
-			args := append([]string{"install", "-y"}, missingPackages...)
-			cmd = exec.Command("yum", args...)
-		case "zypper":
-			args := append([]string{"install", "-y"}, missingPackages...)
-			cmd = exec.Command("zypper", args...)
-		case "xbps":
-			cmd = exec.Command("xbps-install", xbpsInstallArgs(missingPackages...)...)
-		default:
+		if installCommand(m.packageManager, missingPackages...) == nil {
 			updateSubTaskStatus(m, 3, statusFailed)
 			return fmt.Errorf("missing build tools: %s", strings.Join(missingBinaries, ", "))
 		}
-		if cmd != nil {
-			runCommand("Install build tools", cmd, m) // Best effort
-		}
+		installPackages(m, "Install build tools", missingPackages...) // Best effort
 	}
 
 	// Verify build tools are now available

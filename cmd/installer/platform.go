@@ -133,27 +133,6 @@ func writeGreeterScript(src, dst, user, home string) error {
 	return os.Chmod(dst, 0755)
 }
 
-// xbpsInstallArgs returns the xbps-install arguments that install packages
-// without asking for a confirmation. xbps-install is the standalone install
-// front end, so it takes no "install" subcommand.
-func xbpsInstallArgs(packages ...string) []string {
-	return append([]string{"-Sy"}, packages...)
-}
-
-// xbpsShowArgs returns the xbps-query arguments that look for one exact
-// package name. Only the show mode reports presence through its exit status:
-// it resolves the name against the database and returns ENOENT when the
-// package is absent. The search mode cannot answer the question, because it
-// matches the whole pkgver loosely, treats the pattern as plain text without
-// --regex, and still exits 0 when it finds nothing.
-func xbpsShowArgs(pkg string, remote bool) []string {
-	args := []string{}
-	if remote {
-		args = append(args, "-R")
-	}
-	return append(args, "-S", pkg)
-}
-
 // liveRunitDirs returns the runit service directories that exist under root.
 func liveRunitDirs(root string) []string {
 	dirs := []string{}
