@@ -305,6 +305,10 @@ func (a *AquariumEffect) spawnMediumFish() {
 	oceanY := int(float64(a.height) * 0.15)
 	minY := oceanY + 2
 	maxY := a.height - 10
+	if maxY <= minY {
+		// A short canvas leaves no band between the surface and the floor.
+		maxY = minY + 1
+	}
 
 	fish := Fish{
 		x:         x,
@@ -340,6 +344,10 @@ func (a *AquariumEffect) spawnLargeFish() {
 	oceanY := int(float64(a.height) * 0.15)
 	minY := oceanY + 5
 	maxY := a.height - 15
+	if maxY <= minY {
+		// A short canvas leaves no band between the surface and the floor.
+		maxY = minY + 1
+	}
 
 	fish := Fish{
 		x:         x,
