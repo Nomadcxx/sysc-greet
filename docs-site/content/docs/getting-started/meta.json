@@ -3,6 +3,7 @@
   "pages": [
     "installation",
     "quick-start",
+    "void-linux",
     "troubleshooting"
   ]
 }
