@@ -5,6 +5,8 @@ description: "Install sysc-greet on Void Linux with xbps packages and runit serv
 
 sysc-greet installs on **Void Linux** through the Go installer (`cmd/installer`), with **xbps** packages and **runit** service management.
 
+Clean VM validation on 2026-10-25 covered Void glibc on x86_64 with runit, cagebreak 3.2.1 and niri 26.04. Each install passed boot on tty1, desktop login handoff, and F4 reboot and shutdown. The cagebreak test used niri as the user's desktop.
+
 ## Quick install
 
 ```bash
