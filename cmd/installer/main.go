@@ -223,9 +223,9 @@ type greeterCompositor struct {
 
 // greeterCompositors are the backends available in the default installer picker.
 var greeterCompositors = []greeterCompositor{
-	{name: "niri", label: "Tiling compositor with scrollable workspaces (default)", binaries: []string{"niri"}},
+	{name: "niri", label: "Tiling compositor with scrollable workspaces (default)", binaries: []string{"niri"}, installable: true},
 	{name: "cagebreak", label: "Minimal tiling kiosk", binaries: []string{"cagebreak"}, installable: true},
-	{name: "sway", label: "Stable i3-compatible tiling compositor", binaries: []string{"sway"}},
+	{name: "sway", label: "Stable i3-compatible tiling compositor", binaries: []string{"sway"}, installable: true},
 	{name: "mango", label: "dwl-based tiling compositor (Arch, Debian 13, Ubuntu 26.04, Fedora 43/44)", binaries: []string{"mango"}, installable: true},
 }
 

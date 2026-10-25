@@ -5,7 +5,31 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
+
+func TestPickerStartsInstallForMissingPackagedCompositor(t *testing.T) {
+	t.Setenv("PATH", t.TempDir())
+	t.Setenv("SYSC_COMPOSITOR", "")
+	for _, name := range []string{"niri", "sway"} {
+		t.Run(name, func(t *testing.T) {
+			m := newModel(false, nil)
+			m.step = stepCompositorSelect
+			m.packageManager = "xbps"
+			for i, option := range compositorPickerOptions() {
+				if option.name == name {
+					m.compositorIndex = i
+				}
+			}
+			next, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+			got := next.(model)
+			if got.step != stepInstalling || cmd == nil || len(got.errors) != 0 {
+				t.Fatalf("missing %s: step=%v, cmd nil=%v, errors=%v", name, got.step, cmd == nil, got.errors)
+			}
+		})
+	}
+}
 
 func TestInstallConfigsBundledThemes(t *testing.T) {
 	for _, tc := range []struct {
