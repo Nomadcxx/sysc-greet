@@ -223,7 +223,7 @@ type greeterCompositor struct {
 
 // greeterCompositors are the backends available in the default installer picker.
 var greeterCompositors = []greeterCompositor{
-	{name: "niri", label: "Tiling compositor with scrollable workspaces (default)", binaries: []string{"niri"}, installable: true},
+	{name: "niri", label: "Tiling compositor with scrollable workspaces (default)", binaries: []string{"niri"}},
 	{name: "cagebreak", label: "Minimal tiling kiosk", binaries: []string{"cagebreak"}, installable: true},
 	{name: "sway", label: "Stable i3-compatible tiling compositor", binaries: []string{"sway"}, installable: true},
 	{name: "mango", label: "dwl-based tiling compositor (Arch, Debian 13, Ubuntu 26.04, Fedora 43/44)", binaries: []string{"mango"}, installable: true},
@@ -467,7 +467,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				c := options[m.compositorIndex]
 				m.selectedCompositor = c.name
-				installable := c.installable
+				installable := c.installable || (c.name == "niri" && m.packageManager == "xbps")
 
 				// Installable compositors are installed by installCompositor;
 				// everything else must be present up front
