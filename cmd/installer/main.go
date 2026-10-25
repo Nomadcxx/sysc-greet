@@ -1037,8 +1037,11 @@ func installLoginServices(m *model) error {
 }
 
 func installKitty(m *model) error {
-	// Check if already installed
-	if _, err := exec.LookPath("kitty"); err == nil {
+	packages := []string{"kitty"}
+	if m.packageManager == "xbps" {
+		// Void's kitty package has no font dependency, even on a minimal host.
+		packages = append(packages, "dejavu-fonts-ttf")
+	} else if _, err := exec.LookPath("kitty"); err == nil {
 		return nil // Already installed
 	}
 
@@ -1046,7 +1049,7 @@ func installKitty(m *model) error {
 		return fmt.Errorf("package manager not detected - install kitty manually")
 	}
 
-	if err := installPackages(m, "Install kitty", "kitty"); err != nil {
+	if err := installPackages(m, "Install kitty", packages...); err != nil {
 		return fmt.Errorf("failed to install kitty")
 	}
 

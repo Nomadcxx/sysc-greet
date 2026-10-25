@@ -1,9 +1,42 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
+	"strconv"
+	"strings"
 	"testing"
 )
+
+func TestInstallKittyVoidIncludesFont(t *testing.T) {
+	for _, existing := range []bool{false, true} {
+		t.Run("kitty_installed="+strconv.FormatBool(existing), func(t *testing.T) {
+			dir := t.TempDir()
+			t.Setenv("PATH", dir)
+			argsFile := filepath.Join(dir, "args")
+			t.Setenv("KITTY_INSTALL_ARGS", argsFile)
+			if err := os.WriteFile(filepath.Join(dir, "xbps-install"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$KITTY_INSTALL_ARGS\"\n"), 0755); err != nil {
+				t.Fatal(err)
+			}
+			if existing {
+				if err := os.WriteFile(filepath.Join(dir, "kitty"), []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := installKitty(&model{packageManager: "xbps"}); err != nil {
+				t.Fatal(err)
+			}
+			args, err := os.ReadFile(argsFile)
+			if err != nil {
+				t.Fatalf("kitty installed=%v: font install did not run: %v", existing, err)
+			}
+			if got := strings.Fields(string(args)); !reflect.DeepEqual(got, []string{"-Sy", "kitty", "dejavu-fonts-ttf"}) {
+				t.Fatalf("install args = %v; want kitty and a monospace font", got)
+			}
+		})
+	}
+}
 
 func TestInstallCommand(t *testing.T) {
 	cases := []struct {
