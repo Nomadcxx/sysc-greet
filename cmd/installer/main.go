@@ -77,12 +77,25 @@ var binaryToPackage = map[string]map[string]string{
 	},
 }
 
+// commonBinaryPackages maps binaries whose package name differs from the
+// binary on every distro
+var commonBinaryPackages = map[string]string{
+	"cc": "gcc",
+}
+
+// gslapperBuildTools are the binaries the gSlapper source build needs. Void's
+// base-system ships no C compiler, so cc is checked too.
+var gslapperBuildTools = []string{"cc", "meson", "ninja", "git", "pkg-config"}
+
 // getBinaryPackageName returns the package name for a binary, accounting for distro differences
 func getBinaryPackageName(binary, packageManager string) string {
 	if pmMap, ok := binaryToPackage[packageManager]; ok {
 		if pkg, ok := pmMap[binary]; ok {
 			return pkg
 		}
+	}
+	if pkg, ok := commonBinaryPackages[binary]; ok {
+		return pkg
 	}
 	return binary // Default: package name matches binary name
 }
@@ -1671,9 +1684,8 @@ func buildGslapperFromSource(m *model) error {
 	updateSubTaskStatus(m, 2, statusComplete)
 
 	// Check for build tools
-	buildTools := []string{"meson", "ninja", "git", "pkg-config"}
 	missingBinaries := []string{}
-	for _, tool := range buildTools {
+	for _, tool := range gslapperBuildTools {
 		if _, err := exec.LookPath(tool); err != nil {
 			missingBinaries = append(missingBinaries, tool)
 		}
@@ -1700,7 +1712,7 @@ func buildGslapperFromSource(m *model) error {
 	}
 
 	// Verify build tools are now available
-	for _, tool := range []string{"meson", "ninja", "git"} {
+	for _, tool := range []string{"cc", "meson", "ninja", "git"} {
 		if _, err := exec.LookPath(tool); err != nil {
 			updateSubTaskStatus(m, 3, statusFailed)
 			return fmt.Errorf("missing build tool: %s", tool)

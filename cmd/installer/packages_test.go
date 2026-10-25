@@ -106,3 +106,20 @@ func TestUnknownPackageManager(t *testing.T) {
 		t.Error("availableCommand with an unknown package manager should be nil")
 	}
 }
+
+func TestGslapperBuildToolsIncludeACompiler(t *testing.T) {
+	found := false
+	for _, tool := range gslapperBuildTools {
+		if tool == "cc" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("gslapperBuildTools = %v; want a C compiler, Void's base-system has none", gslapperBuildTools)
+	}
+	for manager := range packageManagerCommands {
+		if got := getBinaryPackageName("cc", manager); got != "gcc" {
+			t.Errorf("getBinaryPackageName(cc, %s) = %q; want gcc", manager, got)
+		}
+	}
+}
