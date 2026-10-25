@@ -195,11 +195,6 @@ func markServiceDown(root, name string) error {
 	return os.WriteFile(filepath.Join(dir, "down"), nil, 0644)
 }
 
-// loginServices are the runit services elogind needs, in start order: dbus
-// carries the login1 interface, elogind provides the seat the compositor
-// opens and the login1 power actions the greeter's polkit rule allows.
-var loginServices = []string{"dbus", "elogind"}
-
 // loginServicePackages returns the packages that provide the seat and the
 // power actions on an init system without systemd-logind. polkit is started
 // on demand by dbus, so it needs no service of its own.
@@ -210,22 +205,20 @@ func loginServicePackages(initSystem string) []string {
 	return []string{"elogind", "dbus", "polkit"}
 }
 
-// enableRunitGreetd enables the login services and the greetd runit service
-// under root, and clears the login prompt from the greeter's virtual
-// terminal. greetd is linked last, so it is never enabled without a seat.
+// enableRunitGreetd enables D-Bus and greetd, then frees the greeter VT.
+// Void's D-Bus activates elogind when PAM opens the greeter session. Enabling
+// elogind in runit too races that activation and retries a duplicate daemon.
 func enableRunitGreetd(root string) error {
-	for _, name := range append(append([]string{}, loginServices...), "greetd") {
+	services := []string{"dbus", "greetd"}
+	for _, name := range services {
 		if _, err := os.Stat(filepath.Join(root, "etc/sv", name)); err != nil {
 			return fmt.Errorf("runit service missing at /etc/sv/%s - reinstall %s", name, name)
 		}
 	}
-	for _, name := range loginServices {
+	for _, name := range services {
 		if err := linkRunitService(root, name); err != nil {
 			return err
 		}
-	}
-	if err := linkRunitService(root, "greetd"); err != nil {
-		return err
 	}
 	return disableAgetty(root, greeterVT)
 }

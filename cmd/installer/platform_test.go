@@ -239,25 +239,37 @@ func TestEnableRunitGreetdLinksTheLoginServices(t *testing.T) {
 	if err := enableRunitGreetd(root); err != nil {
 		t.Fatalf("enableRunitGreetd: %v", err)
 	}
-	for _, service := range []string{"dbus", "elogind", "greetd"} {
+	for _, service := range []string{"dbus", "greetd"} {
 		if _, err := os.Lstat(filepath.Join(root, live, service)); err != nil {
 			t.Errorf("%s not linked: %v", service, err)
 		}
+	}
+	if _, err := os.Lstat(filepath.Join(root, live, "elogind")); !os.IsNotExist(err) {
+		t.Error("elogind linked: runit races D-Bus activation and retries the duplicate daemon")
 	}
 	if _, err := os.Lstat(filepath.Join(root, live, "agetty-tty1")); !os.IsNotExist(err) {
 		t.Error("agetty-tty1 still holds the greeter VT")
 	}
 }
 
-func TestEnableRunitGreetdNeedsElogind(t *testing.T) {
+func TestEnableRunitGreetdUsesDBusActivation(t *testing.T) {
 	root := t.TempDir()
 	const live = "etc/runit/runsvdir/default"
 	for _, service := range []string{"greetd", "dbus"} {
 		writeServiceTree(t, root, service, live)
 	}
+	if err := enableRunitGreetd(root); err != nil {
+		t.Fatalf("enableRunitGreetd without an elogind runit service: %v", err)
+	}
+}
+
+func TestEnableRunitGreetdNeedsDBus(t *testing.T) {
+	root := t.TempDir()
+	const live = "etc/runit/runsvdir/default"
+	writeServiceTree(t, root, "greetd", live)
 	err := enableRunitGreetd(root)
-	if err == nil || !strings.Contains(err.Error(), "elogind") {
-		t.Fatalf("enableRunitGreetd without elogind = %v; want an error naming elogind", err)
+	if err == nil || !strings.Contains(err.Error(), "dbus") {
+		t.Fatalf("enableRunitGreetd without dbus = %v; want an error naming dbus", err)
 	}
 	if _, err := os.Lstat(filepath.Join(root, live, "greetd")); !os.IsNotExist(err) {
 		t.Error("greetd enabled without a seat provider")
