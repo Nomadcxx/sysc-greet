@@ -19,6 +19,8 @@ type packageCommands struct {
 	// refresh updates the package lists before an install, for managers
 	// that do not do it themselves.
 	refresh []string
+	// names maps logical package names to native names, such as Portage atoms.
+	names map[string]string
 }
 
 var packageManagerCommands = map[string]packageCommands{
@@ -61,39 +63,61 @@ var packageManagerCommands = map[string]packageCommands{
 		installed: []string{"xbps-query", "-S"},
 		available: []string{"xbps-query", "-R", "-S"},
 	},
+	"emerge": {
+		install:   []string{"emerge", "--noreplace", "--ask=n", "--autounmask=n"},
+		installed: []string{"portageq", "has_version", "/"},
+		// best_visible exits successfully even when its output is empty.
+		// A pretend merge reports visibility through its exit status and
+		// --autounmask=n keeps keyword and USE changes with the administrator.
+		available: []string{"emerge", "--pretend", "--nodeps", "--quiet", "--autounmask=n"},
+		names: map[string]string{
+			"greetd": "gui-libs/greetd", "kitty": "x11-terms/kitty",
+			"socat": "net-misc/socat", "sway": "gui-wm/sway",
+			"elogind": "sys-auth/elogind", "dbus": "sys-apps/dbus", "polkit": "sys-auth/polkit",
+			"gcc": "sys-devel/gcc", "meson": "dev-build/meson", "ninja": "dev-build/ninja",
+			"git": "dev-vcs/git", "pkg-config": "virtual/pkgconfig",
+			"display-manager-init": "gui-libs/display-manager-init",
+		},
+	},
 }
 
-// commandWith builds base followed by args, or nil when base is empty.
-func commandWith(base []string, args ...string) *exec.Cmd {
+// commandWith adds native package names to base, or returns nil for an empty base.
+func commandWith(manager string, base []string, packages ...string) *exec.Cmd {
 	if len(base) == 0 {
 		return nil
 	}
-	full := append(append([]string{}, base[1:]...), args...)
+	full := append([]string{}, base[1:]...)
+	for _, pkg := range packages {
+		if name := packageManagerCommands[manager].names[pkg]; name != "" {
+			pkg = name
+		}
+		full = append(full, pkg)
+	}
 	return exec.Command(base[0], full...)
 }
 
 // installCommand returns the command that installs the packages, or nil for
 // an unknown package manager.
 func installCommand(manager string, packages ...string) *exec.Cmd {
-	return commandWith(packageManagerCommands[manager].install, packages...)
+	return commandWith(manager, packageManagerCommands[manager].install, packages...)
 }
 
 // installedCommand returns the query that tells whether a package is
 // installed, or nil for an unknown package manager.
 func installedCommand(manager, pkg string) *exec.Cmd {
-	return commandWith(packageManagerCommands[manager].installed, pkg)
+	return commandWith(manager, packageManagerCommands[manager].installed, pkg)
 }
 
 // availableCommand returns the query that tells whether the repos carry a
 // package, or nil for an unknown package manager.
 func availableCommand(manager, pkg string) *exec.Cmd {
-	return commandWith(packageManagerCommands[manager].available, pkg)
+	return commandWith(manager, packageManagerCommands[manager].available, pkg)
 }
 
 // refreshCommand returns the command that updates the package lists, or nil
 // when the package manager needs none.
 func refreshCommand(manager string) *exec.Cmd {
-	return commandWith(packageManagerCommands[manager].refresh)
+	return commandWith(manager, packageManagerCommands[manager].refresh)
 }
 
 // checkPackageInstalled checks if a package is already installed

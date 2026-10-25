@@ -54,6 +54,7 @@ func TestInstallCommand(t *testing.T) {
 		{"xbps", []string{"greetd", "kitty"}, []string{"xbps-install", "-Sy", "greetd", "kitty"}},
 		// The cagebreak greeter quits through socat, so Void has to install it.
 		{"xbps", []string{"socat"}, []string{"xbps-install", "-Sy", "socat"}},
+		{"emerge", []string{"greetd", "kitty"}, []string{"emerge", "--noreplace", "--ask=n", "--autounmask=n", "gui-libs/greetd", "x11-terms/kitty"}},
 	}
 	for _, tc := range cases {
 		cmd := installCommand(tc.manager, tc.packages...)
@@ -79,6 +80,7 @@ func TestInstalledCommand(t *testing.T) {
 		{"zypper", []string{"rpm", "-q", "greetd"}},
 		// Only the show mode reports presence through its exit status.
 		{"xbps", []string{"xbps-query", "-S", "greetd"}},
+		{"emerge", []string{"portageq", "has_version", "/", "gui-libs/greetd"}},
 	}
 	for _, tc := range cases {
 		cmd := installedCommand(tc.manager, "greetd")
@@ -103,6 +105,7 @@ func TestAvailableCommand(t *testing.T) {
 		{"yum", []string{"yum", "info", "greetd"}},
 		{"zypper", []string{"zypper", "info", "greetd"}},
 		{"xbps", []string{"xbps-query", "-R", "-S", "greetd"}},
+		{"emerge", []string{"emerge", "--pretend", "--nodeps", "--quiet", "--autounmask=n", "gui-libs/greetd"}},
 	}
 	for _, tc := range cases {
 		cmd := availableCommand(tc.manager, "greetd")
@@ -121,9 +124,26 @@ func TestRefreshCommand(t *testing.T) {
 	if cmd == nil || !reflect.DeepEqual(cmd.Args, []string{"apt-get", "update"}) {
 		t.Errorf("refreshCommand(apt) = %v; want [apt-get update]", cmd)
 	}
-	for _, manager := range []string{"pacman", "dnf", "yum", "zypper", "xbps"} {
+	for _, manager := range []string{"pacman", "dnf", "yum", "zypper", "xbps", "emerge"} {
 		if cmd := refreshCommand(manager); cmd != nil {
 			t.Errorf("refreshCommand(%q) = %v; want nil", manager, cmd.Args)
+		}
+	}
+}
+
+func TestGentooPackageAtoms(t *testing.T) {
+	for name, atom := range map[string]string{
+		"greetd": "gui-libs/greetd", "kitty": "x11-terms/kitty",
+		"socat": "net-misc/socat", "sway": "gui-wm/sway",
+		"elogind": "sys-auth/elogind", "dbus": "sys-apps/dbus", "polkit": "sys-auth/polkit",
+		"gcc": "sys-devel/gcc", "meson": "dev-build/meson", "ninja": "dev-build/ninja",
+		"git": "dev-vcs/git", "pkg-config": "virtual/pkgconfig",
+		"display-manager-init": "gui-libs/display-manager-init",
+		"media-libs/gstreamer": "media-libs/gstreamer",
+	} {
+		cmd := installCommand("emerge", name)
+		if cmd == nil || cmd.Args[len(cmd.Args)-1] != atom {
+			t.Errorf("installCommand(emerge, %q) = %v; want atom %s", name, cmd, atom)
 		}
 	}
 }
