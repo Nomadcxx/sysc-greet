@@ -1,5 +1,11 @@
 # Third-party notices
 
+sysc-greet's own source code is GPL-3.0-only; see [LICENSE](LICENSE).
+The compiled binary includes the animation code and model data described below
+through its sysc-Go dependency. The model-specific licenses govern those assets;
+they do not change sysc-greet's source-code license. Binary distributions must
+retain the applicable code and asset licenses and notices.
+
 ## sysc-Go animation code
 
 The AK-47, L2A1 SAR, Higgs Field, and rotating model backgrounds use `github.com/Nomadcxx/sysc-Go/animations` `v1.0.10`.

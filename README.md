@@ -213,7 +213,11 @@ For detailed docs, configuration guides, troubleshooting, and usage instructions
 
 ## License
 
-The sysc-greet source is GPL-3.0-only. Bundled animation code is MIT; model data uses CC0, CC BY, CC BY-NC, CC BY-SA, and CC BY-NC-SA licenses. The CC BY-NC restrictions apply to the models marked that way in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), which lists all bundled third-party code and model data.
+sysc-greet's own source code is licensed under [GPL-3.0-only](LICENSE).
+
+The compiled binary includes animation code and model data through its [sysc-Go](https://github.com/Nomadcxx/sysc-Go) dependency. sysc-Go's animation code is MIT-licensed; the model data carries CC0, CC BY, CC BY-NC, CC BY-SA and CC BY-NC-SA licenses. The noncommercial and share-alike terms apply to the corresponding model assets, not to sysc-greet's own source code.
+
+Packages list the licenses of the code and assets they distribute. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for per-model attribution and terms.
 
 ---
 
