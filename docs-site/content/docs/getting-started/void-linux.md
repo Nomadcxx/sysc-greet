@@ -53,6 +53,12 @@ Install a desktop session before logging in. Void's cagebreak package does not s
 
 **mango** and **hyprland** are not in the Void repos; the installer refuses them.
 
+## Existing seatd / turnstile setups
+
+The tested installer route uses elogind for sessions, seat access and power actions. Power commands for seatd/turnstile/acpid setups are not configurable. A failed power request returns to the login screen with the error.
+
+If you keep turnstile alongside elogind, set `manage_rundir = no` in `/etc/turnstile/turnstiled.conf` before using this route, as the [Void handbook](https://docs.voidlinux.org/config/session-management.html#turnstile) requires. This leaves elogind in charge of `XDG_RUNTIME_DIR`.
+
 ## niri on Void — important note
 
 Keep the greeter command as `niri -c /etc/greetd/niri-greeter-config.kdl`. It uses a separate config from your desktop and does not need `--session`. Void's niri 26.04 desktop entry uses `niri --session`; login handoff to that session has passed VM validation.
@@ -70,6 +76,18 @@ test ! -e /etc/runit/runsvdir/default/agetty-tty1
 ```
 
 Reboot, confirm the greeter appears on tty1, then log in to your desktop. Log out and test F4 reboot and shutdown. Unit tests and source checks cannot prove seat access or power actions.
+
+## Recovery and VT switching
+
+The cagebreak VT-switching report with seatd/turnstile in [#130](https://github.com/Nomadcxx/sysc-greet/issues/130) remains open. The clean VM checks above cover the elogind route.
+
+From SSH or a working TTY, stop the greeter before repairing its configuration:
+
+```bash
+sudo sv down greetd
+# Edit the configuration, then restart:
+sudo sv up greetd
+```
 
 ## Troubleshooting
 

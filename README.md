@@ -23,7 +23,7 @@ One-line installer that works on most Linux distributions:
 curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo bash
 ```
 
-The installer automatically detects your package manager and works on Arch Linux, Debian/Ubuntu, Fedora, and openSUSE. It'll handle greeter backend selection, install dependencies, and set everything up for you.
+The installer detects the package manager on Arch Linux, Debian/Ubuntu, Fedora, openSUSE, and Void Linux. It installs the greeter dependencies and configures the selected backend.
 
 ### Build from Source
 
@@ -32,11 +32,17 @@ If you want to build it yourself, just clone the repo and run the installer:
 ```bash
 git clone https://github.com/Nomadcxx/sysc-greet
 cd sysc-greet
-go run ./cmd/installer/
+sudo go run ./cmd/installer/
 ```
 
 The installer walks you through compositor selection and configuration.
 Set `SYSC_COMPOSITOR=hyprland` before running the installer to show the Hyprland 0.55+ option.
+
+### Void Linux
+
+The installer supports XBPS and runit. Clean Void glibc x86_64 VM tests passed with cagebreak and niri, including desktop login, reboot and shutdown. The tested route uses elogind, D-Bus and polkit, which the installer installs.
+
+See the [Void Linux guide](https://nomadcxx.github.io/sysc-greet/docs/getting-started/void-linux/) for prerequisites, existing seatd/turnstile setups, and recovery commands.
 
 ### Arch Linux (AUR)
 

@@ -22,17 +22,17 @@ The interactive installer will prompt you to:
 
 ### Void Linux
 
-Void is supported through the Go installer (xbps packages, runit service). See the [Void Linux guide](../getting-started/void-linux).
+Void is supported through the Go installer with XBPS and runit. Clean glibc x86_64 VM tests passed with cagebreak and niri: boot on tty1, desktop login, reboot and shutdown. The installer installs elogind, D-Bus and polkit for seat access and power actions. See the [Void Linux guide](../getting-started/void-linux), including its note for existing seatd/turnstile setups.
 
 ```bash
-SYSC_COMPOSITOR=cagebreak sudo ./install.sh
+sudo SYSC_COMPOSITOR=cagebreak go run ./cmd/installer/
 ```
 
 ## Manual Build
 
 ### Prerequisites
 
-- Go 1.25+
+- Go 1.26+
 - greetd
 - Wayland backend: Niri (default), Cagebreak, Sway, Mango, or Hyprland 0.55+ (sysc-compositor: experimental)
 - kitty (terminal emulator)
@@ -53,7 +53,7 @@ sudo install -Dm755 sysc-greet /usr/local/bin/sysc-greet
 The installer handles compositor configuration automatically:
 
 ```bash
-go run ./cmd/installer/
+sudo go run ./cmd/installer/
 ```
 
 ## Arch Linux (AUR)
