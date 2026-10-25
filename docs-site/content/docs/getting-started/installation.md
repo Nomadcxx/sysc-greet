@@ -86,8 +86,8 @@ Download pre-built packages from [GitHub Releases](https://github.com/Nomadcxx/s
 ### Debian/Ubuntu (.deb)
 
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.2.0/sysc-greet_1.2.0_amd64.deb
-sudo apt install ./sysc-greet_1.2.0_amd64.deb
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/sysc-greet_1.3.0_amd64.deb
+sudo apt install ./sysc-greet_1.3.0_amd64.deb
 ```
 
 The package will:
@@ -101,8 +101,8 @@ The package will:
 ### Fedora (.rpm)
 
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.2.0/sysc-greet-1.2.0-1.x86_64.rpm
-sudo dnf install ./sysc-greet-1.2.0-1.x86_64.rpm
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/sysc-greet-1.3.0-1.x86_64.rpm
+sudo dnf install ./sysc-greet-1.3.0-1.x86_64.rpm
 ```
 
 After installation, **reboot** your system to see sysc-greet.

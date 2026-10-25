@@ -162,6 +162,7 @@ Effects:
 - Fire, Matrix, ASCII Rain, Fireworks, Aquarium
 - Sonar, Cracktro, Plasma
 - AK-47 and Australian SLR models
+- Higgs Field particle field
 - Rotating statues, landmarks, and aircraft
 
 ### ASCII Effects

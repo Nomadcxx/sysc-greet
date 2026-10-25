@@ -2,7 +2,7 @@
 
 ## sysc-Go animation code
 
-The AK-47, L2A1 SAR, and rotating model backgrounds use `github.com/Nomadcxx/sysc-Go/animations` `v1.0.9-0.20261022010724-1fa198051d89`.
+The AK-47, L2A1 SAR, Higgs Field, and rotating model backgrounds use `github.com/Nomadcxx/sysc-Go/animations` `v1.0.10`.
 The animation code is Copyright (c) 2025 Nomadcxx and is licensed under the
 MIT License. The library source and license are available at
 <https://github.com/Nomadcxx/sysc-Go>.

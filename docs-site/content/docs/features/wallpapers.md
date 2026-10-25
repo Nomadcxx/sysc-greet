@@ -27,6 +27,7 @@ These auto-match your selected theme using the naming convention `sysc-greet-{th
 - `sysc-greet-transishardjob.png`
 - `sysc-greet-rama.png`
 - `sysc-greet-dark.png`
+- `sysc-greet-default.png`
 
 ### Adding or Replacing Themed Wallpapers
 

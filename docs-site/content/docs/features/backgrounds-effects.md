@@ -21,8 +21,10 @@ Access via **F1** → **Backgrounds**:
 | Plasma | Animated plasma field |
 | AK-47 | Rotating model |
 | Australian SLR | Rotating L2A1 SAR model |
+| Higgs Field | Particle field with travelling waves and vortex motion |
 | Rotating models | Statues, landmarks, and aircraft |
 
+Higgs Field and the rotating models render as Braille text through the shared sysc-Go mesh pipeline.
 Rotating model frames display the model title, creator, and license.
 `THIRD_PARTY_NOTICES.md` lists their source links and full license terms.
 

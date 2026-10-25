@@ -10,8 +10,8 @@ import { DocsHome, DocsHintStrip } from '@/components/docs-home';
 
 ## Features
 
-- **Multiple Themes**: Dracula, Gruvbox, Material, Nord, Tokyo Night, Catppuccin, Solarized, Monochrome, TransIsHardJob, Eldritch, RAMA, Dark, Ayu, Amber, Blue, Purple, Green, Orange (plus custom themes)
-- **Background Effects**: Fire, ASCII Rain, Matrix, Fireworks, Aquarium, Sonar, Cracktro, Plasma, AK-47, Australian SLR, plus rotating statues and fighters
+- **Multiple Themes**: Dracula, Gruvbox, Material, Nord, Tokyo Night, Catppuccin, Solarized, Monochrome, TransIsHardJob, Eldritch, RAMA, Dark, Ayu, Amber, Blue, Purple, Green, Orange, Coral, Cyan, Eldritch-Abyss, Kanagawa, Noctalia, Pink, Red, Rose-Pine, Void (plus custom themes)
+- **Background Effects**: Fire, ASCII Rain, Matrix, Fireworks, Aquarium, Sonar, Cracktro, Plasma, AK-47, Australian SLR, Higgs Field, plus rotating statues and fighters
 - **ANSI Headers**: Configurable per-session art with opt-in embedded SGR colors
 - **ASCII Effects**: Typewriter, Print, Beams, and Pour effects for session text
 - **Secondary Displays**: Selected effects mirror across supported compositor outputs; configured screensavers use read-only Kitty windows
@@ -69,14 +69,14 @@ Download from [GitHub Releases](https://github.com/Nomadcxx/sysc-greet/releases)
 
 **Debian/Ubuntu:**
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.2.0/sysc-greet_1.2.0_amd64.deb
-sudo apt install ./sysc-greet_1.2.0_amd64.deb
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/sysc-greet_1.3.0_amd64.deb
+sudo apt install ./sysc-greet_1.3.0_amd64.deb
 ```
 
 **Fedora:**
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.2.0/sysc-greet-1.2.0-1.x86_64.rpm
-sudo dnf install ./sysc-greet-1.2.0-1.x86_64.rpm
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/sysc-greet-1.3.0-1.x86_64.rpm
+sudo dnf install ./sysc-greet-1.3.0-1.x86_64.rpm
 ```
 
 > Package configs use conservative syntax for stable distro compatibility. For bleeding-edge compositor features, use the install script or AUR instead.
@@ -291,8 +291,17 @@ sysc-greet includes multiple color themes:
 | Purple | #d0bcff | Near-black with Material violet |
 | Green | #4caf50 | Green-black with a green primary |
 | Orange | #ff6d00 | Brown-black with an orange primary |
+| Coral | #ffb4ab | Brown-black with a soft coral primary |
+| Cyan | #00bcd4 | Dark slate with a cyan primary |
+| Eldritch-Abyss | #2dcc82 | Deep indigo with green, teal, and violet accents |
+| Kanagawa | #76946a | Ink-wash dark theme with pine and wave blue accents |
+| Noctalia | #fff59b | Midnight blue with pale yellow, periwinkle, and mint accents |
+| Pink | #e91e63 | Brown-black with a magenta-pink primary |
+| Red | #f44336 | Brown-black with a red primary |
+| Rose-Pine | #ebbcba | Warm rose and foam accents on a plum base |
+| Void | #ffffff | True black with a white primary |
 
-Custom themes can be added via TOML files in `/usr/share/sysc-greet/themes/` or `~/.config/sysc-greet/themes/`. See [Themes Configuration](configuration/themes) for details.
+Fifteen themes ship as TOML files in `/usr/share/sysc-greet/themes/`; the rest are built in. Custom themes can be added in the same directory or in `~/.config/sysc-greet/themes/`. See [Themes Configuration](configuration/themes) for details.
 
 ### Background Effects
 
@@ -308,6 +317,7 @@ sysc-greet includes these background effects:
 - Plasma
 - AK-47
 - Australian SLR (L2A1 SAR)
+- Higgs Field
 - Rotating statues, landmarks, and fighter aircraft
 
 ### Wallpapers

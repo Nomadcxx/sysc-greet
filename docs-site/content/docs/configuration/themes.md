@@ -27,8 +27,17 @@ sysc-greet includes multiple color themes. Themes affect the entire color scheme
 | Purple | #d0bcff | Near-black with Material violet |
 | Green | #4caf50 | Green-black with a green primary |
 | Orange | #ff6d00 | Brown-black with an orange primary |
+| Coral | #ffb4ab | Brown-black with a soft coral primary |
+| Cyan | #00bcd4 | Dark slate with a cyan primary |
+| Eldritch-Abyss | #2dcc82 | Deep indigo with green, teal, and violet accents |
+| Kanagawa | #76946a | Ink-wash dark theme with pine and wave blue accents |
+| Noctalia | #fff59b | Midnight blue with pale yellow, periwinkle, and mint accents |
+| Pink | #e91e63 | Brown-black with a magenta-pink primary |
+| Red | #f44336 | Brown-black with a red primary |
+| Rose-Pine | #ebbcba | Warm rose and foam accents on a plum base |
+| Void | #ffffff | True black with a white primary |
 
-Ayu, Amber, Blue, Purple, Green and Orange ship as TOML files in `/usr/share/sysc-greet/themes/` and use the same names and palette colors as sysc-shell. To change one, copy it to `~/.config/sysc-greet/themes/`; a user theme with the same name wins.
+Fifteen themes ship as TOML files in `/usr/share/sysc-greet/themes/`: Ayu, Amber, Blue, Coral, Cyan, Eldritch-Abyss, Green, Kanagawa, Noctalia, Orange, Pink, Purple, Red, Rose-Pine, and Void. Ayu, Amber, Blue, Purple, Green and Orange use the same names and palette colors as sysc-shell. To change one, copy it to `~/.config/sysc-greet/themes/`; a user theme with the same name wins.
 
 ## Changing Themes
 
@@ -112,7 +121,7 @@ This creates wallpapers for all themes in `/usr/share/sysc-greet/wallpapers/`. S
 
 ### Background Effects
 
-Custom themes color the built-in effects, including Fire, Matrix, ASCII Rain, Fireworks, Aquarium, Sonar, Cracktro, Plasma, AK-47, Australian SLR, and rotating models. The effects use palettes derived from your theme's colors:
+Custom themes color the built-in effects, including Fire, Matrix, ASCII Rain, Fireworks, Aquarium, Sonar, Cracktro, Plasma, AK-47, Australian SLR, Higgs Field, and rotating models. The effects use palettes derived from your theme's colors:
 
 - **Fire** uses `bg_base` → `warning` → `danger` → `primary` gradient
 - **Matrix** uses `bg_base` → `secondary` → `primary` for the falling characters

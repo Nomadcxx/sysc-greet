@@ -145,7 +145,7 @@ Run sysc-greet fullscreen in Kitty inside the testbed's running compositor with 
 1. Start greeter in fullscreen Kitty: `kitty --start-as=fullscreen sysc-greet --test`
 2. Press F1 (Settings)
 3. Navigate to Backgrounds
-4. Test the listed effects, including Sonar, Cracktro, Plasma, model rotations, and Australian SLR
+4. Test the listed effects, including Sonar, Cracktro, Plasma, Higgs Field, model rotations, and Australian SLR
 5. Verify animations render correctly
 
 ### Test Screensaver

@@ -21,6 +21,7 @@ Access via **F1** → **Backgrounds**:
 | Plasma | Animated plasma field |
 | AK-47 | Rotating AK-47 model |
 | Australian SLR | Rotating L2A1 SAR model |
+| Higgs Field | Particle field with travelling waves and vortex motion |
 | Rotating models | Statues, landmarks, and aircraft from the Backgrounds menu |
 | Typewriter, Print, Beams, Pour | Text and ASCII-art animations in the ASCII Effects submenu |
 | None | Disable background effect |
