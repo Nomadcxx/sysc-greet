@@ -1179,7 +1179,7 @@ func parseOSRelease(data string) (id, version string) {
 	fields := map[string]string{}
 	for _, line := range strings.Split(data, "\n") {
 		if k, v, ok := strings.Cut(line, "="); ok {
-			fields[k] = strings.Trim(v, `"`)
+			fields[k] = strings.Trim(v, `"'`)
 		}
 	}
 	like := strings.Fields(fields["ID_LIKE"])

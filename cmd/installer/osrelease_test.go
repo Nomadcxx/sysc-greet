@@ -6,6 +6,7 @@ func TestParseOSRelease(t *testing.T) {
 	tests := []struct {
 		name, data, id, version string
 	}{
+		{"gentoo single quotes", "ID='gentoo'\nVERSION_ID='2.18'\n", "gentoo", "2.18"},
 		{"ubuntu", "ID=ubuntu\nID_LIKE=debian\nVERSION_ID=\"24.04\"\nVERSION_CODENAME=noble\nUBUNTU_CODENAME=noble\n", "ubuntu", "24.04"},
 		{"debian", "ID=debian\nVERSION_ID=\"13\"\nVERSION_CODENAME=trixie\n", "debian", "13"},
 		{"fedora", "ID=fedora\nVERSION_ID=43\n", "fedora", "43"},
