@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -93,6 +94,16 @@ func TestEnableOpenRCGreetd(t *testing.T) {
 	}
 	if want := strings.Repeat("add dbus default\nadd elogind default\nadd display-manager default\n", 2); string(calls) != want {
 		t.Fatalf("rc-update calls = %q; want %q", calls, want)
+	}
+	if err := os.WriteFile(config, append(data, []byte("DISPLAYMANAGER=\"sddm\"\nCHECKVT=1\n")...), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := enableOpenRCGreetd(root); err != nil {
+		t.Fatal(err)
+	}
+	effective, err := exec.Command("/bin/sh", "-c", `. "$1"; printf '%s %s' "$DISPLAYMANAGER" "$CHECKVT"`, "sh", config).Output()
+	if err != nil || string(effective) != "greetd 7" {
+		t.Fatalf("effective settings = %q, err=%v; want greetd on VT 7", effective, err)
 	}
 	if err := os.WriteFile(cmd, []byte("#!/bin/sh\nexit 1\n"), 0755); err != nil {
 		t.Fatal(err)

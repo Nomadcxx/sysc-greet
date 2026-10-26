@@ -270,18 +270,9 @@ func enableOpenRCGreetd(root string) error {
 		return fmt.Errorf("read /etc/conf.d/display-manager: %w", err)
 	}
 
-	settings := []string{`DISPLAYMANAGER="greetd"`, "CHECKVT=7"}
-	present := make(map[string]bool)
-	for _, line := range strings.Split(string(config), "\n") {
-		present[strings.TrimSpace(line)] = true
-	}
-	missing := make([]string, 0, len(settings))
-	for _, setting := range settings {
-		if !present[setting] {
-			missing = append(missing, setting)
-		}
-	}
-	if len(missing) > 0 {
+	// ponytail: append final overrides rather than parse custom shell config.
+	const settings = "DISPLAYMANAGER=\"greetd\"\nCHECKVT=7\n"
+	if !strings.HasSuffix(string(config), settings) {
 		updated := string(config)
 		if updated != "" {
 			if !strings.HasSuffix(updated, "\n") {
@@ -291,7 +282,7 @@ func enableOpenRCGreetd(root string) error {
 				updated += "\n"
 			}
 		}
-		updated += strings.Join(missing, "\n") + "\n"
+		updated += settings
 		if err := os.WriteFile(configPath, []byte(updated), 0644); err != nil {
 			return fmt.Errorf("write /etc/conf.d/display-manager: %w", err)
 		}
