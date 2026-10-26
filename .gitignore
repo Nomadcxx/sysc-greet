@@ -23,6 +23,7 @@ test-*
 !internal/cache/cache_test.go
 !cmd/installer/packages_test.go
 !cmd/sysc-greet/power_test.go
+!cmd/sysc-greet/ui_theme_test.go
 !cmd/sysc-greet/testdata/
 !cmd/sysc-greet/testdata/borders/
 !cmd/sysc-greet/testdata/borders/*.golden

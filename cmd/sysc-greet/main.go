@@ -614,9 +614,11 @@ func cycleAnimSpeed(current string) string {
 // theme colors. Call after applyTheme.
 func (m *model) applyInputTheme() {
 	for _, in := range []*textinput.Model{&m.usernameInput, &m.passwordInput} {
-		in.Styles.Focused.Prompt = lipgloss.NewStyle().Foreground(Primary).Bold(true)
-		in.Styles.Focused.Text = lipgloss.NewStyle().Foreground(FgPrimary)
-		in.Styles.Focused.Placeholder = lipgloss.NewStyle().Foreground(FgMuted).Italic(true)
+		for _, styles := range []*textinput.StyleState{&in.Styles.Focused, &in.Styles.Blurred} {
+			styles.Prompt = lipgloss.NewStyle().Foreground(Primary).Bold(true)
+			styles.Text = lipgloss.NewStyle().Foreground(FgPrimary)
+			styles.Placeholder = lipgloss.NewStyle().Foreground(FgMuted).Italic(true)
+		}
 	}
 }
 
