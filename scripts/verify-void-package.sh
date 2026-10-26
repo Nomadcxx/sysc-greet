@@ -12,7 +12,8 @@ mirror=https://repo-default.voidlinux.org/current
 [ "$arch" != x86_64-musl ] || mirror=$mirror/musl
 mkdir -p "$root/var/db/xbps/keys"
 cp /var/db/xbps/keys/* "$root/var/db/xbps/keys/"
-xbps-install -r "$root" -R "$mirror" -Sy base-files greetd
+xbps-install -r "$root" -R "$mirror" -Sy base-files dash coreutils
+xbps-install -r "$root" -R "$mirror" -y greetd
 config_before=$(sha256sum "$root/etc/greetd/config.toml")
 xbps-install -r "$root" -R "$mirror" -R "$repo" -Sy sysc-greet
 xbps-pkgdb -r "$root" sysc-greet
