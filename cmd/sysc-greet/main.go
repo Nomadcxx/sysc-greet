@@ -46,7 +46,10 @@ var dataDir = "/usr/share/sysc-greet"
 // CHANGED 2025-10-06 - Add debug logging to file
 var debugLog *log.Logger
 
-func initDebugLog() {
+func initDebugLog(enabled bool) {
+	if !enabled {
+		return
+	}
 	// Try persistent location first ($HOME/.cache/sysc-greet/debug.log)
 	// Falls back to /tmp/ if home dir unavailable
 	logPaths := []string{"/tmp/sysc-greet-debug.log"}
@@ -3095,7 +3098,7 @@ func main() {
 	}
 
 	// CHANGED 2025-10-06 - Initialize debug logging
-	initDebugLog()
+	initDebugLog(config.Debug)
 	logDebug("=== sysc-greet started ===")
 	logDebug("Version: sysc-greet greeter")
 	logDebug("Test mode: %v", config.TestMode)

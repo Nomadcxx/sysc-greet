@@ -19,7 +19,8 @@ func secondarySaverCommandArgs(configFile, executable, theme, startedAt, readyFi
 	if configFile != "" {
 		args = append(args, "--config="+configFile)
 	}
-	args = append(args, "-o", "close_on_child_death=yes", executable,
+	args = append(args, "-o", "clear_all_shortcuts=yes", "-o", "clear_all_mouse_actions=yes",
+		"-o", "allow_remote_control=no", "-o", "close_on_child_death=yes", executable,
 		"--secondary-screensaver", "--follow-shell=false", "--theme", theme,
 		"--screensaver-started-at", startedAt, "--secondary-ready-file", readyFile)
 	return args

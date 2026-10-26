@@ -20,11 +20,9 @@ mkdir -p /var/cache/sysc-greet \
     /var/lib/greeter/Pictures/wallpapers \
     /var/lib/greeter/.cache \
     /var/lib/greeter/.config \
-    /var/lib/greeter/.local/state \
-    /tmp/greeter-cache
+    /var/lib/greeter/.local/state
 chown -R greeter:greeter /var/cache/sysc-greet 2>/dev/null || true
 chown -R greeter:greeter /var/lib/greeter 2>/dev/null || true
-chown -R greeter:greeter /tmp/greeter-cache 2>/dev/null || true
 chmod 755 /var/lib/greeter
 
 # Detect installed Wayland backend and configure greetd

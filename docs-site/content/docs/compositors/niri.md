@@ -75,7 +75,7 @@ window-rule {
 // Start gslapper with the cached greeter wallpaper (forked to background with IPC socket)
 spawn-sh-at-startup "HOME=/var/lib/greeter /usr/local/bin/sysc-greet --wallpaper-daemon"
 
-spawn-sh-at-startup "XDG_CACHE_HOME=/tmp/greeter-cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
+spawn-sh-at-startup "XDG_CACHE_HOME=/var/lib/greeter/.cache HOME=/var/lib/greeter kitty --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; niri msg action quit --skip-confirmation"
 
 binds {
 }

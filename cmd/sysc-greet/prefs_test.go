@@ -115,7 +115,7 @@ func TestDebugLogUsesPrivateCachePermissions(t *testing.T) {
 	previous := debugLog
 	debugLog = nil
 	t.Cleanup(func() { debugLog = previous })
-	initDebugLog()
+	initDebugLog(true)
 	if debugLog == nil {
 		t.Fatal("initDebugLog() did not open the cache log")
 	}
@@ -136,6 +136,64 @@ func TestDebugLogUsesPrivateCachePermissions(t *testing.T) {
 	}
 	if got := fileInfo.Mode().Perm(); got != 0o600 {
 		t.Errorf("debug file mode = %04o, want 0600", got)
+	}
+}
+
+func TestDebugLogDisabledLeavesFilesystemUntouched(t *testing.T) {
+	for _, existing := range []bool{false, true} {
+		name := "fresh_home"
+		if existing {
+			name = "existing_log"
+		}
+		t.Run(name, func(t *testing.T) {
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			cachePath := filepath.Join(home, ".cache", "sysc-greet")
+			path := filepath.Join(cachePath, "debug.log")
+			if existing {
+				if err := os.MkdirAll(cachePath, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(path, []byte("old log"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.Chmod(path, 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			previous := debugLog
+			debugLog = nil
+			t.Cleanup(func() {
+				if debugLog != nil {
+					if file, ok := debugLog.Writer().(*os.File); ok {
+						file.Close()
+					}
+				}
+				debugLog = previous
+			})
+			initDebugLog(false)
+			logDebug("must not append")
+			if debugLog != nil {
+				t.Error("debug logging opened without --debug")
+			}
+			if !existing {
+				if _, err := os.Stat(filepath.Join(home, ".cache")); !os.IsNotExist(err) {
+					t.Fatalf("disabled logging created its cache directory: %v", err)
+				}
+				return
+			}
+			data, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			info, err := os.Stat(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(data) != "old log" || info.Mode().Perm() != 0o644 {
+				t.Fatalf("disabled logging changed existing log: data=%q mode=%04o", data, info.Mode().Perm())
+			}
+		})
 	}
 }
 

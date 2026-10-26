@@ -47,7 +47,8 @@ func TestParseSecondarySaverStartRequiresRFC3339Timestamp(t *testing.T) {
 func TestSecondarySaverCommandUsesGreeterKittyAndReadOnlyMode(t *testing.T) {
 	got := secondarySaverCommandArgs("/etc/greetd/kitty.conf", "/usr/bin/sysc-greet", "nord", "2026-10-23T12:00:00Z", "/run/user/1000/ready")
 	want := []string{
-		"--start-as=fullscreen", "--class=sysc-greet-screensaver", "--single-instance=no", "--config=/etc/greetd/kitty.conf", "-o", "close_on_child_death=yes",
+		"--start-as=fullscreen", "--class=sysc-greet-screensaver", "--single-instance=no", "--config=/etc/greetd/kitty.conf",
+		"-o", "clear_all_shortcuts=yes", "-o", "clear_all_mouse_actions=yes", "-o", "allow_remote_control=no", "-o", "close_on_child_death=yes",
 		"/usr/bin/sysc-greet", "--secondary-screensaver", "--follow-shell=false", "--theme", "nord",
 		"--screensaver-started-at", "2026-10-23T12:00:00Z", "--secondary-ready-file", "/run/user/1000/ready",
 	}

@@ -1938,7 +1938,6 @@ func setupCache(m *model) error {
 		filepath.Join(m.greeterHome, ".cache"),
 		filepath.Join(m.greeterHome, ".config"),
 		filepath.Join(m.greeterHome, ".local/state"),
-		"/tmp/greeter-cache",
 	}
 	for _, dir := range dirs {
 		if err := exec.Command("mkdir", "-p", dir).Run(); err != nil {
@@ -1974,7 +1973,7 @@ func setupCache(m *model) error {
 	if groupExists(m.greeterUser) {
 		owner = m.greeterUser + ":" + m.greeterUser
 	}
-	paths := []string{"/var/cache/sysc-greet", m.greeterHome, "/tmp/greeter-cache"}
+	paths := []string{"/var/cache/sysc-greet", m.greeterHome}
 	for _, path := range paths {
 		if err := exec.Command("chown", "-R", owner, path).Run(); err != nil {
 			return fmt.Errorf("ownership change failed for %s", path)
