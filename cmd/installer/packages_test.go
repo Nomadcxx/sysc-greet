@@ -38,6 +38,31 @@ func TestInstallKittyVoidIncludesFont(t *testing.T) {
 	}
 }
 
+func TestCheckNoDistroPackageVoid(t *testing.T) {
+	for _, installed := range []bool{false, true} {
+		t.Run("installed="+strconv.FormatBool(installed), func(t *testing.T) {
+			dir := t.TempDir()
+			t.Setenv("PATH", dir)
+			exitCode := "2"
+			if installed {
+				exitCode = "0"
+			}
+			query := "#!/bin/sh\n[ \"$#\" -eq 2 ] && [ \"$1\" = -S ] && [ \"$2\" = sysc-greet ] || exit 1\nexit " + exitCode + "\n"
+			if err := os.WriteFile(filepath.Join(dir, "xbps-query"), []byte(query), 0755); err != nil {
+				t.Fatal(err)
+			}
+			err := checkNoDistroPackage(&model{packageManager: "xbps"})
+			if installed {
+				if err == nil || !strings.Contains(err.Error(), "sudo xbps-remove sysc-greet") {
+					t.Fatalf("guard error = %v; want refusal with XBPS removal command", err)
+				}
+			} else if err != nil {
+				t.Fatalf("guard refused an install without a native package: %v", err)
+			}
+		})
+	}
+}
+
 func TestInstallCommand(t *testing.T) {
 	cases := []struct {
 		manager  string

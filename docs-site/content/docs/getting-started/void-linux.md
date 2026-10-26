@@ -9,6 +9,8 @@ Clean VM validation on 2026-10-25 covered Void glibc on x86_64 with runit, cageb
 
 ## Quick install
 
+If you installed sysc-greet through XBPS, manage it with XBPS. To switch to the installer, first remove the package with `sudo xbps-remove sysc-greet`. The installer checks for it before installing or uninstalling.
+
 ```bash
 sudo xbps-install -Sy go git
 git clone https://github.com/Nomadcxx/sysc-greet.git

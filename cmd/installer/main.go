@@ -895,7 +895,7 @@ func checkPrivileges(m *model) error {
 }
 
 // checkNoDistroPackage stops before any file is touched when a distro package
-// (AUR variant or release .deb/.rpm) owns sysc-greet. Installing or
+// (AUR variant, release .deb/.rpm or native XBPS package) owns sysc-greet. Installing or
 // uninstalling over it leaves the package database pointing at overwritten or
 // deleted files.
 func checkNoDistroPackage(m *model) error {
@@ -925,6 +925,10 @@ func installedDistroPackage(packageManager string) (pkg, remove string) {
 	case "dnf", "yum", "zypper":
 		if exec.Command("rpm", "-q", "sysc-greet").Run() == nil {
 			return "sysc-greet", packageManager + " remove sysc-greet"
+		}
+	case "xbps":
+		if checkPackageInstalled("sysc-greet", packageManager) {
+			return "sysc-greet", "xbps-remove sysc-greet"
 		}
 	}
 	return "", ""
