@@ -193,21 +193,30 @@ If kitty doesn't start:
 cat /etc/greetd/kitty.conf
 
 # Test kitty independently
-kitty --config /etc/greetd/kitty.conf
+kitty --start-as=fullscreen --config /etc/greetd/kitty.conf sysc-greet --test
 ```
+
+The greeter config disables kitty's keyboard shortcuts and mouse actions. sysc-greet still receives keyboard input and mouse events.
+
+An upgrade needs the updated kitty and compositor configs as well as the binary. If your package manager keeps a modified config, merge the changes while preserving your keyboard layout. The kitty config needs `clear_all_shortcuts yes`, `clear_all_mouse_actions yes` and `allow_remote_control no`. Compositor launches should use `XDG_CACHE_HOME=/var/lib/greeter/.cache`. Void packages use `/etc/greetd/sysc-greet/` and `/var/lib/_greeter/` instead.
 
 ## Debug Mode
 
-Enable debug logging to diagnose issues:
+sysc-greet opens a debug log only with `--debug`:
 
 ```bash
 sysc-greet --test --debug
 ```
 
-View debug log:
+View the log under the home directory of the account running sysc-greet:
+
 ```bash
-cat /tmp/sysc-greet-debug.log
+cat "$HOME/.cache/sysc-greet/debug.log"
 ```
+
+The production greeter uses the greeter account's home. If sysc-greet cannot open that log, it tries `/tmp/sysc-greet-debug.log` with the same private-file checks.
+
+Debug logs append and can contain usernames and session details. Remove old logs if you no longer need them; disabling debug mode leaves existing files intact.
 
 Debug logs include:
 - Key press events
