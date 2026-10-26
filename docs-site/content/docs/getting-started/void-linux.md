@@ -3,11 +3,79 @@ title: "Void Linux"
 description: "Install sysc-greet on Void Linux with xbps packages and runit service management."
 ---
 
-sysc-greet installs on **Void Linux** through the Go installer (`cmd/installer`), with **xbps** packages and **runit** service management.
+Install sysc-greet on **Void Linux** with native XBPS packages or the Go installer. Both use **runit**, elogind, D-Bus and polkit.
 
-Clean VM validation on 2026-10-25 covered Void glibc on x86_64 with runit, cagebreak 3.2.1 and niri 26.04. Each install passed boot on tty1, desktop login handoff, and F4 reboot and shutdown. The cagebreak test used niri as the user's desktop.
+The installer and native packages passed Void glibc x86_64 VM tests for desktop login, F4 reboot and shutdown. Both glibc and musl packages passed build and package checks; musl has no separate graphical login test.
 
-## Quick install
+## Native XBPS packages
+
+Download sysc-greet 1.3.0 and gSlapper 1.5.2 for your architecture. These upstream release packages work while [Void's package submission](https://github.com/void-linux/void-packages/pull/63202) awaits review. You do not need Go or a compiler.
+
+If you used the Go installer, run its Uninstall option before switching to XBPS packages.
+
+### Download and install
+
+Run this on an x86_64 glibc or musl system. `xbps-uhelper arch` selects the matching packages:
+
+```bash
+sudo xbps-install -S curl
+mkdir -p sysc-greet-void
+cd sysc-greet-void
+arch=$(xbps-uhelper arch)
+curl -fLO "https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/sysc-greet-1.3.0_1.${arch}.xbps"
+curl -fLO "https://github.com/Nomadcxx/gSlapper/releases/download/v1.5.2/gslapper-1.5.2_1.${arch}.xbps"
+curl -fL -o sysc-greet-SHA256SUMS-void https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/SHA256SUMS-void
+curl -fL -o gslapper-SHA256SUMS-void https://github.com/Nomadcxx/gSlapper/releases/download/v1.5.2/SHA256SUMS-void
+sha256sum --ignore-missing -c sysc-greet-SHA256SUMS-void &&
+  sha256sum --ignore-missing -c gslapper-SHA256SUMS-void &&
+  xbps-rindex -a ./*.xbps &&
+  sudo xbps-install --repository "$PWD" sysc-greet
+```
+
+XBPS installs the runtime dependencies from Void's repositories. The release pages also include the packaging templates and patches alongside the checksums. Future updates require downloading and installing the new release packages.
+
+### Configure greetd
+
+The package installs `/usr/bin/sysc-greet` and configs under `/etc/greetd/sysc-greet/`. It leaves `/etc/greetd/config.toml` and service activation to you.
+
+Install a supported compositor, graphics drivers for your hardware, and a desktop session. For example, cagebreak can host the greeter while niri provides the desktop session. Mesa systems also need `mesa-dri`.
+
+```bash
+sudo xbps-install -S cagebreak niri
+sudo cp -an /etc/greetd/config.toml /etc/greetd/config.toml.before-sysc-greet
+```
+
+Set `/etc/greetd/config.toml` to:
+
+```toml
+[terminal]
+vt = 1
+
+[default_session]
+command = "cagebreak -e -c /etc/greetd/sysc-greet/cagebreak-greeter-config"
+user = "_greeter"
+```
+
+Keep SSH or another TTY available during setup. Disable your existing display manager and any agetty on the selected VT before enabling greetd. For an enabled `agetty-tty1`:
+
+```bash
+sudo touch /etc/sv/agetty-tty1/down
+sudo sv down agetty-tty1
+sudo unlink /var/service/agetty-tty1
+```
+
+Enable the `dbus` and `greetd` runit services if they are not enabled:
+
+```bash
+sudo ln -s /etc/sv/dbus /var/service/
+sudo ln -s /etc/sv/greetd /var/service/
+```
+
+D-Bus activates elogind; leave elogind's runit service disabled. Reboot after first installing elogind to apply its udev seat rules, then verify login and power actions. See the [Void handbook](https://docs.voidlinux.org/config/services/index.html) for service management.
+
+To remove the package, use `sudo xbps-remove sysc-greet`. Manage the greetd service separately if you switch greeters.
+
+## Go installer
 
 If you installed sysc-greet through XBPS, manage it with XBPS. To switch to the installer, first remove the package with `sudo xbps-remove sysc-greet`. The installer checks for it before installing or uninstalling.
 
@@ -49,7 +117,7 @@ sudo SYSC_COMPOSITOR=niri go run ./cmd/installer/
 
 **cagebreak**, **niri** and **sway** come from the official Void repos. The installer also installs socat for cagebreak so it can exit after login.
 
-Each backend uses gSlapper for wallpaper. Void does not package gSlapper, so the installer compiles it from source.
+Each backend uses gSlapper for wallpaper. The XBPS route installs the gSlapper release package; the Go installer compiles it from source.
 
 Install a desktop session before logging in. Void's cagebreak package does not ship a session `.desktop` file, so installing the cagebreak greeter alone leaves the session list empty. A packaged desktop such as niri provides one.
 
@@ -63,7 +131,7 @@ If you keep turnstile alongside elogind, set `manage_rundir = no` in `/etc/turns
 
 ## niri on Void — important note
 
-Keep the greeter command as `niri -c /etc/greetd/niri-greeter-config.kdl`. It uses a separate config from your desktop and does not need `--session`. Void's niri 26.04 desktop entry uses `niri --session`; login handoff to that session has passed VM validation.
+With XBPS packages, use `niri -c /etc/greetd/sysc-greet/niri-greeter-config.kdl`; the Go installer uses `niri -c /etc/greetd/niri-greeter-config.kdl`. Each uses a separate config from your desktop and does not need `--session`. Void's niri 26.04 desktop entry uses `niri --session`; login handoff to that session has passed VM validation.
 
 ## Manual verification after install
 
@@ -73,7 +141,8 @@ cat /etc/greetd/config.toml                 # user = "_greeter", vt = 1
 id _greeter                                 # the account from Void's greetd package
 sv status dbus greetd
 loginctl list-sessions                       # _greeter on seat0, tty1
-cat /etc/polkit-1/rules.d/85-greeter.rules     # subject.user == "_greeter"
+# XBPS package (Go installer: /etc/polkit-1/rules.d/85-greeter.rules)
+cat /etc/polkit-1/rules.d/85-sysc-greet.rules  # subject.user == "_greeter"
 test ! -e /etc/runit/runsvdir/default/agetty-tty1
 ```
 

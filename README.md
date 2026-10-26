@@ -40,9 +40,16 @@ Set `SYSC_COMPOSITOR=hyprland` before running the installer to show the Hyprland
 
 ### Void Linux
 
-The installer supports XBPS and runit. Clean Void glibc x86_64 VM tests passed with cagebreak and niri, including desktop login, reboot and shutdown. The tested route uses elogind, D-Bus and polkit, which the installer installs.
+Native XBPS packages are available for x86_64 glibc and musl. Download sysc-greet and gSlapper for the same architecture:
 
-See the [Void Linux guide](https://nomadcxx.github.io/sysc-greet/docs/getting-started/void-linux/) for prerequisites, existing seatd/turnstile setups, and recovery commands.
+| Architecture | sysc-greet 1.3.0 | gSlapper 1.5.2 |
+|---|---|---|
+| x86_64 (glibc) | [Download](https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/sysc-greet-1.3.0_1.x86_64.xbps) | [Download](https://github.com/Nomadcxx/gSlapper/releases/download/v1.5.2/gslapper-1.5.2_1.x86_64.xbps) |
+| x86_64 (musl) | [Download](https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/sysc-greet-1.3.0_1.x86_64-musl.xbps) | [Download](https://github.com/Nomadcxx/gSlapper/releases/download/v1.5.2/gslapper-1.5.2_1.x86_64-musl.xbps) |
+
+Follow the [Void Linux guide](https://nomadcxx.github.io/sysc-greet/docs/getting-started/void-linux/#native-xbps-packages) to verify checksums, install the packages and configure greetd. These are upstream release packages; [submission to Void's repositories](https://github.com/void-linux/void-packages/pull/63202) is pending.
+
+The Go installer also supports XBPS and runit. The tested setup uses elogind, D-Bus and polkit. Void glibc x86_64 VM tests passed desktop login, reboot and shutdown.
 
 ### Arch Linux (AUR)
 
