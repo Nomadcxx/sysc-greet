@@ -1641,9 +1641,14 @@ func getGStreamerDeps(packageManager string) []string {
 	case "emerge":
 		return []string{
 			"media-libs/gstreamer",
-			"media-libs/gst-plugins-base",
+			"media-libs/gst-plugins-base[egl,wayland]",
 			"media-libs/gst-plugins-good",
 			"media-libs/gst-plugins-bad",
+			"media-plugins/gst-plugins-libpng",
+			"media-plugins/gst-plugins-jpeg",
+			"media-plugins/gst-plugins-webp",
+			"media-plugins/gst-plugins-gdkpixbuf",
+			"media-plugins/gst-plugins-libav",
 			"dev-libs/wayland",
 			"dev-libs/wayland-protocols",
 			"media-libs/mesa",
