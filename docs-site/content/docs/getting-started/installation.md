@@ -28,6 +28,17 @@ Void supports native XBPS release packages for x86_64 glibc and musl, plus the G
 sudo SYSC_COMPOSITOR=cagebreak go run ./cmd/installer/
 ```
 
+### Gentoo
+
+Use the installer with Portage and the native OpenRC `display-manager` service. The tested route uses Sway, elogind, D-Bus and polkit on an amd64 desktop/OpenRC profile:
+
+```bash
+# From a root shell in the cloned repository:
+SYSC_COMPOSITOR=sway go run ./cmd/installer/
+```
+
+See the [Gentoo guide](../getting-started/gentoo) for graphics and USE prerequisites, build times and recovery. The installer leaves keywords and USE settings to you.
+
 ## Manual Build
 
 ### Prerequisites

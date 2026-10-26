@@ -23,7 +23,7 @@ One-line installer that works on most Linux distributions:
 curl -fsSL https://raw.githubusercontent.com/Nomadcxx/sysc-greet/master/install.sh | sudo bash
 ```
 
-The installer detects the package manager on Arch Linux, Debian/Ubuntu, Fedora, openSUSE, and Void Linux. It installs the greeter dependencies and configures the selected backend.
+The installer detects the package manager on Arch Linux, Debian/Ubuntu, Fedora, openSUSE, Void Linux, and Gentoo. It installs the greeter dependencies and configures the selected backend.
 
 ### Build from Source
 
@@ -50,6 +50,12 @@ Native XBPS packages are available for x86_64 glibc and musl. Download sysc-gree
 Follow the [Void Linux guide](https://nomadcxx.github.io/sysc-greet/docs/getting-started/void-linux/#native-xbps-packages) to verify checksums, install the packages and configure greetd. These are upstream release packages; [submission to Void's repositories](https://github.com/void-linux/void-packages/pull/63202) is pending.
 
 The Go installer also supports XBPS and runit. The tested setup uses elogind, D-Bus and polkit. Void glibc x86_64 VM tests passed desktop login, reboot and shutdown.
+
+### Gentoo
+
+The installer supports Portage and Gentoo's native OpenRC `display-manager` service. Use Sway from the main tree, or install another backend before selecting it. The amd64 desktop/OpenRC VM passed clean installation, login/logout, reboot and shutdown on VT 7.
+
+See the [Gentoo guide](https://nomadcxx.github.io/sysc-greet/docs/getting-started/gentoo/) for prerequisites, USE settings and recovery commands. Gentoo systemd and minimal profiles have not received VM validation.
 
 ### Arch Linux (AUR)
 

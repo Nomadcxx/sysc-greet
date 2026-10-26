@@ -5,11 +5,13 @@ description: "Install sysc-greet with Portage and Gentoo's native OpenRC display
 
 The Gentoo installer route uses Portage, Sway and the native OpenRC `display-manager` service. It installs elogind, D-Bus and polkit for seat access and power actions.
 
-The target configuration is amd64 with the desktop/OpenRC profile. Gentoo systemd and minimal profiles need separate validation.
+VM validation on 2026-10-26 covered Gentoo amd64 desktop/OpenRC with Sway 1.12 and Kitty 0.49.2: clean installation, greeter startup, desktop login/logout, F4 reboot and shutdown. gSlapper rendered PNG, JPEG, WebP, MP4 and WebM. Gentoo systemd and minimal profiles have not received VM validation.
 
 ## Install
 
 Configure graphics drivers and Wayland support for your hardware first. Kitty and Mesa need Wayland support. gSlapper needs `media-libs/gst-plugins-base` with EGL, Wayland and a GL API (`gles2` or `opengl`).
+
+Configure your desktop separately from the greeter. Sway's stock desktop config references a bundled wallpaper; when `wallpapers` is disabled, replace that background line in your user config.
 
 Run these commands from a root shell:
 
