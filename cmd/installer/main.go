@@ -944,6 +944,7 @@ func detectPackageManager(m *model) {
 		{"yum", "/usr/bin/yum"},           // Older Fedora/RHEL
 		{"zypper", "/usr/bin/zypper"},     // openSUSE
 		{"xbps", "/usr/bin/xbps-install"}, // Void Linux
+		{"emerge", "/usr/bin/emerge"},     // Gentoo
 	}
 
 	for _, pm := range packageManagers {
@@ -973,9 +974,9 @@ func checkDependencies(m *model) error {
 	if _, err := exec.LookPath("go"); err != nil {
 		missing = append(missing, "go")
 	}
-	// The greeter service lives in systemd or runit, nothing else can host it.
+	// The greeter service needs an init system supported by the installer.
 	if m.initSystem == "" {
-		return fmt.Errorf("no supported init system found (need systemd or runit)")
+		return fmt.Errorf("no supported init system found (need systemd, runit, or OpenRC)")
 	}
 
 	if len(missing) > 0 {
@@ -986,38 +987,42 @@ func checkDependencies(m *model) error {
 }
 
 func installGreetd(m *model) error {
-	if m.greetdInstalled {
-		return nil // Already installed - task will succeed silently
-	}
+	if !m.greetdInstalled {
+		if m.packageManager == "" {
+			return fmt.Errorf("package manager not detected - install greetd manually")
+		}
 
-	if m.packageManager == "" {
-		return fmt.Errorf("package manager not detected - install greetd manually")
-	}
+		// On Arch, prefer an AUR helper (greetd might be in the AUR). AUR helpers
+		// must NOT run as root, so drop to the invoking user; the helper asks for
+		// sudo itself. Without a non-root user, fall back to pacman.
+		var aurCmd *exec.Cmd
+		if m.packageManager == "pacman" {
+			for _, helper := range []string{"yay", "paru"} {
+				if _, err := exec.LookPath(helper); err != nil {
+					continue
+				}
+				if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" && sudoUser != "root" {
+					aurCmd = exec.Command("su", "-", sudoUser, "-c", helper+" -S --noconfirm greetd")
+				}
+				break
+			}
+		}
 
-	// On Arch, prefer an AUR helper (greetd might be in the AUR). AUR helpers
-	// must NOT run as root, so drop to the invoking user; the helper asks for
-	// sudo itself. Without a non-root user, fall back to pacman.
-	var aurCmd *exec.Cmd
-	if m.packageManager == "pacman" {
-		for _, helper := range []string{"yay", "paru"} {
-			if _, err := exec.LookPath(helper); err != nil {
-				continue
-			}
-			if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" && sudoUser != "root" {
-				aurCmd = exec.Command("su", "-", sudoUser, "-c", helper+" -S --noconfirm greetd")
-			}
-			break
+		var err error
+		if aurCmd != nil {
+			err = runCommand("Install greetd", aurCmd, m)
+		} else {
+			err = installPackages(m, "Install greetd", "greetd")
+		}
+		if err != nil {
+			return fmt.Errorf("failed to install greetd (try: manual installation)")
 		}
 	}
 
-	var err error
-	if aurCmd != nil {
-		err = runCommand("Install greetd", aurCmd, m)
-	} else {
-		err = installPackages(m, "Install greetd", "greetd")
-	}
-	if err != nil {
-		return fmt.Errorf("failed to install greetd (try: manual installation)")
+	if m.initSystem == initOpenRC {
+		if err := installPackages(m, "Install display-manager-init", "display-manager-init"); err != nil {
+			return fmt.Errorf("failed to install display-manager-init for OpenRC: %w", err)
+		}
 	}
 
 	return nil
@@ -1502,6 +1507,14 @@ func installCompositor(m *model) error {
 			return fmt.Errorf("%s is not in the Void Linux repos - install manually", m.selectedCompositor)
 		}
 
+	case "emerge":
+		// Gentoo's main tree provides Sway; other compositors can be installed
+		// separately and the installer will use them when already present.
+		if m.selectedCompositor != "sway" {
+			return fmt.Errorf("%s is not available through the Gentoo installer - install it manually", m.selectedCompositor)
+		}
+		pkg = "sway"
+
 	default:
 		return fmt.Errorf("unsupported package manager '%s' - install %s manually", m.packageManager, m.selectedCompositor)
 	}
@@ -1617,6 +1630,17 @@ func getGStreamerDeps(packageManager string) []string {
 			"wayland-protocols",
 			"mesa",
 			"pkg-config",
+		}
+	case "emerge":
+		return []string{
+			"media-libs/gstreamer",
+			"media-libs/gst-plugins-base",
+			"media-libs/gst-plugins-good",
+			"media-libs/gst-plugins-bad",
+			"dev-libs/wayland",
+			"dev-libs/wayland-protocols",
+			"media-libs/mesa",
+			"virtual/pkgconfig",
 		}
 	default:
 		return []string{}
@@ -2116,7 +2140,7 @@ user = "%s"
 [initial_session]
 command = "%s"
 user = "%s"
-`, greeterVT, greetdCommand, m.greeterUser, greetdCommand, m.greeterUser)
+`, greeterVTForInit(m.initSystem), greetdCommand, m.greeterUser, greetdCommand, m.greeterUser)
 
 	// Keep the previous config when it differs, as the AUR .install scripts do
 	if old, err := os.ReadFile("/etc/greetd/config.toml"); err == nil && string(old) != greetdConfig {
@@ -2156,6 +2180,8 @@ func enableService(m *model) error {
 	switch m.initSystem {
 	case initRunit:
 		return enableRunitGreetd("/")
+	case initOpenRC:
+		return enableOpenRCGreetd("/")
 	case initSystemd:
 		// Remove existing display-manager.service symlink
 		symlinkPath := "/etc/systemd/system/display-manager.service"
@@ -2171,7 +2197,7 @@ func enableService(m *model) error {
 
 		return nil
 	default:
-		return fmt.Errorf("no supported init system detected (need systemd or runit)")
+		return fmt.Errorf("no supported init system detected (need systemd, runit, or OpenRC)")
 	}
 }
 
@@ -2181,6 +2207,11 @@ func disableService(m *model) error {
 	switch m.initSystem {
 	case initRunit:
 		return disableRunitGreetd()
+	case initOpenRC:
+		// OpenRC reports an error if display-manager was not enabled; that is
+		// harmless during uninstall, as with systemd's disable command.
+		_ = exec.Command("rc-update", "del", "display-manager", "default").Run()
+		return nil
 	case initSystemd:
 		// Disable greetd service
 		if err := exec.Command("systemctl", "disable", "greetd.service").Run(); err != nil {

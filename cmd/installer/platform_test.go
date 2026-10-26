@@ -15,6 +15,7 @@ func TestGreeterAccount(t *testing.T) {
 		home   string
 	}{
 		{"void", "_greeter", "/var/lib/_greeter"},
+		{"gentoo", "greetd", "/var/lib/greetd"},
 		{"arch", "greeter", "/var/lib/greeter"},
 		{"debian", "greeter", "/var/lib/greeter"},
 		{"fedora", "greeter", "/var/lib/greeter"},
@@ -25,6 +26,82 @@ func TestGreeterAccount(t *testing.T) {
 		if user != tc.user || home != tc.home {
 			t.Errorf("greeterAccount(%q) = %q, %q; want %q, %q", tc.distro, user, home, tc.user, tc.home)
 		}
+	}
+}
+
+func TestDetectOpenRC(t *testing.T) {
+	if _, err := os.Stat("/run/openrc"); err != nil {
+		t.Skip("requires an OpenRC host; run in the Gentoo VM")
+	}
+	if got := detectInitSystem(); got != "openrc" {
+		t.Fatalf("detectInitSystem() = %q on OpenRC", got)
+	}
+}
+
+func TestGreeterVTForInit(t *testing.T) {
+	for init, want := range map[string]int{"systemd": 1, "runit": 1, "openrc": 7} {
+		if got := greeterVTForInit(init); got != want {
+			t.Errorf("greeterVTForInit(%s) = %d; want %d", init, got, want)
+		}
+	}
+}
+
+func TestEnableOpenRCGreetd(t *testing.T) {
+	root := t.TempDir()
+	for _, dir := range []string{"etc/init.d", "etc/conf.d", "bin"} {
+		if err := os.MkdirAll(filepath.Join(root, dir), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, service := range []string{"dbus", "elogind", "display-manager"} {
+		if err := os.WriteFile(filepath.Join(root, "etc/init.d", service), nil, 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	bin := filepath.Join(root, "bin")
+	t.Setenv("PATH", bin)
+	callsFile := filepath.Join(root, "calls")
+	t.Setenv("OPENRC_CALLS", callsFile)
+	cmd := filepath.Join(bin, "rc-update")
+	if err := os.WriteFile(cmd, []byte("#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$OPENRC_CALLS\"\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	config := filepath.Join(root, "etc/conf.d/display-manager")
+	const original = "# custom config\nDISPLAYMANAGER=\"sddm\"\ncustom=\"line one\nline two\"\n"
+	if err := os.WriteFile(config, []byte(original), 0600); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if err := enableOpenRCGreetd(root); err != nil {
+			t.Fatal(err)
+		}
+	}
+	data, err := os.ReadFile(config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := original + "\nDISPLAYMANAGER=\"greetd\"\nCHECKVT=7\n"; string(data) != want {
+		t.Fatalf("display-manager config = %q; want %q", data, want)
+	}
+	info, err := os.Stat(config)
+	if err != nil || info.Mode().Perm() != 0600 {
+		t.Fatalf("config permissions changed: info=%v, err=%v", info, err)
+	}
+	calls, err := os.ReadFile(callsFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := strings.Repeat("add dbus default\nadd elogind default\nadd display-manager default\n", 2); string(calls) != want {
+		t.Fatalf("rc-update calls = %q; want %q", calls, want)
+	}
+	if err := os.WriteFile(cmd, []byte("#!/bin/sh\nexit 1\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := enableOpenRCGreetd(root); err == nil {
+		t.Fatal("ignored rc-update failure")
+	}
+	if err := enableOpenRCGreetd(t.TempDir()); err == nil {
+		t.Fatal("enabled OpenRC without its native service files")
 	}
 }
 
@@ -223,6 +300,9 @@ func TestLoginServicePackages(t *testing.T) {
 	want := []string{"elogind", "dbus", "polkit"}
 	if got := loginServicePackages(initRunit); !reflect.DeepEqual(got, want) {
 		t.Errorf("loginServicePackages(runit) = %v; want %v", got, want)
+	}
+	if got := loginServicePackages(initOpenRC); !reflect.DeepEqual(got, want) {
+		t.Errorf("loginServicePackages(openrc) = %v; want %v", got, want)
 	}
 }
 

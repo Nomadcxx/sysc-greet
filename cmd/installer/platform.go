@@ -11,11 +11,19 @@ import (
 const (
 	initSystemd = "systemd"
 	initRunit   = "runit"
+	initOpenRC  = "openrc"
 )
 
 // greeterVT is the virtual terminal the greeter session runs on. The login
 // prompt on this terminal has to give way to the greeter.
 const greeterVT = 1
+
+func greeterVTForInit(initSystem string) int {
+	if initSystem == initOpenRC {
+		return 7
+	}
+	return greeterVT
+}
 
 // Void's greetd package ships the _greeter system account with the home
 // /var/lib/_greeter, and its own greetd config greets that account by name,
@@ -52,6 +60,9 @@ func detectInitSystem() string {
 	if _, err := os.Stat("/run/systemd/system"); err == nil {
 		return initSystemd
 	}
+	if info, err := os.Stat("/run/openrc"); err == nil && info.IsDir() {
+		return initOpenRC
+	}
 	// Void ships runit with its live service tree under /etc/runit/runsvdir.
 	if _, err := os.Stat("/etc/runit/runsvdir"); err == nil {
 		return initRunit
@@ -62,14 +73,18 @@ func detectInitSystem() string {
 	return ""
 }
 
-// greeterAccount returns the account and the home directory the greeter
-// session runs as. Void's greetd package provisions _greeter; every other
-// distro gets the installer's own greeter account.
+// greeterAccount returns the account and home directory the greeter session
+// runs as. Void and Gentoo package greetd with their own greeter accounts;
+// other distros use the installer's account.
 func greeterAccount(distroID string) (user string, home string) {
-	if distroID == "void" {
+	switch distroID {
+	case "void":
 		return voidGreeterUser, voidGreeterHome
+	case "gentoo":
+		return "greetd", "/var/lib/greetd"
+	default:
+		return "greeter", "/var/lib/greeter"
 	}
-	return "greeter", "/var/lib/greeter"
 }
 
 func resolveGreeterAccount(m *model) {
@@ -237,4 +252,55 @@ func disableAgetty(root string, vt int) error {
 		return err
 	}
 	return markServiceDown(root, name)
+}
+
+// enableOpenRCGreetd configures Gentoo's display-manager-init service to run
+// greetd on its dedicated VT, then enables the services it needs at boot.
+func enableOpenRCGreetd(root string) error {
+	services := []string{"dbus", "elogind", "display-manager"}
+	for _, name := range services {
+		if _, err := os.Stat(filepath.Join(root, "etc/init.d", name)); err != nil {
+			return fmt.Errorf("OpenRC service missing at /etc/init.d/%s: %w", name, err)
+		}
+	}
+
+	configPath := filepath.Join(root, "etc/conf.d/display-manager")
+	config, err := os.ReadFile(configPath)
+	if err != nil {
+		return fmt.Errorf("read /etc/conf.d/display-manager: %w", err)
+	}
+
+	settings := []string{`DISPLAYMANAGER="greetd"`, "CHECKVT=7"}
+	present := make(map[string]bool)
+	for _, line := range strings.Split(string(config), "\n") {
+		present[strings.TrimSpace(line)] = true
+	}
+	missing := make([]string, 0, len(settings))
+	for _, setting := range settings {
+		if !present[setting] {
+			missing = append(missing, setting)
+		}
+	}
+	if len(missing) > 0 {
+		updated := string(config)
+		if updated != "" {
+			if !strings.HasSuffix(updated, "\n") {
+				updated += "\n"
+			}
+			if !strings.HasSuffix(updated, "\n\n") {
+				updated += "\n"
+			}
+		}
+		updated += strings.Join(missing, "\n") + "\n"
+		if err := os.WriteFile(configPath, []byte(updated), 0644); err != nil {
+			return fmt.Errorf("write /etc/conf.d/display-manager: %w", err)
+		}
+	}
+
+	for _, name := range services {
+		if err := exec.Command("rc-update", "add", name, "default").Run(); err != nil {
+			return fmt.Errorf("rc-update add %s default failed: %w", name, err)
+		}
+	}
+	return nil
 }

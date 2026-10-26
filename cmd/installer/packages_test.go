@@ -148,6 +148,71 @@ func TestGentooPackageAtoms(t *testing.T) {
 	}
 }
 
+func TestGentooGStreamerPackages(t *testing.T) {
+	want := []string{
+		"media-libs/gstreamer", "media-libs/gst-plugins-base",
+		"media-libs/gst-plugins-good", "media-libs/gst-plugins-bad",
+		"dev-libs/wayland", "dev-libs/wayland-protocols",
+		"media-libs/mesa", "virtual/pkgconfig",
+	}
+	if got := getGStreamerDeps("emerge"); !reflect.DeepEqual(got, want) {
+		t.Fatalf("getGStreamerDeps(emerge) = %v; want %v", got, want)
+	}
+}
+
+func TestInstallGentooSwayUsesPortage(t *testing.T) {
+	dir := t.TempDir()
+	argsFile := filepath.Join(dir, "args")
+	t.Setenv("PATH", dir)
+	t.Setenv("EMERGE_ARGS", argsFile)
+	if err := os.WriteFile(filepath.Join(dir, "emerge"), []byte("#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$EMERGE_ARGS\"\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := installCompositor(&model{packageManager: "emerge", selectedCompositor: "sway"}); err != nil {
+		t.Fatalf("installCompositor(sway): %v", err)
+	}
+	args, err := os.ReadFile(argsFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"--noreplace", "--ask=n", "--autounmask=n", "gui-wm/sway"}
+	if got := strings.Fields(string(args)); !reflect.DeepEqual(got, want) {
+		t.Fatalf("emerge args = %v; want %v", got, want)
+	}
+}
+
+func TestInstallGentooGreetdInstallsDisplayManagerInit(t *testing.T) {
+	for _, greetdInstalled := range []bool{false, true} {
+		t.Run("greetd_installed="+strconv.FormatBool(greetdInstalled), func(t *testing.T) {
+			dir := t.TempDir()
+			argsFile := filepath.Join(dir, "args")
+			t.Setenv("PATH", dir)
+			t.Setenv("EMERGE_ARGS", argsFile)
+			if err := os.WriteFile(filepath.Join(dir, "emerge"), []byte("#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$EMERGE_ARGS\"\n"), 0755); err != nil {
+				t.Fatal(err)
+			}
+
+			m := &model{greetdInstalled: greetdInstalled, packageManager: "emerge", initSystem: initOpenRC}
+			if err := installGreetd(m); err != nil {
+				t.Fatalf("installGreetd: %v", err)
+			}
+			args, err := os.ReadFile(argsFile)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var want []string
+			if !greetdInstalled {
+				want = append(want, "--noreplace --ask=n --autounmask=n gui-libs/greetd")
+			}
+			want = append(want, "--noreplace --ask=n --autounmask=n gui-libs/display-manager-init")
+			if got := strings.Split(strings.TrimSpace(string(args)), "\n"); !reflect.DeepEqual(got, want) {
+				t.Fatalf("emerge invocations = %v; want %v", got, want)
+			}
+		})
+	}
+}
+
 func TestUnknownPackageManager(t *testing.T) {
 	if installCommand("", "greetd") != nil {
 		t.Error("installCommand with no package manager should be nil")
