@@ -42,7 +42,7 @@ for (const page of expectedPages) {
 for (const path of contentFiles(root).filter((file) => ['.md', '.mdx'].includes(extname(file)))) {
   const content = readFileSync(path, 'utf8');
   const rel = relative(root, path);
-  assert.doesNotMatch(content, /\]\([^)]*\.md(?:#[^)]*)?\)/, `stale .md link in ${rel}`);
+  assert.doesNotMatch(content, /\]\((?!https?:\/\/)[^)]*\.md(?:#[^)]*)?\)/, `stale internal .md link in ${rel}`);
   assert.doesNotMatch(content, /^!!!/m, `legacy admonition syntax in ${rel}`);
   assert.doesNotMatch(content, /docs-src|mkdocs/i, `stale documentation system reference in ${rel}`);
   // ponytail: a remote image makes remark-images fetch it at build time; a 403

@@ -200,11 +200,15 @@ All compositor configs are installed at `/etc/greetd/`. Save the file and reboot
 ### Add to configuration.nix
 
 ```nix
+{ lib, ... }:
 {
   services.sysc-greet = {
     enable = true;
     compositor = "niri";  # or "cagebreak", "sway", "mango", "hyprland" (0.55+)
   };
+
+  # Required for the CC BY-NC model assets included through sysc-Go.
+  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [ "sysc-greet" ];
 
   # Optional: Set initial session for auto-login
   services.sysc-greet.settings.initial_session = {
@@ -213,6 +217,8 @@ All compositor configs are installed at `/etc/greetd/`. Save the file and reboot
   };
 }
 ```
+
+sysc-greet's own source code remains GPL-3.0-only. This package-specific exception covers the current binary's sysc-Go model assets; the module uses your system's Nixpkgs license policy.
 
 By default, the NixOS module does not install `niri`, `cagebreak`, `hyprland`, `sway`, or `mango`.
 Install your chosen backend yourself, or set `niriPackage`, `cagebreakPackage`, `hyprlandPackage`,
