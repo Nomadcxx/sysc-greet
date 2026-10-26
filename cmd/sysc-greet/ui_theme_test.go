@@ -1,10 +1,13 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/charmbracelet/bubbles/v2/textinput"
 	tea "github.com/charmbracelet/bubbletea/v2"
+	"github.com/charmbracelet/lipgloss/v2"
+	uv "github.com/charmbracelet/ultraviolet"
 )
 
 func TestInputThemeIncludesBlurredStyles(t *testing.T) {
@@ -33,6 +36,42 @@ func TestInputThemeIncludesBlurredStyles(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+func TestBorderedHelpUsesThemeForeground(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("SYSC_BG", "")
+	t.Cleanup(func() { applyTheme("dracula", true) })
+	m := initialModel(Config{TestMode: true, ThemeName: "Nord"}, false)
+	m.width, m.height = 132, 40
+
+	for _, mode := range []ViewMode{ModeLogin, ModePassword, ModeLoading} {
+		t.Run(string(mode), func(t *testing.T) {
+			m.mode = mode
+			canvas, ok := m.borderedLoginCanvas(m.width, m.height)
+			if !ok {
+				t.Fatal("bordered layout did not render")
+			}
+			screen := uv.NewScreenBuffer(m.width, m.height)
+			canvas.Draw(screen, screen.Bounds())
+			text := "F1 Menu"
+			if mode == ModeLoading {
+				text = "Please wait..."
+			}
+			for y, line := range strings.Split(screen.Buffer.String(), "\n") {
+				if index := strings.Index(line, text); index >= 0 {
+					x := lipgloss.Width(line[:index])
+					for offset := range len(text) {
+						if !sameColor(screen.CellAt(x+offset, y).Style.Fg, FgMuted) {
+							t.Fatalf("help text %q does not use the theme muted color", text)
+						}
+					}
+					return
+				}
+			}
+			t.Fatalf("help text %q missing", text)
+		})
 	}
 }
 

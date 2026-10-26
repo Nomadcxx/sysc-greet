@@ -90,7 +90,7 @@ func renderBorderPreview(data []byte, sizes [][2]int) (string, error) {
 		if !ok {
 			return "", fmt.Errorf("border does not fit %dx%d", w, h)
 		}
-		help := m.renderMainHelpFit(w - 2)
+		help := lipgloss.NewStyle().Foreground(FgMuted).Render(m.renderMainHelpFit(w - 2))
 		canvas := lipgloss.NewCanvas(
 			lipgloss.NewLayer(clearTerminalLayer{width: w, height: h}).X(0).Y(0),
 			lipgloss.NewLayer(nfoGridLayer{
