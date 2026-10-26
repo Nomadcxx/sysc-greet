@@ -1641,7 +1641,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		case ModeMenu:
 			// CHANGED 2025-09-30 - Add escape from menu
 			m.mode = ModeLogin
-			return m, nil
+			m.focusState = FocusUsername
+			m.usernameInput.Focus()
+			m.passwordInput.Blur()
+			return m, textinput.Blink
 		// Add escape handling for submenus
 		case ModeThemesSubmenu, ModeBordersSubmenu, ModeBackgroundsSubmenu, ModeWallpaperSubmenu, ModeASCIIEffectsSubmenu:
 			// Go back to main menu
@@ -2133,7 +2136,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			switch selectedOption {
 			case "Close Menu":
 				m.mode = ModeLogin
-				return m, nil
+				m.focusState = FocusUsername
+				m.usernameInput.Focus()
+				m.passwordInput.Blur()
+				return m, textinput.Blink
 			case "Themes":
 				newModel, cmd := m.navigateToThemesSubmenu()
 				return newModel.(model), cmd
