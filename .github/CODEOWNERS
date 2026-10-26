@@ -1,0 +1,25 @@
+# The review path per area.
+#
+# There is one owner, so every path below names the same reviewer. The value of this file is the map:
+# which paths belong to which repository, and which of them are cross-repository contracts. A change to
+# a contract needs the repositories that consume it, not only the one that holds it.
+
+# The default owner for everything in this repository.
+/* @Nomadcxx
+
+# The greeter itself and the sessions it starts.
+/internal/ @Nomadcxx
+/cmd/ @Nomadcxx
+
+# The packaging. The installer names the compositor peer, and the postinstall script
+# checks it.
+/scripts/ @Nomadcxx
+/nfpm.yaml @Nomadcxx
+/nfpm-cagebreak.yaml @Nomadcxx
+/nfpm-mango.yaml @Nomadcxx
+
+# The assets the greeter draws: the fonts and the wallpapers.
+/fonts/ @Nomadcxx
+/wallpapers/ @Nomadcxx
+/themes/ @Nomadcxx
+/assets/ @Nomadcxx

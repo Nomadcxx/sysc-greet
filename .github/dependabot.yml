@@ -1,0 +1,24 @@
+# Dependabot watches the action versions of the workflows in this repository.
+#
+# It does not watch the Go modules, and that is a decision rather than an
+# omission. The Go module updater runs `go get`, which rewrites the metadata
+# around the requirement: it lowered the go directive of a module of this
+# organisation from 1.26.10 to 1.26.4, which reopened two known flaws in the
+# standard library, and it deleted the ignore directive that keeps the docs
+# directory out of the package list. CI reads the directive for the toolchain
+# it installs, so an automatic bump would have made CI install a flawed
+# toolchain and defeated the vulnerability scan. The procedure that does not
+# do this is in the shell repository, in `tools/pinbump`, and the report that
+# says what is behind is in `tools/depdrift`.
+#
+# The action ecosystem is safe: it edits the `uses:` references of the
+# workflows and never touches go.mod.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "build"
