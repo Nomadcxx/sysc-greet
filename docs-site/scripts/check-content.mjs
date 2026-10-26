@@ -11,6 +11,7 @@ const expectedPages = [
   'getting-started/installation.md',
   'getting-started/quick-start.md',
   'getting-started/void-linux.md',
+  'getting-started/gentoo.md',
   'getting-started/troubleshooting.md',
   'features/backgrounds-effects.md',
   'features/ascii-art.md',
