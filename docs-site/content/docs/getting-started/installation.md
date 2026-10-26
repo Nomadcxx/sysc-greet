@@ -22,7 +22,7 @@ The interactive installer will prompt you to:
 
 ### Void Linux
 
-Void is supported through the Go installer with XBPS and runit. Clean glibc x86_64 VM tests passed with cagebreak and niri: boot on tty1, desktop login, reboot and shutdown. The installer installs elogind, D-Bus and polkit for seat access and power actions. See the [Void Linux guide](../getting-started/void-linux), including its note for existing seatd/turnstile setups.
+Void supports native XBPS release packages for x86_64 glibc and musl, plus the Go installer. Both use runit, elogind, D-Bus and polkit. See the [Void Linux guide](../getting-started/void-linux) for package downloads, greetd setup and existing seatd/turnstile configurations.
 
 ```bash
 sudo SYSC_COMPOSITOR=cagebreak go run ./cmd/installer/
@@ -109,9 +109,13 @@ After installation, **reboot** your system to see sysc-greet.
 
 The releases page also carries cagebreak `.deb`/`.rpm` packages (Debian 13, Ubuntu 24.04/25.x, Fedora 42) since no distro packages exist — see [Cagebreak Setup](../compositors/cagebreak).
 
+### Void Linux (.xbps)
+
+Download matching sysc-greet and gSlapper packages for x86_64 glibc or musl and follow the [native XBPS instructions](../getting-started/void-linux#native-xbps-packages). The packages use `/usr/bin/sysc-greet` and `/etc/greetd/sysc-greet/`; configure greetd and enable its runit service after installation.
+
 ### Switching Compositors
 
-The package auto-detects your compositor during installation. If you have multiple compositors installed or want to switch to a different one, edit `/etc/greetd/config.toml`:
+The Debian and Fedora packages auto-detect your compositor during installation. If you have multiple compositors installed or want to switch to a different one, edit `/etc/greetd/config.toml`:
 
 ```bash
 sudo nano /etc/greetd/config.toml
@@ -332,6 +336,11 @@ sudo apt remove sysc-greet
 **Fedora:**
 ```bash
 sudo dnf remove sysc-greet
+```
+
+**Void Linux:**
+```bash
+sudo xbps-remove sysc-greet
 ```
 
 ### Arch Linux (AUR)
