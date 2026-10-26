@@ -1,0 +1,733 @@
+diff --git a/greetd/src/config/mod.rs b/greetd/src/config/mod.rs
+index 3ad6f21..fc3923d 100644
+--- a/greetd/src/config/mod.rs
++++ b/greetd/src/config/mod.rs
+@@ -5,7 +5,10 @@ use getopts::Options;
+ 
+ use super::error::Error;
+ 
++#[cfg(not(target_os = "freebsd"))]
+ const RUNFILE: &str = "/run/greetd.run";
++#[cfg(target_os = "freebsd")]
++const RUNFILE: &str = "/var/run/greetd.run";
+ const GENERAL_SERVICE: &str = "greetd";
+ const GREETER_SERVICE: &str = "greetd-greeter";
+ 
+@@ -238,7 +241,8 @@ pub fn read_config() -> Result<Config, Error> {
+     let config_str = match matches.opt_str("config") {
+         Some(v) => read_to_string(v),
+         None => read_to_string("/etc/greetd/greetd.conf")
+-            .or_else(|_| read_to_string("/etc/greetd/config.toml")),
++            .or_else(|_| read_to_string("/etc/greetd/config.toml"))
++            .or_else(|_| read_to_string("/usr/local/etc/greetd/config.toml")),
+     }?;
+     let mut file = parse_config(&config_str)?;
+ 
+diff --git a/greetd/src/pam/env.rs b/greetd/src/pam/env.rs
+index a679322..9311aa8 100644
+--- a/greetd/src/pam/env.rs
++++ b/greetd/src/pam/env.rs
+@@ -43,3 +43,10 @@ impl Drop for PamEnvList {
+         unsafe { raw::pam_misc_drop_env(self.ptr as *mut *mut c_char) };
+     }
+ }
++
++#[cfg(target_os = "freebsd")]
++impl Drop for PamEnvList {
++    fn drop(&mut self) {
++        unsafe { raw::openpam_free_envlist(self.ptr as *mut *mut c_char) };
++    }
++}
+diff --git a/greetd/src/server.rs b/greetd/src/server.rs
+index 057232d..d4d2424 100644
+--- a/greetd/src/server.rs
++++ b/greetd/src/server.rs
+@@ -108,7 +108,6 @@ async fn client_handler(ctx: &Context, mut s: UnixStream) -> Result<(), Error> {
+ //
+ // If the target is VtSelection::None, return nothing.
+ fn get_tty(config: &Config) -> Result<TerminalMode, Error> {
+-    const TTY_PREFIX: &str = "/dev/tty";
+     const PTS_PREFIX: &str = "/dev/pts";
+ 
+     let term = match config.file.terminal.vt {
+@@ -116,12 +115,8 @@ fn get_tty(config: &Config) -> Result<TerminalMode, Error> {
+             let term = Terminal::stdin();
+             match term.ttyname() {
+                 // We have a usable terminal, so let's decipher and return that
+-                Ok(term_name)
+-                    if term_name.starts_with(TTY_PREFIX) && term_name.len() > TTY_PREFIX.len() =>
+-                {
+-                    let vt = term_name[TTY_PREFIX.len()..]
+-                        .parse()
+-                        .map_err(|e| Error::Other(format!("unable to parse tty number: {e}")))?;
++                Ok(term_name) if terminal::tty_number(&term_name).is_some() => {
++                    let vt = terminal::tty_number(&term_name).unwrap();
+ 
+                     TerminalMode::Terminal {
+                         path: term_name,
+@@ -134,13 +129,13 @@ fn get_tty(config: &Config) -> Result<TerminalMode, Error> {
+                 }
+                 // We don't have a usable terminal, so we have to jump through some hoops
+                 _ => {
+-                    let sys_term = Terminal::open("/dev/tty0")
++                    let sys_term = Terminal::open(&terminal::tty_path(0))
+                         .map_err(|e| format!("unable to open terminal: {e}"))?;
+                     let vt = sys_term
+                         .vt_get_current()
+                         .map_err(|e| format!("unable to get current VT: {e}"))?;
+                     TerminalMode::Terminal {
+-                        path: format!("/dev/tty{vt}"),
++                        path: terminal::tty_path(vt),
+                         vt,
+                         switch: false,
+                     }
+@@ -148,20 +143,20 @@ fn get_tty(config: &Config) -> Result<TerminalMode, Error> {
+             }
+         }
+         VtSelection::Next => {
+-            let term =
+-                Terminal::open("/dev/tty0").map_err(|e| format!("unable to open terminal: {e}"))?;
++            let term = Terminal::open(&terminal::tty_path(0))
++                .map_err(|e| format!("unable to open terminal: {e}"))?;
+             let vt = term
+                 .vt_get_next()
+                 .map_err(|e| format!("unable to get next VT: {e}"))?;
+             TerminalMode::Terminal {
+-                path: format!("/dev/tty{vt}"),
++                path: terminal::tty_path(vt),
+                 vt,
+                 switch: config.file.terminal.switch,
+             }
+         }
+         VtSelection::None => TerminalMode::Stdin,
+         VtSelection::Specific(vt) => TerminalMode::Terminal {
+-            path: format!("/dev/tty{vt}"),
++            path: terminal::tty_path(vt),
+             vt,
+             switch: config.file.terminal.switch,
+         },
+@@ -172,6 +167,7 @@ fn get_tty(config: &Config) -> Result<TerminalMode, Error> {
+ fn pam_service_exists(service: &str) -> bool {
+     Path::new(&format!("/etc/pam.d/{}", service)).exists()
+         || Path::new(&format!("/usr/lib/pam.d/{}", service)).exists()
++        || Path::new(&format!("/usr/local/etc/pam.d/{}", service)).exists()
+ }
+ 
+ // Listener is a convenience wrapper for creating the UnixListener we need, and
+@@ -180,7 +176,12 @@ struct Listener(UnixListener);
+ 
+ impl Listener {
+     fn create(uid: Uid, gid: Gid) -> Result<(String, Listener), Error> {
+-        let path = format!("/run/greetd-{}.sock", getpid().as_raw());
++        let runtime_dir = if cfg!(target_os = "freebsd") {
++            "/var/run"
++        } else {
++            "/run"
++        };
++        let path = format!("{runtime_dir}/greetd-{}.sock", getpid().as_raw());
+         let _ = std::fs::remove_file(&path);
+         let listener =
+             UnixListener::bind(&path).map_err(|e| format!("unable to open listener: {e}"))?;
+diff --git a/greetd/src/session/interface.rs b/greetd/src/session/interface.rs
+index 702b856..2e6d08e 100644
+--- a/greetd/src/session/interface.rs
++++ b/greetd/src/session/interface.rs
+@@ -6,9 +6,17 @@ use std::{
+ use nix::{
+     fcntl::{fcntl, FcntlArg, FdFlag},
+     sys::signal::Signal,
+-    unistd::{execv, fork, ForkResult, Pid},
++    unistd::{fork, ForkResult, Pid},
+ };
+ 
++#[cfg(target_os = "freebsd")]
++use nix::unistd::fexecve;
++#[cfg(target_os = "freebsd")]
++use std::{fs::File, sync::OnceLock};
++
++#[cfg(not(target_os = "freebsd"))]
++use nix::unistd::execv;
++
+ use async_trait::async_trait;
+ 
+ use tokio::net::UnixDatagram as TokioUnixDatagram;
+@@ -104,23 +112,40 @@ impl Session {
+         cur_flags.remove(FdFlag::FD_CLOEXEC);
+         fcntl(raw_child, FcntlArg::F_SETFD(cur_flags))?;
+ 
+-        // On Linux, /proc/self/exe is a reference to the original file, which remains valid
+-        // in spite of unlink or rename similar to an already open fd. It is, however, not very
+-        // portable. On FreeBSD, we would likely need to open our own process file early and rely
+-        // on fexecve, using the KERN_PROC_PATHNAME sysctl to get the path.
++        // ponytail: Pin one executable descriptor for worker starts across upgrades.
++        #[cfg(target_os = "freebsd")]
++        let executable = {
++            static EXECUTABLE: OnceLock<Result<File, std::io::Error>> = OnceLock::new();
++            EXECUTABLE
++                .get_or_init(|| std::env::current_exe().and_then(File::open))
++                .as_ref()
++                .map_err(|e| format!("unable to open worker executable: {e}"))?
++        };
+         #[allow(unreachable_code)]
+         let child = match unsafe { fork() }.map_err(|e| format!("unable to fork: {e}"))? {
+             ForkResult::Parent { child, .. } => child,
+             ForkResult::Child => {
+-                execv(
+-                    &CString::new("/proc/self/exe").unwrap(),
+-                    &[
+-                        &CString::new("greetd").unwrap(),
+-                        &CString::new("--session-worker").unwrap(),
+-                        &CString::new(format!("{}", raw_child as usize)).unwrap(),
+-                    ],
+-                )
+-                .expect("unable to exec");
++                let args = [
++                    CString::new("greetd").unwrap(),
++                    CString::new("--session-worker").unwrap(),
++                    CString::new(format!("{}", raw_child as usize)).unwrap(),
++                ];
++                #[cfg(not(target_os = "freebsd"))]
++                execv(&CString::new("/proc/self/exe").unwrap(), &args).expect("unable to exec");
++                #[cfg(target_os = "freebsd")]
++                {
++                    use std::os::unix::ffi::OsStrExt;
++                    let environment: Vec<CString> = std::env::vars_os()
++                        .map(|(key, value)| {
++                            let mut entry = key.as_bytes().to_vec();
++                            entry.push(b'=');
++                            entry.extend_from_slice(value.as_bytes());
++                            CString::new(entry).unwrap()
++                        })
++                        .collect();
++                    fexecve(executable.as_raw_fd(), &args, &environment)
++                        .expect("unable to exec worker");
++                }
+ 
+                 unreachable!("after exec");
+             }
+diff --git a/greetd/src/session/prctl.rs b/greetd/src/session/prctl.rs
+index f703f9d..a4251bc 100644
+--- a/greetd/src/session/prctl.rs
++++ b/greetd/src/session/prctl.rs
+@@ -1,5 +1,6 @@
+ use nix::{errno::Errno, Result};
+ 
++#[cfg(not(target_os = "freebsd"))]
+ pub const PRCTL_SET_PDEATHSIG: i32 = 1;
+ 
+ #[allow(non_camel_case_types)]
+@@ -7,6 +8,7 @@ pub enum PrctlOption {
+     SET_PDEATHSIG(i32),
+ }
+ 
++#[cfg(not(target_os = "freebsd"))]
+ pub fn prctl(option: PrctlOption) -> Result<()> {
+     Errno::result(match option {
+         PrctlOption::SET_PDEATHSIG(sig) => unsafe {
+@@ -15,3 +17,43 @@ pub fn prctl(option: PrctlOption) -> Result<()> {
+     })
+     .map(drop)
+ }
++
++#[cfg(target_os = "freebsd")]
++pub fn prctl(option: PrctlOption) -> Result<()> {
++    Errno::result(match option {
++        PrctlOption::SET_PDEATHSIG(mut sig) => unsafe {
++            libc::procctl(
++                libc::P_PID,
++                0,
++                libc::PROC_PDEATHSIG_CTL,
++                &mut sig as *mut i32 as *mut libc::c_void,
++            )
++        },
++    })
++    .map(drop)
++}
++
++#[cfg(all(test, target_os = "freebsd"))]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn parent_death_signal_round_trips() {
++        let mut previous: i32 = 0;
++        let status = |signal: &mut i32| unsafe {
++            libc::procctl(
++                libc::P_PID,
++                0,
++                libc::PROC_PDEATHSIG_STATUS,
++                signal as *mut i32 as *mut libc::c_void,
++            )
++        };
++        assert_eq!(status(&mut previous), 0);
++        prctl(PrctlOption::SET_PDEATHSIG(libc::SIGTERM)).unwrap();
++        let mut actual = 0;
++        let result = status(&mut actual);
++        prctl(PrctlOption::SET_PDEATHSIG(previous)).unwrap();
++        assert_eq!(result, 0);
++        assert_eq!(actual, libc::SIGTERM);
++    }
++}
+diff --git a/greetd/src/session/worker.rs b/greetd/src/session/worker.rs
+index f4765c8..cafb1c4 100644
+--- a/greetd/src/session/worker.rs
++++ b/greetd/src/session/worker.rs
+@@ -1,8 +1,10 @@
+ use std::{env, ffi::CString, os::unix::net::UnixDatagram};
+ 
++#[cfg(not(target_os = "freebsd"))]
++use nix::unistd::{initgroups, setgid, setuid};
+ use nix::{
+     sys::wait::waitpid,
+-    unistd::{execve, fork, initgroups, setgid, setsid, setuid, ForkResult},
++    unistd::{execve, fork, setsid, ForkResult},
+ };
+ use pam_sys::{PamFlag, PamItemType};
+ use serde::{Deserialize, Serialize};
+@@ -99,6 +101,51 @@ impl SessionChildToParent {
+     }
+ }
+ 
++#[cfg(target_os = "freebsd")]
++#[link(name = "util")]
++extern "C" {
++    fn login_getpwclass(pwd: *const libc::passwd) -> *mut libc::c_void;
++    fn login_close(context: *mut libc::c_void);
++    fn setusercontext(
++        context: *mut libc::c_void,
++        pwd: *const libc::passwd,
++        uid: libc::uid_t,
++        flags: libc::c_uint,
++    ) -> libc::c_int;
++}
++
++#[cfg(target_os = "freebsd")]
++const LOGIN_SETGROUP: libc::c_uint = 0x0001;
++#[cfg(target_os = "freebsd")]
++const LOGIN_SETALL: libc::c_uint = 0x07ff;
++
++// Establish groups in the PAM worker, then apply the remaining context in its final child.
++#[cfg(target_os = "freebsd")]
++fn apply_user_context(
++    name: &std::ffi::CStr,
++    uid: libc::uid_t,
++    gid: libc::gid_t,
++    flags: libc::c_uint,
++) -> Result<(), Error> {
++    unsafe {
++        let pwd = libc::getpwnam(name.as_ptr());
++        if pwd.is_null() || (*pwd).pw_uid != uid || (*pwd).pw_gid != gid {
++            return Err("user record changed during session setup".into());
++        }
++        let context = login_getpwclass(pwd);
++        if context.is_null() {
++            return Err("unable to load login class".into());
++        }
++        let result = if setusercontext(context, pwd, uid, flags) == 0 {
++            Ok(())
++        } else {
++            Err(std::io::Error::last_os_error())
++        };
++        login_close(context);
++        result.map_err(|e| Error::Other(format!("unable to apply login context: {e}")))
++    }
++}
++
+ /// The entry point for the session worker process. The session worker is
+ /// responsible for the entirety of the session setup and execution. It is
+ /// started by [`crate::session::interface::Session::start`].
+@@ -142,6 +189,16 @@ fn worker(sock: &UnixDatagram) -> Result<(), Error> {
+     };
+ 
+     // Not the credentials you think.
++    #[cfg(target_os = "freebsd")]
++    let user = {
++        let username = pam.get_user()?;
++        let user = nix::unistd::User::from_name(&username)?.ok_or("unable to get user info")?;
++        let name = CString::new(user.name.as_str())?;
++        // PAM may add supplementary groups; establish the native baseline first.
++        apply_user_context(&name, user.uid.as_raw(), user.gid.as_raw(), LOGIN_SETGROUP)?;
++        user
++    };
++
+     pam.setcred(PamFlag::ESTABLISH_CRED)?;
+ 
+     // Mark authentication as a success.
+@@ -171,7 +228,12 @@ fn worker(sock: &UnixDatagram) -> Result<(), Error> {
+ 
+     let pam_username = pam.get_user()?;
+ 
++    #[cfg(not(target_os = "freebsd"))]
+     let user = nix::unistd::User::from_name(&pam_username)?.ok_or("unable to get user info")?;
++    #[cfg(target_os = "freebsd")]
++    if pam_username != user.name {
++        return Err("PAM user changed after credential setup".into());
++    }
+ 
+     // Make this process a session leader.
+     setsid().map_err(|e| format!("unable to become session leader: {e}"))?;
+@@ -180,7 +242,10 @@ fn worker(sock: &UnixDatagram) -> Result<(), Error> {
+         TerminalMode::Stdin => (),
+         TerminalMode::Terminal { path, vt, switch } => {
+             // Tell PAM what TTY we're targeting, which is used by logind.
+-            pam.set_item(PamItemType::TTY, &format!("tty{vt}"))?;
++            pam.set_item(
++                PamItemType::TTY,
++                terminal::tty_path(vt).trim_start_matches("/dev/"),
++            )?;
+             pam.putenv(&format!("XDG_VTNR={vt}"))?;
+ 
+             // Opening our target terminal.
+@@ -221,7 +286,14 @@ fn worker(sock: &UnixDatagram) -> Result<(), Error> {
+         format!("SHELL={}", user.shell.to_string_lossy()),
+         format!(
+             "TERM={}",
+-            env::var("TERM").unwrap_or_else(|_| "linux".to_string())
++            env::var("TERM").unwrap_or_else(|_| {
++                if cfg!(target_os = "freebsd") {
++                    "xterm"
++                } else {
++                    "linux"
++                }
++                .to_string()
++            })
+         ),
+     ];
+     for e in env.iter().chain(prepared_env.iter()) {
+@@ -261,9 +333,57 @@ fn worker(sock: &UnixDatagram) -> Result<(), Error> {
+             // this match arm.
+ 
+             // Drop privileges to target user
+-            initgroups(&cusername, user.gid).expect("unable to init groups");
+-            setgid(user.gid).expect("unable to set GID");
+-            setuid(user.uid).expect("unable to set UID");
++            #[cfg(not(target_os = "freebsd"))]
++            {
++                initgroups(&cusername, user.gid).expect("unable to init groups");
++                setgid(user.gid).expect("unable to set GID");
++                setuid(user.uid).expect("unable to set UID");
++            }
++            #[cfg(target_os = "freebsd")]
++            let envvec: Vec<CString> = {
++                use std::os::unix::ffi::OsStrExt;
++                // Keep daemon credentials and configuration out of the user's environment.
++                for (key, _) in env::vars_os() {
++                    env::remove_var(key);
++                }
++                for entry in &envvec {
++                    let bytes = entry.to_bytes();
++                    let separator = bytes
++                        .iter()
++                        .position(|&b| b == b'=')
++                        .expect("invalid PAM environment");
++                    env::set_var(
++                        std::ffi::OsStr::from_bytes(&bytes[..separator]),
++                        std::ffi::OsStr::from_bytes(&bytes[separator + 1..]),
++                    );
++                }
++                apply_user_context(
++                    &cusername,
++                    user.uid.as_raw(),
++                    user.gid.as_raw(),
++                    LOGIN_SETALL & !LOGIN_SETGROUP,
++                )
++                .expect("unable to apply login context");
++                env::set_var("SHELL", &user.shell);
++                env::set_var("HOME", &user.dir);
++                let name = std::ffi::OsStr::from_bytes(cusername.to_bytes());
++                env::set_var("LOGNAME", name);
++                env::set_var("USER", name);
++                if env::var_os("PATH").is_none() {
++                    env::set_var(
++                        "PATH",
++                        "/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin",
++                    );
++                }
++                env::vars_os()
++                    .map(|(key, value)| {
++                        let mut bytes = key.as_bytes().to_vec();
++                        bytes.push(b'=');
++                        bytes.extend_from_slice(value.as_bytes());
++                        CString::new(bytes).unwrap()
++                    })
++                    .collect()
++            };
+ 
+             // Set our parent death signal. setuid/setgid above resets the
+             // death signal, which is why we do this here.
+@@ -332,3 +452,55 @@ pub fn main(sock: &UnixDatagram) -> Result<(), Error> {
+         Ok(())
+     }
+ }
++
++#[cfg(all(test, target_os = "freebsd"))]
++mod tests {
++    use super::*;
++
++    #[test]
++    #[ignore = "requires root; run with --test-threads=1"]
++    fn native_login_context() {
++        assert_eq!(unsafe { libc::geteuid() }, 0);
++        let user = nix::unistd::User::from_name("nobody").unwrap().unwrap();
++        let name = CString::new(user.name).unwrap();
++        match unsafe { fork() }.unwrap() {
++            ForkResult::Child => {
++                setsid().unwrap();
++                apply_user_context(&name, user.uid.as_raw(), user.gid.as_raw(), LOGIN_SETGROUP)
++                    .unwrap();
++                let mut groups = nix::unistd::getgroups().unwrap();
++                groups.push(nix::unistd::Gid::from_raw(12345));
++                nix::unistd::setgroups(&groups).unwrap();
++                apply_user_context(
++                    &name,
++                    user.uid.as_raw(),
++                    user.gid.as_raw(),
++                    LOGIN_SETALL & !LOGIN_SETGROUP,
++                )
++                .unwrap();
++                assert!(nix::unistd::getgroups()
++                    .unwrap()
++                    .contains(&nix::unistd::Gid::from_raw(12345)));
++                assert_eq!(unsafe { libc::geteuid() }, user.uid.as_raw());
++                assert_eq!(unsafe { libc::getegid() }, user.gid.as_raw());
++                let login_ptr = unsafe { libc::getlogin() };
++                assert!(!login_ptr.is_null());
++                let login = unsafe { std::ffi::CStr::from_ptr(login_ptr) };
++                assert_eq!(login.to_bytes(), b"nobody");
++                let class = std::process::Command::new("/bin/ps")
++                    .args(["-o", "class=", "-p", &std::process::id().to_string()])
++                    .output()
++                    .unwrap();
++                assert!(class.status.success());
++                assert_eq!(String::from_utf8(class.stdout).unwrap().trim(), "default");
++                std::process::exit(0);
++            }
++            ForkResult::Parent { child } => {
++                assert_eq!(
++                    waitpid(child, None).unwrap(),
++                    nix::sys::wait::WaitStatus::Exited(child, 0)
++                );
++            }
++        }
++    }
++}
+diff --git a/greetd/src/terminal/ioctl_freebsd.rs b/greetd/src/terminal/ioctl_freebsd.rs
+new file mode 100644
+index 0000000..c305079
+--- /dev/null
++++ b/greetd/src/terminal/ioctl_freebsd.rs
+@@ -0,0 +1,49 @@
++use nix::{ioctl_none, ioctl_read, ioctl_write_int, ioctl_write_ptr};
++
++pub const KDTEXT: i32 = 0x00;
++pub const KDGRAPHICS: i32 = 0x01;
++const KD_MODE_MAGIC: u8 = b'K';
++const KD_SETMODE: u8 = 10;
++
++const VT_IOCTL_MAGIC: u8 = b'v';
++const VT_OPENQRY: u8 = 1;
++const VT_SETMODE: u8 = 2;
++const VT_ACTIVATE: u8 = 5;
++const VT_GETACTIVE: u8 = 7;
++const VT_WAITACTIVATE: u8 = 6;
++pub const VT_AUTO: u8 = 0;
++const TIOC_IOCTL_MAGIC: u8 = b't';
++const TIOCSCTTY: u8 = 97;
++
++ioctl_write_int!(kd_setmode, KD_MODE_MAGIC, KD_SETMODE);
++ioctl_write_int!(_vt_activate, VT_IOCTL_MAGIC, VT_ACTIVATE);
++ioctl_write_int!(_vt_waitactive, VT_IOCTL_MAGIC, VT_WAITACTIVATE);
++ioctl_write_ptr!(vt_setmode, VT_IOCTL_MAGIC, VT_SETMODE, vt_mode);
++ioctl_read!(vt_getactive, VT_IOCTL_MAGIC, VT_GETACTIVE, i32);
++ioctl_read!(vt_openqry, VT_IOCTL_MAGIC, VT_OPENQRY, i32);
++ioctl_none!(_term_tiocsctty, TIOC_IOCTL_MAGIC, TIOCSCTTY);
++
++// FreeBSD internally counts ttyvN as N+1 so we need some helper functions for
++// the ioctls.
++pub unsafe fn vt_activate(fd: i32, vt: i32) -> nix::Result<i32> {
++    _vt_activate(fd, vt.checked_add(1).ok_or(nix::errno::Errno::EINVAL)?)
++}
++
++pub unsafe fn vt_waitactive(fd: i32, vt: i32) -> nix::Result<i32> {
++    _vt_waitactive(fd, vt.checked_add(1).ok_or(nix::errno::Errno::EINVAL)?)
++}
++
++// TIOCSCTTY does not require an argument on FreeBSD.
++pub unsafe fn term_tiocsctty(fd: i32, _: i32) -> nix::Result<i32> {
++    _term_tiocsctty(fd)
++}
++
++#[allow(dead_code)]
++#[repr(C)]
++pub struct vt_mode {
++    pub mode: u8,
++    pub waitv: u8,
++    pub relsig: u16,
++    pub acqsig: u16,
++    pub frsig: u16,
++}
+diff --git a/greetd/src/terminal/mod.rs b/greetd/src/terminal/mod.rs
+index 1361907..e241f3e 100644
+--- a/greetd/src/terminal/mod.rs
++++ b/greetd/src/terminal/mod.rs
+@@ -1,3 +1,7 @@
++#[cfg(not(target_os = "freebsd"))]
++mod ioctl;
++#[cfg(target_os = "freebsd")]
++#[path = "ioctl_freebsd.rs"]
+ mod ioctl;
+ 
+ use crate::error::Error;
+@@ -11,6 +15,24 @@ use std::{
+     os::unix::io::{BorrowedFd, RawFd},
+ };
+ 
++#[cfg(target_os = "freebsd")]
++const TTY_PREFIX: &str = "/dev/ttyv";
++#[cfg(not(target_os = "freebsd"))]
++const TTY_PREFIX: &str = "/dev/tty";
++
++pub fn tty_path(vt: usize) -> String {
++    if cfg!(target_os = "freebsd") {
++        format!("{TTY_PREFIX}{vt:x}")
++    } else {
++        format!("{TTY_PREFIX}{vt}")
++    }
++}
++
++pub fn tty_number(path: &str) -> Option<usize> {
++    let radix = if cfg!(target_os = "freebsd") { 16 } else { 10 };
++    usize::from_str_radix(path.strip_prefix(TTY_PREFIX)?, radix).ok()
++}
++
+ #[allow(dead_code)]
+ pub enum KdMode {
+     Text,
+@@ -141,32 +163,32 @@ impl Terminal {
+     /// to the VT under the kernel console lock. On other platforms,
+     /// `VT_SETMODE` followed by `VT_ACTIVATE` is used. For all platforms,
+     /// `VT_WAITACTIVE` is used to wait for shell activation.
++    #[cfg(target_os = "linux")]
+     pub fn vt_setactivate(&self, target_vt: usize) -> Result<(), Error> {
+-        if cfg!(target_os = "linux") {
+-            let arg = ioctl::vt_setactivate {
+-                console: target_vt as u32,
+-                mode: ioctl::vt_mode {
+-                    mode: ioctl::VT_AUTO,
+-                    waitv: 0,
+-                    relsig: 0,
+-                    acqsig: 0,
+-                    frsig: 0,
+-                },
+-            };
+-            if let Err(v) = unsafe { ioctl::vt_setactivate(self.fd, &arg) } {
+-                return Err(format!("terminal: unable to setactivate: {v}").into());
+-            }
+-            if let Err(v) = unsafe { ioctl::vt_waitactive(self.fd, target_vt as i32) } {
+-                return Err(format!("terminal: unable to wait for activation: {v}").into());
+-            }
+-        } else {
+-            self.vt_mode_clean()?;
+-            self.vt_activate(target_vt)?;
++        let arg = ioctl::vt_setactivate {
++            console: target_vt as u32,
++            mode: ioctl::vt_mode {
++                mode: ioctl::VT_AUTO,
++                waitv: 0,
++                relsig: 0,
++                acqsig: 0,
++                frsig: 0,
++            },
++        };
++        if let Err(v) = unsafe { ioctl::vt_setactivate(self.fd, &arg) } {
++            return Err(format!("terminal: unable to setactivate: {v}").into());
+         }
+-        Ok(())
++        self.vt_waitactive(target_vt)
++    }
++
++    #[cfg(not(target_os = "linux"))]
++    pub fn vt_setactivate(&self, target_vt: usize) -> Result<(), Error> {
++        self.vt_mode_clean()?;
++        self.vt_activate(target_vt)
+     }
+ 
+     /// Retrieves the current VT number.
++    #[cfg(not(target_os = "freebsd"))]
+     pub fn vt_get_current(&self) -> Result<usize, Error> {
+         let mut state = ioctl::vt_state {
+             v_active: 0,
+@@ -184,10 +206,24 @@ impl Terminal {
+         }
+     }
+ 
++    #[cfg(target_os = "freebsd")]
++    pub fn vt_get_current(&self) -> Result<usize, Error> {
++        let mut current: i32 = 0;
++        unsafe { ioctl::vt_getactive(self.fd, &mut current) }
++            .map_err(|e| Error::Other(format!("terminal: unable to get current vt: {e}")))?;
++        if current < 1 {
++            return Err(format!("terminal: current vt invalid: {current}").into());
++        }
++        Ok((current - 1) as usize)
++    }
++
+     /// Find the next unallocated VT, allocate it and return the number. Note
+     /// that allocation does not mean exclusivity, and another process may take
+     /// and use the VT before you get to it.
+     pub fn vt_get_next(&self) -> Result<usize, Error> {
++        #[cfg(target_os = "freebsd")]
++        let mut next_vt: i32 = 0;
++        #[cfg(not(target_os = "freebsd"))]
+         let mut next_vt: i64 = 0;
+         let res = unsafe { ioctl::vt_openqry(self.fd, &raw mut next_vt) };
+ 
+@@ -196,7 +232,8 @@ impl Terminal {
+         } else if next_vt < 1 {
+             Err(format!("terminal: next vt invalid: {next_vt}").into())
+         } else {
+-            Ok(next_vt as usize)
++            let offset = if cfg!(target_os = "freebsd") { 1 } else { 0 };
++            Ok((next_vt - offset) as usize)
+         }
+     }
+ 
+@@ -235,3 +272,38 @@ impl Terminal {
+         }
+     }
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::{tty_number, tty_path};
++
++    #[cfg(target_os = "freebsd")]
++    #[test]
++    #[ignore = "requires access to native FreeBSD virtual consoles"]
++    fn native_console_queries() {
++        let terminal = super::Terminal::open(&tty_path(0)).unwrap();
++        let current = terminal.vt_get_current().unwrap();
++        let next = terminal.vt_get_next().unwrap();
++        assert!(current < 16);
++        assert!(next < 16);
++        assert!(std::path::Path::new(&tty_path(current)).exists());
++        assert!(std::path::Path::new(&tty_path(next)).exists());
++        let mut kernel_current: i32 = 0;
++        unsafe { super::ioctl::vt_getactive(terminal.fd, &mut kernel_current) }.unwrap();
++        assert_eq!(current + 1, kernel_current as usize);
++    }
++
++    #[test]
++    fn console_paths_round_trip() {
++        for vt in [0, 1, 7, 10, 15] {
++            assert_eq!(tty_number(&tty_path(vt)), Some(vt));
++        }
++        assert_eq!(tty_number("/dev/pts/1"), None);
++        assert_eq!(tty_number("/dev/tty"), None);
++        assert_eq!(tty_number("/dev/ttyv"), None);
++        #[cfg(target_os = "freebsd")]
++        assert_eq!(tty_path(10), "/dev/ttyva");
++        #[cfg(target_os = "linux")]
++        assert_eq!(tty_path(10), "/dev/tty10");
++    }
++}

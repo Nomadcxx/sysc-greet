@@ -1,0 +1,381 @@
+--- a/src/types.rs
++++ b/src/types.rs
+@@ -120,49 +120,49 @@
+     BUF_ERR = 5,
+ 
+     /// Permission denied
+-    PERM_DENIED = 6,
++    PERM_DENIED = if cfg!(target_os = "freebsd") { 7 } else { 6 },
+ 
+     /// Authentication failure
+-    AUTH_ERR = 7,
++    AUTH_ERR = if cfg!(target_os = "freebsd") { 9 } else { 7 },
+ 
+     /// Can not access authentication data due to insufficient credentials
+-    CRED_INSUFFICIENT = 8,
++    CRED_INSUFFICIENT = if cfg!(target_os = "freebsd") { 11 } else { 8 },
+ 
+     /// Underlying authentication service can not retrieve authentication information
+-    AUTHINFO_UNAVAIL = 9,
++    AUTHINFO_UNAVAIL = if cfg!(target_os = "freebsd") { 12 } else { 9 },
+ 
+     /// User not known to the underlying authentication module
+-    USER_UNKNOWN = 10,
++    USER_UNKNOWN = if cfg!(target_os = "freebsd") { 13 } else { 10 },
+ 
+     /// An authentication service has maintained a retry count which has been reached.
+     /// No further retries should be attempted
+-    MAXTRIES = 11,
++    MAXTRIES = if cfg!(target_os = "freebsd") { 8 } else { 11 },
+ 
+     /// New authentication token required.
+     /// This is normally returned if the machine security policies require
+     /// that the password should be changed beccause the password is NULL or it has aged
+-    NEW_AUTHTOK_REQD = 12,
++    NEW_AUTHTOK_REQD = if cfg!(target_os = "freebsd") { 10 } else { 12 },
+ 
+     /// User account has expired
+-    ACCT_EXPIRED = 13,
++    ACCT_EXPIRED = if cfg!(target_os = "freebsd") { 17 } else { 13 },
+ 
+     /// Can not make/remove an entry for the specified session
+-    SESSION_ERR = 14,
++    SESSION_ERR = if cfg!(target_os = "freebsd") { 19 } else { 14 },
+ 
+     /// Underlying authentication service can not retrieve user credentials unavailable
+-    CRED_UNAVAIL = 15,
++    CRED_UNAVAIL = if cfg!(target_os = "freebsd") { 14 } else { 15 },
+ 
+     /// User credentials expired
+-    CRED_EXPIRED = 16,
++    CRED_EXPIRED = if cfg!(target_os = "freebsd") { 15 } else { 16 },
+ 
+     /// Failure setting user credentials
+-    CRED_ERR = 17,
++    CRED_ERR = if cfg!(target_os = "freebsd") { 16 } else { 17 },
+ 
+     /// No module specific data is present
+-    NO_MODULE_DATA = 18,
++    NO_MODULE_DATA = if cfg!(target_os = "freebsd") { 24 } else { 18 },
+ 
+     /// Conversation error
+-    CONV_ERR = 19,
++    CONV_ERR = if cfg!(target_os = "freebsd") { 6 } else { 19 },
+ 
+     /// Authentication token manipulation error
+     AUTHTOK_ERR = 20,
+@@ -177,14 +177,14 @@
+     AUTHTOK_DISABLE_AGING = 23,
+ 
+     /// Preliminary check by password service
+-    TRY_AGAIN = 24,
++    TRY_AGAIN = if cfg!(target_os = "freebsd") { 27 } else { 24 },
+ 
+     /// Ignore underlying account module regardless of whether
+     /// the control flag is required, optional, or sufficient
+     IGNORE = 25,
+ 
+     /// Critical error (?module fail now request)
+-    AUTHTOK_EXPIRED = 27,
++    AUTHTOK_EXPIRED = if cfg!(target_os = "freebsd") { 18 } else { 27 },
+ 
+     /// user's authentication token has expired
+     ABORT = 26,
+@@ -193,14 +193,28 @@
+     MODULE_UNKNOWN = 28,
+ 
+     /// Bad item passed to pam_*_item()
+-    BAD_ITEM = 29,
++    BAD_ITEM = if cfg!(target_os = "freebsd") { 31 } else { 29 },
+ 
+     /// conversation function is event driven and data is not available yet
++    #[cfg(not(target_os = "freebsd"))]
+     CONV_AGAIN = 30,
+ 
+     /// please call this function again to complete authentication stack.
+     /// Before calling again, verify that conversation is completed
++    #[cfg(not(target_os = "freebsd"))]
+     INCOMPLETE = 31,
++
++    #[cfg(target_os = "freebsd")]
++    DOMAIN_UNKNOWN = 29,
++
++    #[cfg(target_os = "freebsd")]
++    BAD_HANDLE = 30,
++
++    #[cfg(target_os = "freebsd")]
++    BAD_FEATURE = 32,
++
++    #[cfg(target_os = "freebsd")]
++    BAD_CONSTANT = 33,
+ }
+ 
+ impl Display for PamReturnCode {
+@@ -212,38 +226,48 @@
+ impl From<i32> for PamReturnCode {
+     fn from(status: i32) -> PamReturnCode {
+         match status {
+-            0 => PamReturnCode::SUCCESS,
+-            1 => PamReturnCode::OPEN_ERR,
+-            2 => PamReturnCode::SYMBOL_ERR,
+-            3 => PamReturnCode::SERVICE_ERR,
+-            4 => PamReturnCode::SYSTEM_ERR,
+-            5 => PamReturnCode::BUF_ERR,
+-            6 => PamReturnCode::PERM_DENIED,
+-            7 => PamReturnCode::AUTH_ERR,
+-            8 => PamReturnCode::CRED_INSUFFICIENT,
+-            9 => PamReturnCode::AUTHINFO_UNAVAIL,
+-            10 => PamReturnCode::USER_UNKNOWN,
+-            11 => PamReturnCode::MAXTRIES,
+-            12 => PamReturnCode::NEW_AUTHTOK_REQD,
+-            13 => PamReturnCode::ACCT_EXPIRED,
+-            14 => PamReturnCode::SESSION_ERR,
+-            15 => PamReturnCode::CRED_UNAVAIL,
+-            16 => PamReturnCode::CRED_EXPIRED,
+-            17 => PamReturnCode::CRED_ERR,
+-            18 => PamReturnCode::NO_MODULE_DATA,
+-            19 => PamReturnCode::CONV_ERR,
+-            20 => PamReturnCode::AUTHTOK_ERR,
+-            21 => PamReturnCode::AUTHTOK_RECOVERY_ERR,
+-            22 => PamReturnCode::AUTHTOK_LOCK_BUSY,
+-            23 => PamReturnCode::AUTHTOK_DISABLE_AGING,
+-            24 => PamReturnCode::TRY_AGAIN,
+-            25 => PamReturnCode::IGNORE,
+-            26 => PamReturnCode::ABORT,
+-            27 => PamReturnCode::AUTHTOK_EXPIRED,
+-            28 => PamReturnCode::MODULE_UNKNOWN,
+-            29 => PamReturnCode::BAD_ITEM,
+-            30 => PamReturnCode::CONV_AGAIN,
+-            31 => PamReturnCode::INCOMPLETE,
++            x if x == PamReturnCode::SUCCESS as i32 => PamReturnCode::SUCCESS,
++            x if x == PamReturnCode::OPEN_ERR as i32 => PamReturnCode::OPEN_ERR,
++            x if x == PamReturnCode::SYMBOL_ERR as i32 => PamReturnCode::SYMBOL_ERR,
++            x if x == PamReturnCode::SERVICE_ERR as i32 => PamReturnCode::SERVICE_ERR,
++            x if x == PamReturnCode::SYSTEM_ERR as i32 => PamReturnCode::SYSTEM_ERR,
++            x if x == PamReturnCode::BUF_ERR as i32 => PamReturnCode::BUF_ERR,
++            x if x == PamReturnCode::PERM_DENIED as i32 => PamReturnCode::PERM_DENIED,
++            x if x == PamReturnCode::AUTH_ERR as i32 => PamReturnCode::AUTH_ERR,
++            x if x == PamReturnCode::CRED_INSUFFICIENT as i32 => PamReturnCode::CRED_INSUFFICIENT,
++            x if x == PamReturnCode::AUTHINFO_UNAVAIL as i32 => PamReturnCode::AUTHINFO_UNAVAIL,
++            x if x == PamReturnCode::USER_UNKNOWN as i32 => PamReturnCode::USER_UNKNOWN,
++            x if x == PamReturnCode::MAXTRIES as i32 => PamReturnCode::MAXTRIES,
++            x if x == PamReturnCode::NEW_AUTHTOK_REQD as i32 => PamReturnCode::NEW_AUTHTOK_REQD,
++            x if x == PamReturnCode::ACCT_EXPIRED as i32 => PamReturnCode::ACCT_EXPIRED,
++            x if x == PamReturnCode::SESSION_ERR as i32 => PamReturnCode::SESSION_ERR,
++            x if x == PamReturnCode::CRED_UNAVAIL as i32 => PamReturnCode::CRED_UNAVAIL,
++            x if x == PamReturnCode::CRED_EXPIRED as i32 => PamReturnCode::CRED_EXPIRED,
++            x if x == PamReturnCode::CRED_ERR as i32 => PamReturnCode::CRED_ERR,
++            x if x == PamReturnCode::NO_MODULE_DATA as i32 => PamReturnCode::NO_MODULE_DATA,
++            x if x == PamReturnCode::CONV_ERR as i32 => PamReturnCode::CONV_ERR,
++            x if x == PamReturnCode::AUTHTOK_ERR as i32 => PamReturnCode::AUTHTOK_ERR,
++            x if x == PamReturnCode::AUTHTOK_RECOVERY_ERR as i32 => PamReturnCode::AUTHTOK_RECOVERY_ERR,
++            x if x == PamReturnCode::AUTHTOK_LOCK_BUSY as i32 => PamReturnCode::AUTHTOK_LOCK_BUSY,
++            x if x == PamReturnCode::AUTHTOK_DISABLE_AGING as i32 => PamReturnCode::AUTHTOK_DISABLE_AGING,
++            x if x == PamReturnCode::TRY_AGAIN as i32 => PamReturnCode::TRY_AGAIN,
++            x if x == PamReturnCode::IGNORE as i32 => PamReturnCode::IGNORE,
++            x if x == PamReturnCode::AUTHTOK_EXPIRED as i32 => PamReturnCode::AUTHTOK_EXPIRED,
++            x if x == PamReturnCode::ABORT as i32 => PamReturnCode::ABORT,
++            x if x == PamReturnCode::MODULE_UNKNOWN as i32 => PamReturnCode::MODULE_UNKNOWN,
++            x if x == PamReturnCode::BAD_ITEM as i32 => PamReturnCode::BAD_ITEM,
++            #[cfg(not(target_os = "freebsd"))]
++            x if x == PamReturnCode::CONV_AGAIN as i32 => PamReturnCode::CONV_AGAIN,
++            #[cfg(not(target_os = "freebsd"))]
++            x if x == PamReturnCode::INCOMPLETE as i32 => PamReturnCode::INCOMPLETE,
++            #[cfg(target_os = "freebsd")]
++            x if x == PamReturnCode::DOMAIN_UNKNOWN as i32 => PamReturnCode::DOMAIN_UNKNOWN,
++            #[cfg(target_os = "freebsd")]
++            x if x == PamReturnCode::BAD_HANDLE as i32 => PamReturnCode::BAD_HANDLE,
++            #[cfg(target_os = "freebsd")]
++            x if x == PamReturnCode::BAD_FEATURE as i32 => PamReturnCode::BAD_FEATURE,
++            #[cfg(target_os = "freebsd")]
++            x if x == PamReturnCode::BAD_CONSTANT as i32 => PamReturnCode::BAD_CONSTANT,
+             _ => PamReturnCode::SYSTEM_ERR,
+         }
+     }
+@@ -253,7 +277,7 @@
+ #[derive(Clone, Copy, Debug, PartialEq)]
+ pub enum PamFlag {
+     /// Authentication service should not generate any messages
+-    SILENT = 0x8000,
++    SILENT = if cfg!(target_os = "freebsd") { -2147483648 } else { 0x8000 },
+ 
+     /// The authentication service should return AUTH_ERROR
+     /// if the user has a null authentication token
+@@ -262,28 +286,36 @@
+ 
+     /// Set user credentials for an authentication service
+     /// (used for pam_setcred())
++    #[cfg(not(target_os = "freebsd"))]
+     ESTABLISH_CRED = 0x0002,
+ 
+     /// Delete user credentials associated with an authentication service
+     /// (used for pam_setcred())
+-    DELETE_CRED = 0x0004,
++    DELETE_CRED = if cfg!(target_os = "freebsd") { 2 } else { 0x0004 },
+ 
+     /// Reinitialize user credentials
+     /// (used for pam_setcred())
+-    REINITIALIZE_CRED = 0x0008,
++    REINITIALIZE_CRED = if cfg!(target_os = "freebsd") { 4 } else { 0x0008 },
+ 
+     /// Extend lifetime of user credentials
+     /// (used for pam_setcred())
+-    REFRESH_CRED = 0x0010,
++    REFRESH_CRED = if cfg!(target_os = "freebsd") { 8 } else { 0x0010 },
+ 
+     /// The password service should only update those passwords that have aged.
+     /// If this flag is not passed, the password service should update all passwords.
+     /// (used by pam_chauthtok)
++    #[cfg(not(target_os = "freebsd"))]
+     CHANGE_EXPIRED_AUTHTOK = 0x0020,
+ 
+     NONE = 0x0000,
+ }
+ 
++#[cfg(target_os = "freebsd")]
++impl PamFlag {
++    pub const ESTABLISH_CRED: PamFlag = PamFlag::DISALLOW_NULL_AUTHTOK;
++    pub const CHANGE_EXPIRED_AUTHTOK: PamFlag = PamFlag::REINITIALIZE_CRED;
++}
++
+ impl Display for PamFlag {
+     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+         f.write_str(&format!("{:?} ({})", self, *self as i32))
+@@ -325,16 +357,32 @@
+     USER_PROMPT = 9,
+ 
+     /// app supplied function to override failure delays
++    #[cfg(not(target_os = "freebsd"))]
+     FAIL_DELAY = 10,
+ 
+     /// X display name
++    #[cfg(not(target_os = "freebsd"))]
+     XDISPLAY = 11,
+ 
+     /// X server authentication data
++    #[cfg(not(target_os = "freebsd"))]
+     XAUTHDATA = 12,
+ 
+     /// The type for pam_get_authtok
++    #[cfg(not(target_os = "freebsd"))]
+     AUTHTOK_TYPE = 13,
++
++    #[cfg(target_os = "freebsd")]
++    REPOSITORY = 10,
++
++    #[cfg(target_os = "freebsd")]
++    AUTHTOK_PROMPT = 11,
++
++    #[cfg(target_os = "freebsd")]
++    OLDAUTHTOK_PROMPT = 12,
++
++    #[cfg(target_os = "freebsd")]
++    HOST = 13,
+ }
+ 
+ impl Display for PamItemType {
+--- a/src/raw.rs
++++ b/src/raw.rs
+@@ -111,3 +111,8 @@
+                         -> c_int;
+     /* ----------------------- pam_modules.h ------------------------ */
+ }
++
++#[cfg(target_os = "freebsd")]
++extern "C" {
++    pub fn openpam_free_envlist(envlist: *mut *mut c_char);
++}
+--- a/tests/freebsd_abi.rs
++++ b/tests/freebsd_abi.rs
+@@ -0,0 +1,91 @@
++extern crate pam_sys;
++
++#[cfg(target_os = "freebsd")]
++#[test]
++fn constants_match_system_headers() {
++    use std::{env, fs, io::Write, os::unix::fs::DirBuilderExt, process::{Command, Stdio}};
++    use pam_sys::{PamFlag, PamItemType, PamMessageStyle, PamReturnCode};
++    let values = [
++        ("PAM_SUCCESS", PamReturnCode::SUCCESS as i32),
++        ("PAM_OPEN_ERR", PamReturnCode::OPEN_ERR as i32),
++        ("PAM_SYMBOL_ERR", PamReturnCode::SYMBOL_ERR as i32),
++        ("PAM_SERVICE_ERR", PamReturnCode::SERVICE_ERR as i32),
++        ("PAM_SYSTEM_ERR", PamReturnCode::SYSTEM_ERR as i32),
++        ("PAM_BUF_ERR", PamReturnCode::BUF_ERR as i32),
++        ("PAM_CONV_ERR", PamReturnCode::CONV_ERR as i32),
++        ("PAM_PERM_DENIED", PamReturnCode::PERM_DENIED as i32),
++        ("PAM_MAXTRIES", PamReturnCode::MAXTRIES as i32),
++        ("PAM_AUTH_ERR", PamReturnCode::AUTH_ERR as i32),
++        ("PAM_NEW_AUTHTOK_REQD", PamReturnCode::NEW_AUTHTOK_REQD as i32),
++        ("PAM_CRED_INSUFFICIENT", PamReturnCode::CRED_INSUFFICIENT as i32),
++        ("PAM_AUTHINFO_UNAVAIL", PamReturnCode::AUTHINFO_UNAVAIL as i32),
++        ("PAM_USER_UNKNOWN", PamReturnCode::USER_UNKNOWN as i32),
++        ("PAM_CRED_UNAVAIL", PamReturnCode::CRED_UNAVAIL as i32),
++        ("PAM_CRED_EXPIRED", PamReturnCode::CRED_EXPIRED as i32),
++        ("PAM_CRED_ERR", PamReturnCode::CRED_ERR as i32),
++        ("PAM_ACCT_EXPIRED", PamReturnCode::ACCT_EXPIRED as i32),
++        ("PAM_AUTHTOK_EXPIRED", PamReturnCode::AUTHTOK_EXPIRED as i32),
++        ("PAM_SESSION_ERR", PamReturnCode::SESSION_ERR as i32),
++        ("PAM_AUTHTOK_ERR", PamReturnCode::AUTHTOK_ERR as i32),
++        ("PAM_AUTHTOK_RECOVERY_ERR", PamReturnCode::AUTHTOK_RECOVERY_ERR as i32),
++        ("PAM_AUTHTOK_LOCK_BUSY", PamReturnCode::AUTHTOK_LOCK_BUSY as i32),
++        ("PAM_AUTHTOK_DISABLE_AGING", PamReturnCode::AUTHTOK_DISABLE_AGING as i32),
++        ("PAM_NO_MODULE_DATA", PamReturnCode::NO_MODULE_DATA as i32),
++        ("PAM_IGNORE", PamReturnCode::IGNORE as i32),
++        ("PAM_ABORT", PamReturnCode::ABORT as i32),
++        ("PAM_TRY_AGAIN", PamReturnCode::TRY_AGAIN as i32),
++        ("PAM_MODULE_UNKNOWN", PamReturnCode::MODULE_UNKNOWN as i32),
++        ("PAM_DOMAIN_UNKNOWN", PamReturnCode::DOMAIN_UNKNOWN as i32),
++        ("PAM_BAD_HANDLE", PamReturnCode::BAD_HANDLE as i32),
++        ("PAM_BAD_ITEM", PamReturnCode::BAD_ITEM as i32),
++        ("PAM_BAD_FEATURE", PamReturnCode::BAD_FEATURE as i32),
++        ("PAM_BAD_CONSTANT", PamReturnCode::BAD_CONSTANT as i32),
++        ("PAM_SILENT", PamFlag::SILENT as i32),
++        ("PAM_DISALLOW_NULL_AUTHTOK", PamFlag::DISALLOW_NULL_AUTHTOK as i32),
++        ("PAM_ESTABLISH_CRED", PamFlag::ESTABLISH_CRED as i32),
++        ("PAM_DELETE_CRED", PamFlag::DELETE_CRED as i32),
++        ("PAM_REINITIALIZE_CRED", PamFlag::REINITIALIZE_CRED as i32),
++        ("PAM_REFRESH_CRED", PamFlag::REFRESH_CRED as i32),
++        ("PAM_CHANGE_EXPIRED_AUTHTOK", PamFlag::CHANGE_EXPIRED_AUTHTOK as i32),
++        ("PAM_SERVICE", PamItemType::SERVICE as i32),
++        ("PAM_USER", PamItemType::USER as i32),
++        ("PAM_TTY", PamItemType::TTY as i32),
++        ("PAM_RHOST", PamItemType::RHOST as i32),
++        ("PAM_CONV", PamItemType::CONV as i32),
++        ("PAM_AUTHTOK", PamItemType::AUTHTOK as i32),
++        ("PAM_OLDAUTHTOK", PamItemType::OLDAUTHTOK as i32),
++        ("PAM_RUSER", PamItemType::RUSER as i32),
++        ("PAM_USER_PROMPT", PamItemType::USER_PROMPT as i32),
++        ("PAM_REPOSITORY", PamItemType::REPOSITORY as i32),
++        ("PAM_AUTHTOK_PROMPT", PamItemType::AUTHTOK_PROMPT as i32),
++        ("PAM_OLDAUTHTOK_PROMPT", PamItemType::OLDAUTHTOK_PROMPT as i32),
++        ("PAM_HOST", PamItemType::HOST as i32),
++        ("PAM_PROMPT_ECHO_OFF", PamMessageStyle::PROMPT_ECHO_OFF as i32),
++        ("PAM_PROMPT_ECHO_ON", PamMessageStyle::PROMPT_ECHO_ON as i32),
++        ("PAM_ERROR_MSG", PamMessageStyle::ERROR_MSG as i32),
++        ("PAM_TEXT_INFO", PamMessageStyle::TEXT_INFO as i32),
++    ];
++    let dir = env::temp_dir().join(format!("pam-abi-{}", std::process::id()));
++    fs::DirBuilder::new().mode(0o700).create(&dir).unwrap();
++    let probe = dir.join("probe");
++    let mut code = String::from("#include <security/pam_appl.h>\n#include <stdio.h>\nint main(void) {\n");
++    for &(name, _) in &values {
++        code.push_str(&format!("printf(\"%d\\n\", (int){});\n", name));
++    }
++    code.push_str("return 0; }\n");
++    let mut cc = Command::new("cc").args(&["-x", "c", "-o"]).arg(&probe).arg("-")
++        .stdin(Stdio::piped()).spawn().unwrap();
++    cc.stdin.take().unwrap().write_all(code.as_bytes()).unwrap();
++    assert!(cc.wait().unwrap().success());
++    let output = Command::new(&probe).output().unwrap();
++    fs::remove_dir_all(&dir).unwrap();
++    assert!(output.status.success());
++    let native: Vec<i32> = String::from_utf8(output.stdout).unwrap().lines().map(|s| s.parse().unwrap()).collect();
++    assert_eq!(native.len(), values.len());
++    for (i, &(name, rust)) in values.iter().enumerate() {
++        assert_eq!(rust, native[i], "{} differs from the installed OpenPAM ABI", name);
++        if i < 34 {
++            assert_eq!(PamReturnCode::from(native[i]) as i32, native[i]);
++        }
++    }
++}
