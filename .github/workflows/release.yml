@@ -6,6 +6,11 @@ on:
       - 'v*'
   # Dry run: builds everything, skips release creation
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - 'packaging/void/**'
+      - 'scripts/*void*.sh'
 
 # Releases must not be cancelled mid-flight, so superseded runs queue
 # rather than cancel.
@@ -14,10 +19,11 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -78,6 +84,7 @@ jobs:
   # fallback) and attach the packages to our releases for the installer.
   # Version matrix: docs/superpowers/plans/2026-07-06-cagebreak-distro-packaging-plan.md
   package-cagebreak:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     container: ${{ matrix.image }}
     strategy:
@@ -181,6 +188,7 @@ jobs:
   # them, privately bundled libs otherwise) and attach the packages to our
   # releases for the installer. Versions are pinned in the script.
   package-mango:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     container: ${{ matrix.image }}
     strategy:
@@ -239,9 +247,54 @@ jobs:
           name: ${{ steps.package.outputs.pkgfile }}
           path: ${{ steps.package.outputs.pkgfile }}
 
+  package-void:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        libc: [glibc, musl]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build and verify native XBPS package
+        env:
+          VOID_IMAGE: ghcr.io/void-linux/void-${{ matrix.libc }}-full:latest
+        run: |
+          version=0.0.0-dev
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version=${GITHUB_REF#refs/tags/v}
+          fi
+          mkdir -p dist/void
+          docker run --rm --privileged \
+            -v "$PWD:/source:ro" -v "$PWD/dist/void:/output" \
+            -e BUILD_UID="$(id -u)" -e PACKAGE_VERSION="$version" \
+            "$VOID_IMAGE" /bin/sh -ec '
+              xbps-install -Suy xbps
+              xbps-install -uy
+              xbps-install -y bash git sudo curl
+              useradd -m -u "$BUILD_UID" -G xbuilder builder
+              mkdir -p /build
+              chown builder:builder /build
+              sudo -Eu builder env VOID_BUILD_DIR=/build \
+                /source/scripts/build-void-package.sh "$PACKAGE_VERSION" /output
+              /source/scripts/verify-void-package.sh /build/void-packages/hostdir/binpkgs
+            '
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: sysc-greet-void-${{ matrix.libc }}
+          if-no-files-found: error
+          path: |
+            dist/void/*.xbps
+            dist/void/*-void-source.tar.gz
+
   release:
+    permissions:
+      contents: write
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build, package-cagebreak, package-mango]
+    needs: [build, package-cagebreak, package-mango, package-void]
     runs-on: ubuntu-latest
     steps:
       - name: Download artifacts
@@ -251,7 +304,8 @@ jobs:
 
       - name: Generate checksums
         run: |
-          sha256sum sysc-greet *.deb *.rpm > SHA256SUMS
+          sha256sum sysc-greet *.deb *.rpm *.xbps *-void-source.tar.gz > SHA256SUMS
+          sha256sum *.xbps *-void-source.tar.gz > SHA256SUMS-void
 
       - name: Create Release
         uses: softprops/action-gh-release@v3
@@ -260,7 +314,10 @@ jobs:
             sysc-greet
             *.deb
             *.rpm
+            *.xbps
+            *-void-source.tar.gz
             SHA256SUMS
+            SHA256SUMS-void
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
