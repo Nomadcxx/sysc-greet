@@ -21,6 +21,11 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+      - name: Install kitty for greeter configuration checks
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends kitty
+          command -v kitty
       - name: gofmt
         run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - name: postinstall sysc-compositor detection
