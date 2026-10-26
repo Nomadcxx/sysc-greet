@@ -614,9 +614,11 @@ func cycleAnimSpeed(current string) string {
 // theme colors. Call after applyTheme.
 func (m *model) applyInputTheme() {
 	for _, in := range []*textinput.Model{&m.usernameInput, &m.passwordInput} {
-		in.Styles.Focused.Prompt = lipgloss.NewStyle().Foreground(Primary).Bold(true)
-		in.Styles.Focused.Text = lipgloss.NewStyle().Foreground(FgPrimary)
-		in.Styles.Focused.Placeholder = lipgloss.NewStyle().Foreground(FgMuted).Italic(true)
+		for _, styles := range []*textinput.StyleState{&in.Styles.Focused, &in.Styles.Blurred} {
+			styles.Prompt = lipgloss.NewStyle().Foreground(Primary).Bold(true)
+			styles.Text = lipgloss.NewStyle().Foreground(FgPrimary)
+			styles.Placeholder = lipgloss.NewStyle().Foreground(FgMuted).Italic(true)
+		}
 	}
 }
 
@@ -1639,7 +1641,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 		case ModeMenu:
 			// CHANGED 2025-09-30 - Add escape from menu
 			m.mode = ModeLogin
-			return m, nil
+			m.focusState = FocusUsername
+			m.usernameInput.Focus()
+			m.passwordInput.Blur()
+			return m, textinput.Blink
 		// Add escape handling for submenus
 		case ModeThemesSubmenu, ModeBordersSubmenu, ModeBackgroundsSubmenu, ModeWallpaperSubmenu, ModeASCIIEffectsSubmenu:
 			// Go back to main menu
@@ -2131,7 +2136,10 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 			switch selectedOption {
 			case "Close Menu":
 				m.mode = ModeLogin
-				return m, nil
+				m.focusState = FocusUsername
+				m.usernameInput.Focus()
+				m.passwordInput.Blur()
+				return m, textinput.Blink
 			case "Themes":
 				newModel, cmd := m.navigateToThemesSubmenu()
 				return newModel.(model), cmd

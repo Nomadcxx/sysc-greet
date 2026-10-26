@@ -98,7 +98,7 @@ func (m model) borderedLoginCanvas(termWidth, termHeight int) (*lipgloss.Canvas,
 	}).X(frame.X).Y(frame.Y))
 
 	layers = append(layers, lipgloss.NewLayer(m.loginContentLayer(form)).X(frame.FormX).Y(frame.FormY))
-	help := m.renderMainHelpFit(termWidth - 2)
+	help := lipgloss.NewStyle().Foreground(FgMuted).Render(m.renderMainHelpFit(termWidth - 2))
 	layers = append(layers, lipgloss.NewLayer(m.loginContentLayer(help)).
 		X(max(0, (termWidth-lipgloss.Width(help))/2)).Y(frame.HelpY))
 
