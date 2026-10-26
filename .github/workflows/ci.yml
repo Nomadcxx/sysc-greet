@@ -31,3 +31,10 @@ jobs:
         run: go test -race -count=1 ./...
       - name: build
         run: go build ./...
+
+  verify:
+    uses: Nomadcxx/.github/.github/workflows/go-verify.yml@cd88b2e0b04be9dee5a2becf3a4586b108dd9c11
+    with:
+      go-version-file: go.mod
+      run-build: true
+      extra-setup: false
