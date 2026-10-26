@@ -642,6 +642,9 @@ func (m model) renderCompositorSelect() string {
 	var b strings.Builder
 
 	b.WriteString("Select Wayland compositor:\n\n")
+	if m.packageManager == "emerge" {
+		b.WriteString("Gentoo: select Sway, or a backend you have already installed.\nPortage may compile dependencies; installation can take time.\n\n")
+	}
 
 	for i, comp := range compositorPickerOptions() {
 		prefix := "  "

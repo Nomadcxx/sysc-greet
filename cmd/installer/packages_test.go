@@ -186,6 +186,10 @@ func TestGentooGStreamerPackages(t *testing.T) {
 }
 
 func TestInstallGentooSwayUsesPortage(t *testing.T) {
+	m := &model{packageManager: "emerge", selectedCompositor: "sway"}
+	if !strings.Contains(m.renderCompositorSelect(), "Portage may compile dependencies") {
+		t.Fatal("Gentoo picker does not warn about dependency compilation")
+	}
 	dir := t.TempDir()
 	argsFile := filepath.Join(dir, "args")
 	t.Setenv("PATH", dir)
@@ -194,7 +198,7 @@ func TestInstallGentooSwayUsesPortage(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := installCompositor(&model{packageManager: "emerge", selectedCompositor: "sway"}); err != nil {
+	if err := installCompositor(m); err != nil {
 		t.Fatalf("installCompositor(sway): %v", err)
 	}
 	args, err := os.ReadFile(argsFile)
