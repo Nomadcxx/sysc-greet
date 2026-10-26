@@ -49,6 +49,8 @@ Native XBPS packages are available for x86_64 glibc and musl. Download sysc-gree
 
 Follow the [Void Linux guide](https://nomadcxx.github.io/sysc-greet/docs/getting-started/void-linux/#native-xbps-packages) to verify checksums, install the packages and configure greetd. These are upstream release packages; [submission to Void's repositories](https://github.com/void-linux/void-packages/pull/63202) is pending.
 
+Release CI builds and install-checks both XBPS variants and publishes them with source archives and `SHA256SUMS-void`.
+
 The Go installer also supports XBPS and runit. The tested setup uses elogind, D-Bus and polkit. Void glibc x86_64 VM tests passed desktop login, reboot and shutdown.
 
 ### Gentoo

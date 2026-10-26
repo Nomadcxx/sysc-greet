@@ -32,7 +32,7 @@ sha256sum --ignore-missing -c sysc-greet-SHA256SUMS-void &&
   sudo xbps-install --repository "$PWD" sysc-greet
 ```
 
-XBPS installs the runtime dependencies from Void's repositories. The release pages also include the packaging templates and patches alongside the checksums. Future updates require downloading and installing the new release packages.
+XBPS installs the runtime dependencies from Void's repositories. Release CI builds and install-checks both libc variants. New releases include a source archive with the build recipe and `SHA256SUMS-void`. Future updates require downloading and installing the new release packages.
 
 ### Configure greetd
 
