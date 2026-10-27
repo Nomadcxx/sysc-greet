@@ -37,6 +37,16 @@ jobs:
       - name: build
         run: go build ./...
 
+  # Builds the flake so a go.mod change that leaves vendorHash stale fails
+  # here instead of on users' NixOS rebuilds (#121, #138).
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - name: nix build
+        run: nix build .#default --print-build-logs
+
   verify:
     uses: Nomadcxx/.github/.github/workflows/go-verify.yml@cd88b2e0b04be9dee5a2becf3a4586b108dd9c11
     with:
