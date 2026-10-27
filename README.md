@@ -118,9 +118,6 @@ If you're on NixOS, add sysc-greet to your flake:
     compositor = "niri";  # or "cagebreak", "sway", "mango", "hyprland" (0.55+)
   };
 
-  # Required for the CC BY-NC model assets included through sysc-Go.
-  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [ "sysc-greet" ];
-
   # Optional: Set initial session for auto-login
   services.sysc-greet.settings.initial_session = {
     command = "Hyprland";

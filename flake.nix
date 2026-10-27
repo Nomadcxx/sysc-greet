@@ -14,7 +14,7 @@
   outputs = { self, nixpkgs, flake-utils, gslapper }:
     let
       # Built from a caller-supplied pkgs so the NixOS module evaluates it
-      # against the system's nixpkgs config (allowUnfree, allowUnfreePredicate).
+      # against the system's nixpkgs config.
       mkPackage = pkgs: pkgs.buildGo126Module rec {
         pname = "sysc-greet";
         version = "1.3.0";
@@ -126,8 +126,7 @@ EOF
         meta = with pkgs.lib; {
           description = "Graphical console greeter for greetd with ASCII art and themes";
           homepage = "https://github.com/Nomadcxx/sysc-greet";
-          # sysc-greet source is GPL-3.0-only; the other licenses cover sysc-Go code and model assets in the binary.
-          license = with licenses; [ gpl3Only mit cc0 cc-by-40 cc-by-nc-40 cc-by-sa-40 cc-by-nc-sa-40 ];
+          license = licenses.gpl3Only;
           maintainers = [ ];
           platforms = platforms.linux;
           mainProgram = "sysc-greet";
