@@ -83,6 +83,9 @@ var commonBinaryPackages = map[string]string{
 	"cc": "gcc",
 }
 
+// gslapperTag is the pinned gSlapper release the installer builds from source.
+const gslapperTag = "v1.5.3"
+
 // gslapperBuildTools are the binaries the gSlapper source build needs. Void's
 // base-system ships no C compiler, so cc is checked too.
 var gslapperBuildTools = []string{"cc", "meson", "ninja", "git", "pkg-config"}
@@ -1761,7 +1764,7 @@ func buildGslapperFromSource(m *model) error {
 	// Sub-task 3: Clone repository
 	updateSubTaskStatus(m, 3, statusRunning)
 	exec.Command("rm", "-rf", "/tmp/gslapper-build").Run()
-	cloneCmd := exec.Command("git", "clone", "https://github.com/Nomadcxx/gSlapper", "/tmp/gslapper-build")
+	cloneCmd := exec.Command("git", "clone", "--depth", "1", "--branch", gslapperTag, "https://github.com/Nomadcxx/gSlapper", "/tmp/gslapper-build")
 	if err := runCommand("Clone gSlapper", cloneCmd, m); err != nil {
 		updateSubTaskStatus(m, 3, statusFailed)
 		return fmt.Errorf("clone failed")
