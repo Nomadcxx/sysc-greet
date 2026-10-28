@@ -32,6 +32,7 @@ func (m model) borderedLoginCanvas(termWidth, termHeight int) (*lipgloss.Canvas,
 	if m.mode != ModeLogin && m.mode != ModePassword && m.mode != ModeLoading {
 		return nil, false
 	}
+	formKey, cacheForm := m.loginViewKey(termWidth, termHeight)
 	renderer := m.borderRegistry.get(m.selectedBorderStyle)
 	if renderer == nil {
 		return nil, false
@@ -68,7 +69,12 @@ func (m model) borderedLoginCanvas(termWidth, termHeight int) (*lipgloss.Canvas,
 		parts = append(parts, m.renderMainForm(formWidth))
 		return lipgloss.JoinVertical(lipgloss.Center, parts...)
 	}
-	form := buildForm(true)
+	form := ""
+	if cacheForm && m.loginViewCache.formValid && m.loginViewCache.formKey == formKey {
+		form = m.loginViewCache.form
+	} else {
+		form = buildForm(true)
+	}
 	frame, ok := renderer.Frame(&m, termWidth, termHeight, lipgloss.Width(form), lipgloss.Height(form))
 	if !ok && sessionArt != "" {
 		form = buildForm(false)
@@ -76,6 +82,11 @@ func (m model) borderedLoginCanvas(termWidth, termHeight int) (*lipgloss.Canvas,
 	}
 	if !ok {
 		return nil, false
+	}
+	if cacheForm {
+		m.loginViewCache.formKey = formKey
+		m.loginViewCache.form = form
+		m.loginViewCache.formValid = true
 	}
 
 	layers := m.borderBackgroundLayers(termWidth, termHeight)

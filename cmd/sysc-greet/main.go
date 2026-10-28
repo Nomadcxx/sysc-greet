@@ -381,6 +381,7 @@ const (
 
 type model struct {
 	frameCache         *frameCache
+	loginViewCache     *loginViewCache
 	ambient            *ambientCollector
 	followShell        bool
 	hideAmbient        bool // Set only on render copies when optional status cannot fit.
@@ -479,6 +480,7 @@ type model struct {
 	asciiArtCount      int         // Total variants available
 	asciiMaxHeight     int         // Max height for normalization
 	currentASCIIConfig ASCIIConfig // Cached config for current session
+	asciiConfigCache   *asciiConfigCache
 
 	capsLockOn    bool // CAPS LOCK state detected via kitty keyboard protocol
 	kittyUpgraded bool // Whether we've upgraded kitty keyboard flags for non-US layout support
@@ -757,6 +759,8 @@ func initialModel(config Config, screensaverMode bool) model {
 
 	m := model{
 		frameCache:          &frameCache{},
+		loginViewCache:      &loginViewCache{},
+		asciiConfigCache:    newASCIIConfigCache(),
 		usernameInput:       ti,
 		passwordInput:       pi,
 		spinner:             sp,
@@ -891,12 +895,12 @@ func initialModel(config Config, screensaverMode bool) model {
 				switch m.selectedBackground {
 				case "ticker":
 					customRoasts := ""
-					if asciiConfig, err := loadASCIIConfig(configPath); err == nil {
+					if asciiConfig, err := m.cachedASCIIConfig(configPath); err == nil {
 						customRoasts = asciiConfig.Roasts
 					}
 					m.typewriterTicker = animations.NewTypewriterTicker(m.selectedSession.Name, customRoasts)
 				case "print":
-					if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+					if asciiConfig, err := m.cachedASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 						variantIndex := m.asciiArtIndex
 						if variantIndex >= len(asciiConfig.ASCIIVariants) {
 							variantIndex = 0
@@ -905,7 +909,7 @@ func initialModel(config Config, screensaverMode bool) model {
 						m.printEffect = animations.NewPrintEffect(ascii, time.Millisecond*3)
 					}
 				case "beams":
-					if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+					if asciiConfig, err := m.cachedASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 						variantIndex := m.asciiArtIndex
 						if variantIndex >= len(asciiConfig.ASCIIVariants) {
 							variantIndex = 0
@@ -929,7 +933,7 @@ func initialModel(config Config, screensaverMode bool) model {
 						})
 					}
 				case "pour":
-					if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+					if asciiConfig, err := m.cachedASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 						variantIndex := m.asciiArtIndex
 						if variantIndex >= len(asciiConfig.ASCIIVariants) {
 							variantIndex = 0
@@ -1344,7 +1348,7 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.config.Debug {
 				logDebug("Updating ticker for session: %s", session.Name)
 			}
-			m.typewriterTicker.UpdateWM(session.Name, getCustomRoastsForSession(session.Name))
+			m.typewriterTicker.UpdateWM(session.Name, m.getCustomRoastsForSession(session.Name))
 		}
 
 		// Update ASCII effects for new session
@@ -1677,7 +1681,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				m.selectedSession = &session
 				// Update typewriter ticker for new session
 				if m.typewriterTicker != nil {
-					m.typewriterTicker.UpdateWM(session.Name, getCustomRoastsForSession(session.Name))
+					m.typewriterTicker.UpdateWM(session.Name, m.getCustomRoastsForSession(session.Name))
 				}
 				// Update ASCII effects for new variant
 				m.resetPrintEffectForSession(session.Name)
@@ -1705,7 +1709,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				m.selectedSession = &session
 				// Update typewriter ticker for new session
 				if m.typewriterTicker != nil {
-					m.typewriterTicker.UpdateWM(session.Name, getCustomRoastsForSession(session.Name))
+					m.typewriterTicker.UpdateWM(session.Name, m.getCustomRoastsForSession(session.Name))
 				}
 				// Update ASCII effects for new session
 				m.resetPrintEffectForSession(session.Name)
@@ -1724,7 +1728,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				m.selectedSession = &session
 				// Update typewriter ticker for new session
 				if m.typewriterTicker != nil {
-					m.typewriterTicker.UpdateWM(session.Name, getCustomRoastsForSession(session.Name))
+					m.typewriterTicker.UpdateWM(session.Name, m.getCustomRoastsForSession(session.Name))
 				}
 				// Update ASCII effects for new variant
 				m.resetPrintEffectForSession(session.Name)
@@ -1751,7 +1755,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				m.selectedSession = &session
 				// Update typewriter ticker for new session
 				if m.typewriterTicker != nil {
-					m.typewriterTicker.UpdateWM(session.Name, getCustomRoastsForSession(session.Name))
+					m.typewriterTicker.UpdateWM(session.Name, m.getCustomRoastsForSession(session.Name))
 				}
 				// Update ASCII effects for new session
 				m.resetPrintEffectForSession(session.Name)
@@ -1770,7 +1774,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				configFileName := asciiConfigFileName(m.selectedSession.Name)
 
 				configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
-				if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+				if asciiConfig, err := m.cachedASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 					m.asciiArtCount = len(asciiConfig.ASCIIVariants)
 					m.asciiMaxHeight = asciiConfig.MaxASCIIHeight
 
@@ -1842,7 +1846,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 				configFileName := asciiConfigFileName(m.selectedSession.Name)
 
 				configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
-				if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+				if asciiConfig, err := m.cachedASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 					m.asciiArtCount = len(asciiConfig.ASCIIVariants)
 					m.asciiMaxHeight = asciiConfig.MaxASCIIHeight
 
@@ -2246,7 +2250,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							configFileName := asciiConfigFileName(m.selectedSession.Name)
 							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
 							customRoasts := ""
-							if asciiConfig, err := loadASCIIConfig(configPath); err == nil {
+							if asciiConfig, err := m.cachedASCIIConfig(configPath); err == nil {
 								customRoasts = asciiConfig.Roasts
 							}
 							m.typewriterTicker = animations.NewTypewriterTicker(m.selectedSession.Name, customRoasts)
@@ -2265,7 +2269,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							configFileName := asciiConfigFileName(m.selectedSession.Name)
 
 							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
-							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+							if asciiConfig, err := m.cachedASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 								// Get current ASCII variant
 								variantIndex := m.asciiArtIndex
 								if variantIndex >= len(asciiConfig.ASCIIVariants) {
@@ -2295,7 +2299,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							configFileName := asciiConfigFileName(m.selectedSession.Name)
 
 							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
-							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+							if asciiConfig, err := m.cachedASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 								variantIndex := m.asciiArtIndex
 								if variantIndex >= len(asciiConfig.ASCIIVariants) {
 									variantIndex = 0
@@ -2340,7 +2344,7 @@ func (m model) handleKeyInput(msg tea.KeyMsg) (model, tea.Cmd) {
 							configFileName := asciiConfigFileName(m.selectedSession.Name)
 
 							configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
-							if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+							if asciiConfig, err := m.cachedASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 								variantIndex := m.asciiArtIndex
 								if variantIndex >= len(asciiConfig.ASCIIVariants) {
 									variantIndex = 0
@@ -2743,6 +2747,20 @@ func ensureFullTerminalCoverage(content string, termWidth, termHeight int) strin
 
 // Complete dual border redesign
 func (m model) renderMainView(termWidth, termHeight int) string {
+	key, cacheable := m.loginViewKey(termWidth, termHeight)
+	if cacheable && m.loginViewCache.valid && m.loginViewCache.key == key {
+		return m.loginViewCache.content
+	}
+	content := m.renderMainViewUncached(termWidth, termHeight)
+	if cacheable {
+		m.loginViewCache.key = key
+		m.loginViewCache.content = content
+		m.loginViewCache.valid = true
+	}
+	return content
+}
+
+func (m model) renderMainViewUncached(termWidth, termHeight int) string {
 	m.width, m.height = termWidth, termHeight
 	// ponytail: legacy ASCII frames omit some authentication feedback; use the
 	// shared form for these states until those frames also reuse renderMainForm.
