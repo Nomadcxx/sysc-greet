@@ -25,12 +25,18 @@ func aquariumPalette(width, height int) AquariumConfig {
 // a frame at a time, on canvases a console can really hand it: a small display
 // or a large font leaves few rows, and the canvas is whatever the console says.
 // A short canvas has no band between the ocean surface and the sea floor, so
-// every spawn helper must clamp its row range instead of asking for an empty
-// one, which panics inside rand.Intn. The large fish spawns at frame 700 and
-// the medium fish before that, so the run lasts long enough to reach both.
+// spawn helpers must clamp or skip empty ranges instead of passing them to
+// rand.Intn. The large fish spawns at frame 700 and the medium fish before
+// that, so the run lasts long enough to reach both.
 func TestAquariumRendersEveryCanvasHeight(t *testing.T) {
-	for _, height := range []int{54, 40, 30, 24, 23, 20, 18, 12, 8} {
-		for _, width := range []int{213, 80, 40} {
+	heights := make([]int, 0, 27)
+	for height := 24; height >= 1; height-- {
+		heights = append(heights, height)
+	}
+	heights = append(heights, 30, 40, 54)
+
+	for _, height := range heights {
+		for _, width := range []int{1, 40, 80, 213} {
 			t.Run(fmt.Sprintf("%dx%d", width, height), func(t *testing.T) {
 				a := NewAquariumEffect(aquariumPalette(width, height))
 				for frame := 1; frame <= 760; frame++ {
@@ -40,6 +46,18 @@ func TestAquariumRendersEveryCanvasHeight(t *testing.T) {
 					}
 				}
 			})
+		}
+	}
+}
+
+func TestAquariumResizeFromNormalToTiny(t *testing.T) {
+	a := NewAquariumEffect(aquariumPalette(80, 24))
+	a.Resize(40, 3)
+
+	for frame := 1; frame <= 760; frame++ {
+		a.Update()
+		if a.Render() == "" {
+			t.Fatalf("frame %d rendered nothing after resizing to a 40x3 canvas", frame)
 		}
 	}
 }

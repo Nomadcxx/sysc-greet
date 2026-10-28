@@ -148,20 +148,22 @@ func NewAquariumEffect(config AquariumConfig) *AquariumEffect {
 func (a *AquariumEffect) init() {
 	// Create seaweed (bottom decoration)
 	seaweedCount := a.width / 8
-	for i := 0; i < seaweedCount; i++ {
-		x := a.rng.Intn(a.width)
-		height := 3 + a.rng.Intn(a.height/3)
-		variant := a.rng.Intn(2) // 0=straight, 1=wavy
+	if a.height >= 3 {
+		for i := 0; i < seaweedCount; i++ {
+			x := a.rng.Intn(a.width)
+			height := 3 + a.rng.Intn(a.height/3)
+			variant := a.rng.Intn(2) // 0=straight, 1=wavy
 
-		a.seaweed = append(a.seaweed, Seaweed{
-			x:          x,
-			height:     height,
-			swayPhase:  a.rng.Float64() * math.Pi * 2,
-			swaySpeed:  0.05 + a.rng.Float64()*0.05,
-			swayAmount: 1.0 + a.rng.Float64()*0.5,
-			colors:     a.seaweedColors,
-			variant:    variant,
-		})
+			a.seaweed = append(a.seaweed, Seaweed{
+				x:          x,
+				height:     height,
+				swayPhase:  a.rng.Float64() * math.Pi * 2,
+				swaySpeed:  0.05 + a.rng.Float64()*0.05,
+				swayAmount: 1.0 + a.rng.Float64()*0.5,
+				colors:     a.seaweedColors,
+				variant:    variant,
+			})
+		}
 	}
 
 	// Create diver - position so full diver is visible above bottom
@@ -268,7 +270,7 @@ func (a *AquariumEffect) spawnFish() {
 	minY := oceanY + 2
 	maxY := a.height - 10
 	if maxY <= minY {
-		maxY = a.height - 2
+		maxY = minY + 1
 	}
 
 	fish := Fish{
@@ -566,6 +568,9 @@ func (a *AquariumEffect) spawnBubble() {
 	oceanY := int(float64(a.height) * 0.15)
 	minY := oceanY + 2
 	maxY := a.height - 1
+	if maxY <= minY {
+		return
+	}
 
 	a.bubbles = append(a.bubbles, Bubble{
 		x:         float64(a.rng.Intn(a.width)),
@@ -780,6 +785,9 @@ func (a *AquariumEffect) Render() string {
 	if oceanY < 2 {
 		oceanY = 2
 	}
+	if oceanY >= a.height {
+		oceanY = a.height - 1
+	}
 	for x := 0; x < a.width; x++ {
 		if (a.frameCount/2+x)%3 == 0 {
 			canvas[oceanY][x] = '~'
@@ -792,7 +800,7 @@ func (a *AquariumEffect) Render() string {
 	if len(a.waterColors) > 1 {
 		sandColor = a.waterColors[1]
 	}
-	for y := a.height - 2; y < a.height; y++ {
+	for y := max(0, a.height-2); y < a.height; y++ {
 		for x := 0; x < a.width; x++ {
 			if y == a.height-2 {
 				// Top of ocean floor with variation
