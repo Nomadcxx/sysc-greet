@@ -66,6 +66,14 @@ Press F4 to access power options:
 - Shutdown
 - Cancel
 
+By default, these actions use login1: `systemctl` on systemd and `loginctl` on elogind. To use custom commands, add JSON argv arrays to the sysc-greet command in your greetd configuration:
+
+```sh
+sysc-greet --reboot-command='["sudo","reboot"]' --shutdown-command='["sudo","poweroff"]'
+```
+
+Each array starts with the executable and keeps every argument separate; sysc-greet does not evaluate the command through a shell. Configure any required noninteractive authorization on your system. A wrapper script can be used as a single-element array.
+
 ## Configuration
 
 sysc-greet automatically saves your preferences:

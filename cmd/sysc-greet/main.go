@@ -323,22 +323,24 @@ type ASCIIConfig struct {
 // The sysc-greet.conf system was unused and confusing - hardcoded sessionPalettes provide all needed palettes
 
 type Config struct {
-	FollowShell      *bool
-	ShellThemeFile   string
-	TestMode         bool
-	TestSession      string
-	SecondarySaver   bool
-	Debug            bool
-	ShowTime         bool
-	ThemeName        string
-	RememberUsername bool
-	BorderLayout     string
-	FormMode         string
-	FormModeExplicit bool
-	FormHalo         int
-	FormDim          float64
-	Ambient          ambientConfig
-	Secondary        secondaryConfig
+	FollowShell          *bool
+	ShellThemeFile       string
+	PowerRebootCommand   []string
+	PowerShutdownCommand []string
+	TestMode             bool
+	TestSession          string
+	SecondarySaver       bool
+	Debug                bool
+	ShowTime             bool
+	ThemeName            string
+	RememberUsername     bool
+	BorderLayout         string
+	FormMode             string
+	FormModeExplicit     bool
+	FormHalo             int
+	FormDim              float64
+	Ambient              ambientConfig
+	Secondary            secondaryConfig
 }
 
 func shouldCreateGreetdIPC(config Config) bool {
@@ -1395,14 +1397,14 @@ func (m model) update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 			m.mode = ModeLoading
-			return m, requestPower(action, "reboot")
+			return m, requestPower(action, "reboot", m.config.PowerRebootCommand)
 		case "Shutdown":
 			if m.config.TestMode {
 				fmt.Println("Test mode: Would shutdown system")
 				return m, tea.Quit
 			}
 			m.mode = ModeLoading
-			return m, requestPower(action, "poweroff")
+			return m, requestPower(action, "poweroff", m.config.PowerShutdownCommand)
 		case "Cancel":
 			m.mode = ModeLogin
 			m.focusState = FocusUsername
@@ -2919,6 +2921,8 @@ func main() {
 	var borderPreviewSizes string
 	var secondarySaverStartedAt string
 	var secondaryReadyFile string
+	var rebootCommandRaw string
+	var shutdownCommandRaw string
 
 	flag.BoolVar(&showVersion, "version", false, "Show version information")
 	flag.BoolVar(&showVersion, "v", false, "Show version information (shorthand)")
@@ -2934,6 +2938,8 @@ func main() {
 	flag.StringVar(&config.ShellThemeFile, "shell-theme-file", "", "Override the exported shell theme file")
 	flag.StringVar(&config.ThemeName, "theme", "", "Theme name from the Themes menu (overrides saved theme)")
 	flag.BoolVar(&config.RememberUsername, "remember-username", true, "Remember last logged in username")
+	flag.StringVar(&rebootCommandRaw, "reboot-command", "", "JSON argv array for the reboot action (default: login1)")
+	flag.StringVar(&shutdownCommandRaw, "shutdown-command", "", "JSON argv array for the shutdown action (default: login1)")
 	flag.BoolVar(&config.ShowTime, "time", false, "") // Hidden flag - not shown in help
 	flag.StringVar(&config.BorderLayout, "border-layout", "hug", "Outer frame layout: hug keeps fixed margins, fill grows to terminal edges")
 	flag.StringVar(&config.FormMode, "form-mode", "auto", "Login form mode: auto, opaque, seethrough or frosted")
@@ -2961,6 +2967,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, "  -follow-shell=false\n    \tKeep an independent greeter theme")
 		fmt.Fprintln(os.Stderr, "  -shell-theme-file PATH\n    \tRead the shell theme selection from PATH")
 		fmt.Fprintln(os.Stderr, "  -widget-config PATH\n    \tWidget JSON config (user config, then /etc/sysc-greet/widgets.json)")
+		fmt.Fprintln(os.Stderr, "  -reboot-command JSON\n    \tJSON argv array for the reboot action (default: login1)")
+		fmt.Fprintln(os.Stderr, "  -shutdown-command JSON\n    \tJSON argv array for the shutdown action (default: login1)")
 		fmt.Fprintln(os.Stderr, "  -weather-shell-config PATH\n    \tsysc-shell config for weather-location=sysc-shell")
 		fmt.Fprintln(os.Stderr, "  -metrics\n    \tShow CPU/Memory usage in the login panel")
 		fmt.Fprintln(os.Stderr, "  -gpu\n    \tCollect optional GPU statistics for upcoming widgets (no display yet)")
@@ -3004,6 +3012,17 @@ func main() {
 	}
 
 	flag.Parse()
+	var err error
+	config.PowerRebootCommand, err = parsePowerCommand(rebootCommandRaw)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid --reboot-command: %v\n", err)
+		os.Exit(2)
+	}
+	config.PowerShutdownCommand, err = parsePowerCommand(shutdownCommandRaw)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid --shutdown-command: %v\n", err)
+		os.Exit(2)
+	}
 	if config.TestSession != "" {
 		name, err := normalizeTestSessionOption(config.TestMode, config.TestSession)
 		if err != nil {

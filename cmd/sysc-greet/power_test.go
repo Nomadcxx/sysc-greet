@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"testing"
 
@@ -31,6 +32,36 @@ func powerTestModel() model {
 	}
 }
 
+func TestParsePowerCommand(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		want    []string
+		wantErr bool
+	}{
+		{name: "unset uses the built-in action"},
+		{name: "argv", raw: `["sudo","reboot"]`, want: []string{"sudo", "reboot"}},
+		{name: "reject shell command", raw: "sudo reboot", wantErr: true},
+		{name: "reject empty argv", raw: `[]`, wantErr: true},
+		{name: "reject empty executable", raw: `[""]`, wantErr: true},
+		{name: "reject whitespace executable", raw: `["   "]`, wantErr: true},
+		{name: "reject null argument", raw: `["sudo",null]`, wantErr: true},
+		{name: "reject NUL argument", raw: `["sudo","\u0000"]`, wantErr: true},
+		{name: "reject null", raw: `null`, wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parsePowerCommand(tt.raw)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("parsePowerCommand(%q) error = %v; want error %t", tt.raw, err, tt.wantErr)
+			}
+			if !slices.Equal(got, tt.want) {
+				t.Fatalf("parsePowerCommand(%q) = %v; want %v", tt.raw, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestPowerActionsAskLogin1(t *testing.T) {
 	for _, tt := range []struct {
 		action string
@@ -53,6 +84,39 @@ func TestPowerActionsAskLogin1(t *testing.T) {
 			}
 			if len(*asked) != 3 || (*asked)[1] != "--no-ask-password" || (*asked)[2] != tt.verb {
 				t.Fatalf("power request = %v; want a noninteractive %s request", *asked, tt.verb)
+			}
+		})
+	}
+}
+
+func TestPowerActionsUseConfiguredArgv(t *testing.T) {
+	tests := []struct {
+		action string
+		argv   []string
+		config Config
+	}{
+		{
+			action: "Reboot",
+			argv:   []string{"/usr/bin/sudo", "reboot", "now"},
+			config: Config{PowerRebootCommand: []string{"/usr/bin/sudo", "reboot", "now"}},
+		},
+		{
+			action: "Shutdown",
+			argv:   []string{"/usr/local/bin/power wrapper", "--action", "power off"},
+			config: Config{PowerShutdownCommand: []string{"/usr/local/bin/power wrapper", "--action", "power off"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.action, func(t *testing.T) {
+			asked := stubPowerCommand(t, exec.Command("true"))
+			m := powerTestModel()
+			m.config = tt.config
+			_, cmd := m.Update(powerSelectedMsg(tt.action))
+			if msg := cmd(); msg != nil {
+				t.Fatalf("accepted custom command returned %#v; want nil", msg)
+			}
+			if !slices.Equal(*asked, tt.argv) {
+				t.Fatalf("power command = %v; want exact argv %v", *asked, tt.argv)
 			}
 		})
 	}
