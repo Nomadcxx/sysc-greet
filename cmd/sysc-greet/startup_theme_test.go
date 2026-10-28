@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -14,6 +15,11 @@ func TestInitialModelUsesCLITheme(t *testing.T) {
 	dataDir = filepath.Join("..", "..")
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("SYSC_BG", "")
+	shellThemeFile := filepath.Join(t.TempDir(), "shell-theme")
+	if err := os.WriteFile(shellThemeFile, []byte("eldritch-abyss\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	followShell := false
 	t.Cleanup(func() {
 		dataDir, themes.CustomThemes = originalDir, originalThemes
 		applyTheme("dracula", true)
@@ -47,7 +53,12 @@ func TestInitialModelUsesCLITheme(t *testing.T) {
 	} {
 		t.Run(tc.flag, func(t *testing.T) {
 			themes.CustomThemes = make(map[string]themes.ThemeColors)
-			m := initialModel(Config{TestMode: true, ThemeName: tc.flag}, false)
+			m := initialModel(Config{
+				FollowShell:    &followShell,
+				TestMode:       true,
+				ThemeName:      tc.flag,
+				ShellThemeFile: shellThemeFile,
+			}, false)
 			if m.currentTheme != tc.name {
 				t.Errorf("active theme=%q, want %q", m.currentTheme, tc.name)
 			}
