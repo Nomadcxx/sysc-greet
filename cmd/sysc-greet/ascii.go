@@ -338,6 +338,10 @@ func (m model) getSessionASCII() string {
 	return art
 }
 
+func (m model) cachedASCIIConfig(configPath string) (ASCIIConfig, error) {
+	return m.asciiConfigCache.loadConfig(configPath)
+}
+
 func (m model) getSessionASCIIWithColors() (string, bool) {
 	if m.selectedSession == nil {
 		return "", false
@@ -354,7 +358,7 @@ func (m model) getSessionASCIIWithColors() (string, bool) {
 	// Try to load ASCII config for this session
 	// Fixed path to use sysc-greet instead of bubble-greet
 	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
-	asciiConfig, err := loadASCIIConfig(configPath)
+	asciiConfig, err := m.cachedASCIIConfig(configPath)
 	if err != nil {
 		// Fallback to session name as text
 		return sessionName, false
@@ -406,8 +410,13 @@ func (m model) getSessionASCIIWithColors() (string, bool) {
 	}
 
 	if asciiConfig.ANSIStyle {
-		if rendered, hasControls := renderANSIASCII(currentASCII); hasControls {
-			return rendered, true
+		key := asciiRenderKey{path: configPath, art: currentASCII, variant: variantIndex, ansi: true}
+		result := m.asciiConfigCache.render(key, func() asciiRenderResult {
+			rendered, hasControls := renderANSIASCII(currentASCII)
+			return asciiRenderResult{text: rendered, inline: hasControls}
+		})
+		if result.inline {
+			return result.text, true
 		}
 	}
 
@@ -423,7 +432,17 @@ func (m model) getSessionASCIIWithColors() (string, bool) {
 
 	// Apply color to entire ASCII art block
 	style := lipgloss.NewStyle().Foreground(asciiColor).Background(BgBase)
-	return style.Render(currentASCII), false
+	key := asciiRenderKey{
+		path: configPath, art: currentASCII, variant: variantIndex,
+		foreground: colorCacheKey(asciiColor), background: colorCacheKey(BgBase),
+	}
+	if m.selectedBackground == "print" || m.selectedBackground == "beams" || m.selectedBackground == "pour" {
+		return style.Render(currentASCII), false
+	}
+	result := m.asciiConfigCache.render(key, func() asciiRenderResult {
+		return asciiRenderResult{text: style.Render(currentASCII)}
+	})
+	return result.text, false
 }
 
 // Get color palette for a session type
@@ -887,7 +906,7 @@ func (m model) getSessionASCIIMonochrome() string {
 	// Try to load ASCII config for this session
 	// FIXED 2025-10-15 - Corrected path from bubble-greet to sysc-greet
 	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
-	asciiConfig, err := loadASCIIConfig(configPath)
+	asciiConfig, err := m.cachedASCIIConfig(configPath)
 	if err != nil {
 		// Fallback to session name as text
 		return sessionName
@@ -930,7 +949,7 @@ func (m *model) resetPrintEffectForSession(sessionName string) {
 	configFileName := asciiConfigFileName(sessionName)
 
 	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
-	if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+	if asciiConfig, err := m.cachedASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 		variantIndex := m.asciiArtIndex
 		if variantIndex >= len(asciiConfig.ASCIIVariants) {
 			variantIndex = 0
@@ -949,7 +968,7 @@ func (m *model) resetPourEffectForSession(sessionName string) {
 	configFileName := asciiConfigFileName(sessionName)
 
 	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
-	if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+	if asciiConfig, err := m.cachedASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 		variantIndex := m.asciiArtIndex
 		if variantIndex >= len(asciiConfig.ASCIIVariants) {
 			variantIndex = 0
@@ -996,7 +1015,7 @@ func (m *model) resetBeamsEffectForSession(sessionName string) {
 	configFileName := asciiConfigFileName(sessionName)
 
 	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
-	if asciiConfig, err := loadASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
+	if asciiConfig, err := m.cachedASCIIConfig(configPath); err == nil && len(asciiConfig.ASCIIVariants) > 0 {
 		variantIndex := m.asciiArtIndex
 		if variantIndex >= len(asciiConfig.ASCIIVariants) {
 			variantIndex = 0
@@ -1027,13 +1046,12 @@ func (m *model) resetBeamsEffectForSession(sessionName string) {
 	}
 }
 
-// getCustomRoastsForSession loads custom roasts from the session's ASCII config file
-// Returns empty string if no custom roasts are configured (falls back to defaults)
-func getCustomRoastsForSession(sessionName string) string {
+// getCustomRoastsForSession loads custom roasts from the session's ASCII config file.
+func (m model) getCustomRoastsForSession(sessionName string) string {
 	configFileName := asciiConfigFileName(sessionName)
 
 	configPath := fmt.Sprintf("%s/ascii_configs/%s.conf", dataDir, configFileName)
-	if asciiConfig, err := loadASCIIConfig(configPath); err == nil {
+	if asciiConfig, err := m.cachedASCIIConfig(configPath); err == nil {
 		return asciiConfig.Roasts
 	}
 	return ""
