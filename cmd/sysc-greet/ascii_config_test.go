@@ -3,8 +3,25 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestMangoConfigIncludesSubmittedLogo(t *testing.T) {
+	config, err := loadASCIIConfig(filepath.Join("..", "..", "ascii_configs", "mango.conf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !config.ANSIStyle {
+		t.Fatal("Mango config does not enable ANSI art")
+	}
+	if got := len(config.ASCIIVariants); got != 13 {
+		t.Fatalf("Mango config has %d variants, want 13", got)
+	}
+	if !strings.Contains(config.ASCIIVariants[12], `\033[32m=`) {
+		t.Fatal("variant 13 does not contain the submitted Mango logo")
+	}
+}
 
 func TestLoadASCIIConfigPreservesEqualsInArt(t *testing.T) {
 	tests := []struct {
