@@ -89,9 +89,9 @@ The Beams and Pour effects draw the art in their own colors. Print shows ANSI ar
 
 ## Creating Custom ASCII
 
-### sysclet
+Install [sysclet v0.3.0 or later](https://github.com/Nomadcxx/sysclet/releases). It renders text with TheDraw fonts. In its TUI, select the sysc-greet export, choose a profile and `ascii_N` slot, then press `Ctrl+S`. sysclet writes the profile directly and sets `ansi_style=true`.
 
-[sysclet](https://github.com/Nomadcxx/sysclet) renders text with TheDraw fonts and writes sysc-greet profiles. Its snippets set `ansi_style=true` and wrap the art in `"""`. Its README covers installation.
+From the command line:
 
 ```bash
 # List the bundled fonts, or those whose names contain a filter
@@ -104,26 +104,18 @@ sysclet render --font-name Bleach NIRI
 # Print a profile snippet to paste into a .conf file
 sysclet export --font-name Bleach --slot ascii_1 NIRI
 
-# Or write the slot into the profile
+# Or update a system-owned profile directly
 sudo "$(command -v sysclet)" export --font-name Bleach --slot ascii_1 \
   --config /usr/share/sysc-greet/ascii_configs/niri.conf NIRI
 ```
 
-With `--config`, sysclet replaces the slot or appends it, sets `ansi_style=true`, and first saves the original beside it as `niri.conf.sysclet-<timestamp>.bak`. It refuses to write through a symlink. Run `sysclet` with no arguments to pick a font in its editor; `Ctrl+S` in its export view writes the selected slot into a profile.
+sysclet snippets set `ansi_style=true` and wrap the art in `"""`. With `--config`, sysclet replaces the slot or appends it, sets `ansi_style=true`, and first saves the original beside it as `niri.conf.sysclet-<timestamp>.bak`. It refuses to write through a symlink.
 
 The installer and the AUR package copy the bundled profiles into `/usr/share/sysc-greet/ascii_configs/` on each install, so a reinstall or upgrade replaces an edited profile. Keep a copy of your changes.
 
-### Other generators
+Browse the [ASCII Art Archive](https://www.asciiart.eu/) for existing artwork. Plain text art needs no `ansi_style`; art with SGR colors needs `ansi_style=true`.
 
-Plain text art needs no `ansi_style`; art with SGR colors needs `ansi_style=true`.
-
-- [bit](https://github.com/superstarryeyes/bit) - Terminal ASCII art generator with many fonts
-- [patorjk.com/software/taag](http://patorjk.com/software/taag/) - Web-based generator
-- [ASCII Art Archive](https://www.asciiart.eu/) - Browse existing art
-
-### Size
-
-The framed layouts need a terminal of at least 80 columns and 24 rows, and sysc-greet uses them only when the frame and art fit. Otherwise it shows the art above a compact login form, and drops the art when that does not fit either.
+Keep art under 80 columns wide for compatibility. The framed layouts need a terminal of at least 80 columns and 24 rows, and sysc-greet uses them only when the frame and art fit. Otherwise it shows the art above a compact login form, and drops the art when that does not fit either.
 
 **Test your config:**
 
