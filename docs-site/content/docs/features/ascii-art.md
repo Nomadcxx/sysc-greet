@@ -55,35 +55,17 @@ For art with embedded SGR colors, set `ansi_style=true`. sysc-greet maps the 16 
 
 ## Creating Custom ASCII
 
-**ASCII generators:**
+Install [sysclet v0.3.0 or later](https://github.com/Nomadcxx/sysclet/releases). In its TUI, select the sysc-greet export, choose a profile and `ascii_N` slot, then press `Ctrl+S`. sysclet writes the profile directly and sets `ansi_style=true`.
 
-- [bit](https://github.com/superstarryeyes/bit) - Terminal ASCII art generator with many fonts
-- [patorjk.com/software/taag](http://patorjk.com/software/taag/) - Web-based generator
-- [ASCII Art Archive](https://www.asciiart.eu/) - Browse existing art
+To print a profile snippet from the command line:
 
-**Using bit:**
-
-```bash
-# Quick install (Linux/macOS)
-curl -sfL https://raw.githubusercontent.com/superstarryeyes/bit/main/install.sh | sh
-
-# Or build from source
-git clone https://github.com/superstarryeyes/bit
-cd bit
-make build
-./bit  # Interactive TUI mode
-
-# CLI mode - generate ASCII art
-bit "HYPRLAND"
-
-# List available fonts
-bit -list
-
-# Use specific font with gradient
-bit -font banner -color 31 -gradient 34 "HYPRLAND"
+```sh
+sysclet export --font-name Bleach --slot ascii_1 COWBOY
 ```
 
-**Important:** Keep ASCII art under 80 columns wide for compatibility.
+Add `--config PROFILE` to update a profile directly. Use elevated privileges for system-owned files under `/usr/share/sysc-greet/ascii_configs/`.
+
+Browse the [ASCII Art Archive](https://www.asciiart.eu/) for existing artwork. Keep art under 80 columns wide for compatibility.
 
 **Test your config:**
 
