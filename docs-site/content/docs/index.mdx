@@ -337,7 +337,8 @@ ASCII art configurations are stored in `/usr/share/sysc-greet/ascii_configs/`. E
 
 - `name` - Display name for the session
 - `ascii_1`, `ascii_2`, etc. - Multiple ASCII art variants
-- `colors` - Optional hex colors for rainbow effect
+- `color` - Optional hex color for plain art
+- `ansi_style` - `true` for art with embedded ANSI colors
 - `roasts` - Custom roast messages separated by `│` character
 
 For more details, see [ASCII Art Feature](features/ascii-art).
@@ -420,6 +421,7 @@ If you like ASCII animations, CLI and TUI terminal aesthetics check out these pr
 
 - [sysc-Go](https://github.com/Nomadcxx/sysc-Go) - Terminal animation library for Go
 - [sysc-walls](https://github.com/Nomadcxx/sysc-walls) - Terminal-based screensaver for Wayland/X11
+- [sysclet](https://github.com/Nomadcxx/sysclet) - ANSI headers from TheDraw fonts, written straight into sysc-greet profiles
 - [gSlapper](https://github.com/Nomadcxx/gSlapper) - Video wallpaper manager for Wayland
 
 ## Acknowledgments
