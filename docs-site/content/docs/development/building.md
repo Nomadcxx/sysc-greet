@@ -94,4 +94,4 @@ The release workflow builds x86_64 glibc and musl XBPS packages with `xbps-src` 
 
 Use `gh workflow run release.yml --ref <branch>` for a dry run. Download the `sysc-greet-void-glibc` and `sysc-greet-void-musl` artifacts from that run to inspect the packages. Dispatch runs create no release. Tag runs attach both packages, the source archive and `SHA256SUMS-void` to the release.
 
-Until Void packages gSlapper, the sysc-greet job installs the matching gSlapper 1.5.2 release package after checking its checksum. Update that dependency in `scripts/build-void-package.sh` when adopting a newer release.
+Until Void packages gSlapper, the sysc-greet job installs the matching gSlapper 1.5.3 release package after checking its checksum. Update that dependency in `scripts/build-void-package.sh` when adopting a newer release.
