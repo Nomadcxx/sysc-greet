@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -62,6 +63,9 @@ func detectOutputManager() (compositorOutputManager, error) {
 func (c commandCompositor) Name() string {
 	switch c.kind {
 	case compositorNiri:
+		if os.Getenv("SYSC_SOCKET") != "" && strings.HasPrefix(filepath.Base(os.Getenv("NIRI_SOCKET")), "sysc-compositor.") {
+			return "sysc-compositor"
+		}
 		return "niri"
 	case compositorSway:
 		return "sway"
@@ -85,12 +89,12 @@ func (c commandCompositor) ListOutputs(ctx context.Context) ([]secondaryOutput, 
 	switch c.kind {
 	case compositorNiri:
 		var data []byte
-		data, err = runOutputCommand(ctx, "niri", "msg", "--json", "outputs")
+		data, err = niriSocketRequest(ctx, map[string]any{"Outputs": nil}, "Outputs")
 		if err == nil {
 			outputs, err = parseNiriOutputs(data)
 		}
 		if err == nil {
-			data, err = runOutputCommand(ctx, "niri", "msg", "--json", "focused-output")
+			data, err = niriSocketRequest(ctx, map[string]any{"FocusedOutput": nil}, "FocusedOutput")
 		}
 		if err == nil {
 			focused, err = parseNiriFocusedOutput(data)
@@ -138,6 +142,13 @@ func (c commandCompositor) ListOutputs(ctx context.Context) ([]secondaryOutput, 
 }
 
 func (c commandCompositor) FocusOutput(ctx context.Context, name string) error {
+	if c.kind == compositorNiri {
+		_, err := niriSocketRequest(ctx, map[string]any{"Action": map[string]any{"FocusMonitor": map[string]any{"output": name}}}, "Handled")
+		if err != nil {
+			return fmt.Errorf("focus %s output %q: %w", c.Name(), name, err)
+		}
+		return nil
+	}
 	if c.kind == compositorCagebreak {
 		return c.focusCagebreakOutput(ctx, name)
 	}
@@ -154,8 +165,6 @@ func (c commandCompositor) FocusOutput(ctx context.Context, name string) error {
 
 func compositorFocusCommand(kind compositorKind, target string) (string, []string) {
 	switch kind {
-	case compositorNiri:
-		return "niri", []string{"msg", "action", "focus-monitor", target}
 	case compositorSway:
 		return "swaymsg", []string{"focus", "output", target}
 	case compositorHyprland:
@@ -211,7 +220,7 @@ func parseNiriOutputs(data []byte) ([]secondaryOutput, error) {
 		Logical json.RawMessage `json:"logical"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return nil, fmt.Errorf("parse niri outputs: %w", err)
+		return nil, fmt.Errorf("parse compositor outputs: %w", err)
 	}
 	outputs := make([]secondaryOutput, 0, len(raw))
 	for name, output := range raw {
@@ -229,7 +238,7 @@ func parseNiriFocusedOutput(data []byte) (string, error) {
 		Name string `json:"name"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return "", fmt.Errorf("parse niri focused output: %w", err)
+		return "", fmt.Errorf("parse compositor focused output: %w", err)
 	}
 	if raw == nil || raw.Name == "" {
 		return "", fmt.Errorf("empty focused output")
@@ -406,4 +415,57 @@ func cagebreakSocketRequest(ctx context.Context, socket, command string, readRes
 		return nil, fmt.Errorf("cagebreak returned an empty response to %q", command)
 	}
 	return data, nil
+}
+
+// niriSocketRequest uses the shared Niri IPC contract without a compositor executable.
+func niriSocketRequest(parent context.Context, request any, response string) ([]byte, error) {
+	socket := os.Getenv("NIRI_SOCKET")
+	if socket == "" {
+		return nil, fmt.Errorf("NIRI_SOCKET is not set")
+	}
+	ctx, cancel := context.WithTimeout(parent, time.Second)
+	defer cancel()
+	conn, err := (&net.Dialer{}).DialContext(ctx, "unix", socket)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	defer stop()
+	if err := json.NewEncoder(conn).Encode(request); err != nil {
+		return nil, err
+	}
+	scanner := bufio.NewScanner(conn)
+	scanner.Buffer(make([]byte, 4096), 1<<20)
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return nil, err
+		}
+		return nil, fmt.Errorf("compositor returned no IPC reply")
+	}
+	var reply struct {
+		Ok  json.RawMessage
+		Err *string
+	}
+	if err := json.Unmarshal(scanner.Bytes(), &reply); err != nil {
+		return nil, err
+	}
+	if reply.Err != nil {
+		return nil, fmt.Errorf("compositor refused request: %s", *reply.Err)
+	}
+	if response == "Handled" {
+		if string(reply.Ok) != `"Handled"` {
+			return nil, fmt.Errorf("compositor returned an invalid action reply")
+		}
+		return nil, nil
+	}
+	var data map[string]json.RawMessage
+	if err := json.Unmarshal(reply.Ok, &data); err != nil {
+		return nil, err
+	}
+	value, ok := data[response]
+	if !ok {
+		return nil, fmt.Errorf("compositor reply is missing %s", response)
+	}
+	return value, nil
 }

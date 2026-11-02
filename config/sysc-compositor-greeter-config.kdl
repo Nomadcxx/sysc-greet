@@ -1,0 +1,75 @@
+// sysc-compositor config for the greetd greeter session
+// This config is ONLY used by greetd to show the greeter
+
+hotkey-overlay {
+    skip-at-startup
+}
+
+input {
+    keyboard {
+        xkb {
+            layout "us"
+        }
+        repeat-delay 400
+        repeat-rate 40
+        // Uncomment to enable numlock on startup — useful if your password
+        // contains numbers and you have a dedicated numpad or number row.
+        // numlock
+    }
+
+    mouse {
+        off
+        // natural-scroll;
+    }
+
+    touchpad {
+        off
+        // natural-scroll;
+    }
+}
+
+gestures {
+    hot-corners {
+        off
+    }
+}
+
+// Mouse and touchpad are off; keep the cursor hidden
+cursor {
+    hide-when-typing
+    hide-after-inactive-ms 0
+}
+
+layer-rule {
+    match namespace="^wallpaper$"
+    place-within-backdrop true
+}
+
+layout {
+    gaps 0
+    center-focused-column "never"
+
+    // No focus ring needed for greeter
+    focus-ring {
+        off
+    }
+
+    // No border needed for greeter
+    border {
+        off
+    }
+}
+
+// Disable animations for faster startup
+animations {
+    off
+}
+
+// Start gslapper with the cached greeter wallpaper (forked to background with IPC socket)
+spawn-sh-at-startup "HOME=/var/lib/greeter /usr/local/bin/sysc-greet --wallpaper-daemon"
+
+spawn-sh-at-startup "XDG_CACHE_HOME=/var/lib/greeter/.cache HOME=/var/lib/greeter kitty --class=sysc-greet --start-as=fullscreen --config=/etc/greetd/kitty.conf /usr/local/bin/sysc-greet; sysc-compositor msg action quit --skip-confirmation"
+
+// Empty binds block = no keybindings work (security for greeter)
+binds {
+}

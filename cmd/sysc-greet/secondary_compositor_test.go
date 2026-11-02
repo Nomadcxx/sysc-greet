@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestParseNiriOutputs(t *testing.T) {
@@ -85,7 +86,7 @@ func TestCompositorFocusCommand(t *testing.T) {
 		out  string
 		args []string
 	}{
-		{name: "niri", kind: compositorNiri, out: "niri", args: []string{"msg", "action", "focus-monitor", "DP-2"}},
+		{name: "niri uses IPC", kind: compositorNiri},
 		{name: "sway", kind: compositorSway, out: "swaymsg", args: []string{"focus", "output", "DP-2"}},
 		{name: "hyprland", kind: compositorHyprland, out: "hyprctl", args: []string{"dispatch", "focusmonitor", "DP-2"}},
 		{name: "mango", kind: compositorMango, out: "mmsg", args: []string{"dispatch", "focusmon,DP-2"}},
@@ -204,5 +205,147 @@ func TestStablePrimaryOutputSurvivesTemporaryFocusChanges(t *testing.T) {
 	}
 	if got := stablePrimaryOutput("missing", outputs, "DP-2"); got != "DP-2" {
 		t.Fatalf("stablePrimaryOutput() = %q after primary removal, want DP-2", got)
+	}
+}
+
+func TestNiriOutputManagerUsesIPC(t *testing.T) {
+	dir, err := os.MkdirTemp("", "sg-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	socket := filepath.Join(dir, "s")
+	listener, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer listener.Close()
+	t.Setenv("NIRI_SOCKET", socket)
+	t.Setenv("PATH", t.TempDir())
+	requests := make(chan string, 3)
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			scanner := bufio.NewScanner(conn)
+			if scanner.Scan() {
+				request := scanner.Text()
+				requests <- request
+				reply := `{"Err":"unexpected request"}`
+				switch request {
+				case `{"Outputs":null}`:
+					reply = `{"Ok":{"Outputs":{"DP-1":{"logical":{"width":1920}},"DP-2":{"logical":{"width":1920}}}}}`
+				case `{"FocusedOutput":null}`:
+					reply = `{"Ok":{"FocusedOutput":{"name":"DP-1"}}}`
+				case `{"Action":{"FocusMonitor":{"output":"DP-2"}}}`:
+					reply = `{"Ok":"Handled"}`
+				}
+				fmt.Fprintln(conn, reply)
+			}
+			conn.Close()
+		}
+	}()
+	manager := commandCompositor{kind: compositorNiri}
+	outputs, focused, err := manager.ListOutputs(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if focused != "DP-1" || len(outputs) != 2 {
+		t.Fatalf("outputs=%v focus=%s", outputs, focused)
+	}
+	if err := manager.FocusOutput(context.Background(), "DP-2"); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`{"Outputs":null}`, `{"FocusedOutput":null}`, `{"Action":{"FocusMonitor":{"output":"DP-2"}}}`} {
+		if got := <-requests; got != want {
+			t.Fatalf("request=%s want=%s", got, want)
+		}
+	}
+}
+
+func TestNiriIPCRejectsFailuresAndCancellation(t *testing.T) {
+	for _, reply := range []string{`{"Err":"refused"}`, `{"Ok":"Handled"}`, `{"Ok":{"Windows":[]}}`, `{}`, `garbage`} {
+		t.Run(reply[:min(len(reply), 16)], func(t *testing.T) {
+			dir, err := os.MkdirTemp("", "sg-")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer os.RemoveAll(dir)
+			socket := filepath.Join(dir, "s")
+			ln, err := net.Listen("unix", socket)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer ln.Close()
+			t.Setenv("NIRI_SOCKET", socket)
+			go func() {
+				conn, err := ln.Accept()
+				if err != nil {
+					return
+				}
+				defer conn.Close()
+				bufio.NewReader(conn).ReadString('\n')
+				fmt.Fprintln(conn, reply)
+			}()
+			if _, err := niriSocketRequest(context.Background(), map[string]any{"Outputs": nil}, "Outputs"); err == nil {
+				t.Fatal("invalid reply accepted")
+			}
+		})
+	}
+	t.Setenv("NIRI_SOCKET", filepath.Join(t.TempDir(), "missing"))
+	if _, err := niriSocketRequest(context.Background(), map[string]any{"Outputs": nil}, "Outputs"); err == nil {
+		t.Fatal("dial failure accepted")
+	}
+	dir, err := os.MkdirTemp("", "sg-")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+	socket := filepath.Join(dir, "s")
+	ln, err := net.Listen("unix", socket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	t.Setenv("NIRI_SOCKET", socket)
+	accepted := make(chan struct{})
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		close(accepted)
+		bufio.NewReader(conn).ReadString('\n')
+		bufio.NewReader(conn).ReadByte()
+	}()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { _, err := niriSocketRequest(ctx, map[string]any{"Outputs": nil}, "Outputs"); done <- err }()
+	<-accepted
+	cancel()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("cancel accepted")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("cancellation did not close socket")
+	}
+}
+
+func TestNiriOutputManagerNamesDetectedCompositor(t *testing.T) {
+	manager := commandCompositor{kind: compositorNiri}
+	t.Setenv("SYSC_SOCKET", "/run/control.sock")
+	t.Setenv("NIRI_SOCKET", "/run/sysc-compositor.wayland-1.7.sock")
+	if manager.Name() != "sysc-compositor" {
+		t.Fatalf("name=%q", manager.Name())
+	}
+	t.Setenv("NIRI_SOCKET", "/run/niri.wayland-1.7.sock")
+	if manager.Name() != "niri" {
+		t.Fatalf("stale control socket changed name=%q", manager.Name())
 	}
 }
