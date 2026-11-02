@@ -164,7 +164,7 @@ func TestSyscCompositorGreeterBackend(t *testing.T) {
 		want       string
 	}{
 		{"niri", "niri -c /etc/greetd/niri-greeter-config.kdl"},
-		{"sysc-compositor", "sysc-compositor -c /etc/greetd/niri-greeter-config.kdl"},
+		{"sysc-compositor", "sysc-compositor -c /etc/greetd/sysc-compositor-greeter-config.kdl"},
 	} {
 		if got := niriGreeterCommand(tc.compositor); got != tc.want {
 			t.Errorf("niriGreeterCommand(%q) = %q, want %q", tc.compositor, got, tc.want)
@@ -209,5 +209,15 @@ func TestNiriGreeterQuitCommand(t *testing.T) {
 		if got := niriGreeterQuitCommand(tc.compositor); got != tc.want {
 			t.Errorf("niriGreeterQuitCommand(%q) = %q, want %q", tc.compositor, got, tc.want)
 		}
+	}
+}
+
+func TestSyscCompositorGreeterConfigUsesOwnCommands(t *testing.T) {
+	data, err := os.ReadFile("../../config/sysc-compositor-greeter-config.kdl")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "sysc-compositor msg action quit --skip-confirmation") || strings.Contains(string(data), "niri msg") {
+		t.Fatalf("wrong compositor commands:\n%s", data)
 	}
 }

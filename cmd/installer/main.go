@@ -257,12 +257,16 @@ func compositorPickerOptions() []greeterCompositor {
 
 const (
 	niriGreeterConfigPath     = "/etc/greetd/niri-greeter-config.kdl"
+	syscGreeterConfigPath     = "/etc/greetd/sysc-compositor-greeter-config.kdl"
 	hyprlandGreeterConfigPath = "/etc/greetd/hyprland-greeter-config.lua"
 	hyprlandGreetdCommand     = "start-hyprland -- --config " + hyprlandGreeterConfigPath
 )
 
 func niriGreeterCommand(compositor string) string {
-	if compositor == "niri" || compositor == "sysc-compositor" {
+	if compositor == "sysc-compositor" {
+		return compositor + " -c " + syscGreeterConfigPath
+	}
+	if compositor == "niri" {
 		return compositor + " -c " + niriGreeterConfigPath
 	}
 	return ""
@@ -1996,7 +2000,16 @@ func configureGreetd(m *model) error {
 	var configPath string
 
 	switch m.selectedCompositor {
-	case "niri", "sysc-compositor":
+	case "sysc-compositor":
+		data, err := os.ReadFile("config/sysc-compositor-greeter-config.kdl")
+		if err != nil {
+			return fmt.Errorf("sysc-compositor greeter config missing: %w", err)
+		}
+		compositorConfig = string(data)
+		configPath = syscGreeterConfigPath
+		greetdCommand = niriGreeterCommand(m.selectedCompositor)
+
+	case "niri":
 		quitCommand := niriGreeterQuitCommand(m.selectedCompositor)
 		if quitCommand == "" {
 			return fmt.Errorf("unknown Niri-compatible greeter compositor: %s", m.selectedCompositor)
@@ -2252,6 +2265,7 @@ func removeConfigs(m *model) error {
 		"/usr/share/sysc-greet",
 		"/etc/greetd/kitty.conf",
 		"/etc/greetd/niri-greeter-config.kdl",
+		"/etc/greetd/sysc-compositor-greeter-config.kdl",
 		"/etc/greetd/hyprland-greeter-config.conf",
 		"/etc/greetd/hyprland-greeter-config.lua",
 		"/etc/greetd/sway-greeter-config",
