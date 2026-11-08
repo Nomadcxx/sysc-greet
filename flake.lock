@@ -28,11 +28,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1771646943,
-        "narHash": "sha256-9xRcrQaiNVQzynncoWepaT4SzzMeZoFopIcuPIch2iY=",
+        "lastModified": 1794150090,
+        "narHash": "sha256-+PEbf9FHEgbL9q9KRvPxfQO87bQj0+syxVoQojvEqEc=",
         "owner": "Nomadcxx",
         "repo": "gSlapper",
-        "rev": "6e18f69f21f1b3ef1afb1c7b8eaf1b4890a716ef",
+        "rev": "7225cdf6d8290156867cc39e07cdbd96ee2a95a4",
         "type": "github"
       },
       "original": {
