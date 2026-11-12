@@ -9,7 +9,7 @@ The installer and native packages passed Void glibc x86_64 VM tests for desktop 
 
 ## Native XBPS packages
 
-Download sysc-greet 1.3.0 and gSlapper 1.5.2 for your architecture. These upstream release packages work while [Void's package submission](https://github.com/void-linux/void-packages/pull/63202) awaits review. You do not need Go or a compiler.
+Download sysc-greet 1.3.2 and gSlapper 1.5.3 for your architecture. These upstream release packages work while [Void's package submission](https://github.com/void-linux/void-packages/pull/63202) awaits review. You do not need Go or a compiler.
 
 If you used the Go installer, run its Uninstall option before switching to XBPS packages.
 
@@ -22,10 +22,10 @@ sudo xbps-install -S curl
 mkdir -p sysc-greet-void
 cd sysc-greet-void
 arch=$(xbps-uhelper arch)
-curl -fLO "https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/sysc-greet-1.3.0_1.${arch}.xbps"
-curl -fLO "https://github.com/Nomadcxx/gSlapper/releases/download/v1.5.2/gslapper-1.5.2_1.${arch}.xbps"
-curl -fL -o sysc-greet-SHA256SUMS-void https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/SHA256SUMS-void
-curl -fL -o gslapper-SHA256SUMS-void https://github.com/Nomadcxx/gSlapper/releases/download/v1.5.2/SHA256SUMS-void
+curl -fLO "https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.2/sysc-greet-1.3.2_1.${arch}.xbps"
+curl -fLO "https://github.com/Nomadcxx/gSlapper/releases/download/v1.5.3/gslapper-1.5.3_1.${arch}.xbps"
+curl -fL -o sysc-greet-SHA256SUMS-void https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.2/SHA256SUMS-void
+curl -fL -o gslapper-SHA256SUMS-void https://github.com/Nomadcxx/gSlapper/releases/download/v1.5.3/SHA256SUMS-void
 sha256sum --ignore-missing -c sysc-greet-SHA256SUMS-void &&
   sha256sum --ignore-missing -c gslapper-SHA256SUMS-void &&
   xbps-rindex -a ./*.xbps &&

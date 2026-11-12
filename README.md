@@ -42,10 +42,10 @@ Set `SYSC_COMPOSITOR=hyprland` before running the installer to show the Hyprland
 
 Native XBPS packages are available for x86_64 glibc and musl. Download sysc-greet and gSlapper for the same architecture:
 
-| Architecture | sysc-greet 1.3.0 | gSlapper 1.5.2 |
+| Architecture | sysc-greet 1.3.2 | gSlapper 1.5.3 |
 |---|---|---|
-| x86_64 (glibc) | [Download](https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/sysc-greet-1.3.0_1.x86_64.xbps) | [Download](https://github.com/Nomadcxx/gSlapper/releases/download/v1.5.2/gslapper-1.5.2_1.x86_64.xbps) |
-| x86_64 (musl) | [Download](https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/sysc-greet-1.3.0_1.x86_64-musl.xbps) | [Download](https://github.com/Nomadcxx/gSlapper/releases/download/v1.5.2/gslapper-1.5.2_1.x86_64-musl.xbps) |
+| x86_64 (glibc) | [Download](https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.2/sysc-greet-1.3.2_1.x86_64.xbps) | [Download](https://github.com/Nomadcxx/gSlapper/releases/download/v1.5.3/gslapper-1.5.3_1.x86_64.xbps) |
+| x86_64 (musl) | [Download](https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.2/sysc-greet-1.3.2_1.x86_64-musl.xbps) | [Download](https://github.com/Nomadcxx/gSlapper/releases/download/v1.5.3/gslapper-1.5.3_1.x86_64-musl.xbps) |
 
 Follow the [Void Linux guide](https://nomadcxx.github.io/sysc-greet/docs/getting-started/void-linux/#native-xbps-packages) to verify checksums, install the packages and configure greetd. These are upstream release packages; [submission to Void's repositories](https://github.com/void-linux/void-packages/pull/63202) is pending.
 
@@ -146,18 +146,18 @@ sudo nixos-rebuild switch --flake .#your-hostname
 
 Download pre-built packages from [GitHub Releases](https://github.com/Nomadcxx/sysc-greet/releases/latest):
 
-**Latest: v1.3.0**
+**Latest: v1.3.2**
 
 **Debian/Ubuntu:**
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/sysc-greet_1.3.0_amd64.deb
-sudo apt install ./sysc-greet_1.3.0_amd64.deb
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.2/sysc-greet_1.3.2_amd64.deb
+sudo apt install ./sysc-greet_1.3.2_amd64.deb
 ```
 
 **Fedora:**
 ```bash
-wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.0/sysc-greet-1.3.0-1.x86_64.rpm
-sudo dnf install ./sysc-greet-1.3.0-1.x86_64.rpm
+wget https://github.com/Nomadcxx/sysc-greet/releases/download/v1.3.2/sysc-greet-1.3.2-1.x86_64.rpm
+sudo dnf install ./sysc-greet-1.3.2-1.x86_64.rpm
 ```
 
 See [Installation Guide](https://nomadcxx.github.io/sysc-greet/docs/getting-started/installation/) for details.

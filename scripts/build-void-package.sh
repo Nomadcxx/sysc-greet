@@ -36,11 +36,11 @@ mkdir -p "$repo/hostdir/sources/$pkgname-$version"
 cp "$output/$archive" "$repo/hostdir/sources/$pkgname-$version/"
 printf 'XBPS_CHROOT_CMD=uchroot\nXBPS_MAKEJOBS=2\n' > "$repo/etc/conf"
 # Use the released dependency until Void carries gslapper.
-dependency=gslapper-1.5.2_1.$arch.xbps
+dependency=gslapper-1.5.3_1.$arch.xbps
 mkdir -p "$repo/hostdir/binpkgs"
 (
     cd "$repo/hostdir/binpkgs"
-    release=https://github.com/Nomadcxx/gSlapper/releases/download/v1.5.2
+    release=https://github.com/Nomadcxx/gSlapper/releases/download/v1.5.3
     curl --fail --location --retry 3 -o "$dependency" "$release/$dependency"
     curl --fail --location --retry 3 -o SHA256SUMS-void "$release/SHA256SUMS-void"
     awk -v file="$dependency" '$2 == file { print; found=1 } END { if (!found) exit 1 }' \
