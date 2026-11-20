@@ -3,8 +3,6 @@ package main
 import (
 	"cmp"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -209,6 +207,7 @@ type model struct {
 	compositorIndex    int      // Current selection in compositor menu
 	debugMode          bool     // Show verbose output
 	logFile            *os.File // Installer log file
+	workDir            string   // Root-only scratch directory for downloads and source builds
 	beams              *BeamsTextEffect
 
 	// packageListsRefreshed records that installPackages already updated
@@ -1205,43 +1204,27 @@ func parseOSRelease(data string) (id, version string) {
 }
 
 // installReleasePackage downloads a package attached to the latest
-// sysc-greet release and installs it with apt or dnf
+// sysc-greet release, checked against that release's SHA256SUMS, and installs
+// it with apt or dnf.
 func installReleasePackage(m *model, artifact string) error {
-	var cmd *exec.Cmd
-	path := "/tmp/" + artifact
-	switch m.packageManager {
-	case "apt":
-		cmd = exec.Command("apt-get", "install", "-y", path)
-	case "dnf":
-		cmd = exec.Command("dnf", "install", "-y", path)
-	default:
+	if m.packageManager != "apt" && m.packageManager != "dnf" {
 		return fmt.Errorf("release packages need apt or dnf, not %s", m.packageManager)
 	}
-	url := "https://github.com/Nomadcxx/sysc-greet/releases/latest/download/" + artifact
-	if err := downloadFile(url, path); err != nil {
+	path, err := downloadVerified(releaseDownloadBase, m.workDir, artifact)
+	if err != nil {
 		return fmt.Errorf("download %s: %v", artifact, err)
 	}
 	defer os.Remove(path)
+	var cmd *exec.Cmd
+	if m.packageManager == "apt" {
+		cmd = exec.Command("apt-get", "install", "-y", path)
+	} else {
+		cmd = exec.Command("dnf", "install", "-y", path)
+	}
 	return runCommand("Install "+artifact, cmd, m)
 }
 
-func downloadFile(url, dest string) error {
-	resp, err := http.Get(url)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download failed: %s", resp.Status)
-	}
-	f, err := os.Create(dest)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = io.Copy(f, resp.Body)
-	return err
-}
+const releaseDownloadBase = "https://github.com/Nomadcxx/sysc-greet/releases/latest/download/"
 
 // installCagebreakPrebuilt installs the cagebreak package attached to the
 // latest sysc-greet release; any miss falls back to building from source.
@@ -1346,32 +1329,32 @@ func buildCagebreakFromSource(m *model) error {
 		return err
 	}
 
-	exec.Command("rm", "-rf", "/tmp/cagebreak-build").Run()
+	src := filepath.Join(m.workDir, "cagebreak-build")
+	defer os.RemoveAll(src)
 	cloneCmd := exec.Command("git", "clone", "--depth", "1", "--branch", tag,
-		"https://github.com/project-repo/cagebreak", "/tmp/cagebreak-build")
+		"https://github.com/project-repo/cagebreak", src)
 	if err := runCommand("Clone cagebreak", cloneCmd, m); err != nil {
 		return fmt.Errorf("cagebreak clone failed")
 	}
 
 	setupCmd := exec.Command("meson", "setup", "build")
-	setupCmd.Dir = "/tmp/cagebreak-build"
+	setupCmd.Dir = src
 	if err := runCommand("Configure cagebreak build", setupCmd, m); err != nil {
 		return fmt.Errorf("cagebreak build setup failed — check wlroots dev packages")
 	}
 
 	buildCmd := exec.Command("ninja", "-C", "build")
-	buildCmd.Dir = "/tmp/cagebreak-build"
+	buildCmd.Dir = src
 	if err := runCommand("Build cagebreak", buildCmd, m); err != nil {
 		return fmt.Errorf("cagebreak build failed")
 	}
 
 	installCmd := exec.Command("install", "-Dm755", "build/cagebreak", "/usr/local/bin/cagebreak")
-	installCmd.Dir = "/tmp/cagebreak-build"
+	installCmd.Dir = src
 	if err := runCommand("Install cagebreak", installCmd, m); err != nil {
 		return fmt.Errorf("cagebreak install failed")
 	}
 
-	exec.Command("rm", "-rf", "/tmp/cagebreak-build").Run()
 	return nil
 }
 
@@ -1767,8 +1750,9 @@ func buildGslapperFromSource(m *model) error {
 
 	// Sub-task 3: Clone repository
 	updateSubTaskStatus(m, 3, statusRunning)
-	exec.Command("rm", "-rf", "/tmp/gslapper-build").Run()
-	cloneCmd := exec.Command("git", "clone", "--depth", "1", "--branch", gslapperTag, "https://github.com/Nomadcxx/gSlapper", "/tmp/gslapper-build")
+	src := filepath.Join(m.workDir, "gslapper-build")
+	defer os.RemoveAll(src)
+	cloneCmd := exec.Command("git", "clone", "--depth", "1", "--branch", gslapperTag, "https://github.com/Nomadcxx/gSlapper", src)
 	if err := runCommand("Clone gSlapper", cloneCmd, m); err != nil {
 		updateSubTaskStatus(m, 3, statusFailed)
 		return fmt.Errorf("clone failed")
@@ -1778,14 +1762,14 @@ func buildGslapperFromSource(m *model) error {
 	// Sub-task 4: Build from source
 	updateSubTaskStatus(m, 4, statusRunning)
 	setupCmd := exec.Command("meson", "setup", "build", "--prefix=/usr/local")
-	setupCmd.Dir = "/tmp/gslapper-build"
+	setupCmd.Dir = src
 	if err := runCommand("Configure build", setupCmd, m); err != nil {
 		updateSubTaskStatus(m, 4, statusFailed)
 		return fmt.Errorf("build setup failed - check GStreamer dependencies")
 	}
 
 	buildCmd := exec.Command("ninja", "-C", "build")
-	buildCmd.Dir = "/tmp/gslapper-build"
+	buildCmd.Dir = src
 	if err := runCommand("Build gSlapper", buildCmd, m); err != nil {
 		updateSubTaskStatus(m, 4, statusFailed)
 		return fmt.Errorf("build failed")
@@ -1795,15 +1779,12 @@ func buildGslapperFromSource(m *model) error {
 	// Sub-task 5: Install binary
 	updateSubTaskStatus(m, 5, statusRunning)
 	installCmd := exec.Command("ninja", "-C", "build", "install")
-	installCmd.Dir = "/tmp/gslapper-build"
+	installCmd.Dir = src
 	if err := runCommand("Install gSlapper", installCmd, m); err != nil {
 		updateSubTaskStatus(m, 5, statusFailed)
 		return fmt.Errorf("install failed")
 	}
 	updateSubTaskStatus(m, 5, statusComplete)
-
-	// Cleanup
-	exec.Command("rm", "-rf", "/tmp/gslapper-build").Run()
 
 	return nil
 }
@@ -2341,7 +2322,7 @@ func main() {
 	}
 
 	// Append so consecutive runs (e.g. uninstall then install) keep their logs
-	logFile, err := os.OpenFile("/tmp/sysc-greet-installer.log", os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	logFile, err := openInstallerLog("/tmp/sysc-greet-installer.log")
 	if err != nil {
 		fmt.Printf("Warning: Could not create log file: %v\n", err)
 		logFile = nil
@@ -2354,8 +2335,17 @@ func main() {
 		logFile.WriteString(fmt.Sprintf("Debug Mode: %v\n\n", debugMode))
 	}
 
-	p := tea.NewProgram(newModel(debugMode, logFile))
-	if _, err := p.Run(); err != nil {
+	workDir, err := newWorkDir()
+	if err != nil {
+		fmt.Printf("Error: cannot create a private working directory: %v\n", err)
+		os.Exit(1)
+	}
+	m := newModel(debugMode, logFile)
+	m.workDir = workDir
+	p := tea.NewProgram(m)
+	_, err = p.Run()
+	os.RemoveAll(workDir)
+	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
