@@ -46,10 +46,13 @@ func SendCommand(cmd string) (string, error) {
 	return strings.TrimSpace(string(buf[:n])), nil
 }
 
+// CHANGED 2026-11-20 - Accept the "OK: <details>" form - Problem: ChangeWallpaper sets a fade, so
+// gSlapper answers an image change with "OK: transition started"; that read as a failure, the change
+// was retried five times and the instance was then killed and relaunched over the running fade.
 // isOKResponse checks if a gSlapper response indicates success
-// gSlapper may respond with "OK" or "OK <details>"
+// gSlapper may respond with "OK", "OK: <details>" or "OK <details>"
 func isOKResponse(resp string) bool {
-	return resp == "OK" || strings.HasPrefix(resp, "OK ")
+	return resp == "OK" || strings.HasPrefix(resp, "OK:") || strings.HasPrefix(resp, "OK ")
 }
 
 // ChangeWallpaper changes the current wallpaper with fade transition
