@@ -1,6 +1,7 @@
 # Binaries (in root of sysc-greet directory only)
 /sysc-greet
 /install-sysc-greet
+/installer
 *.exe
 /main
 
@@ -9,6 +10,7 @@ test-*
 *test*
 !*testing.md
 !cmd/sysc-greet/ascii_sysc_compositor_test.go
+!cmd/installer/tmpfiles_test.go
 !internal/sessions/sessions_test.go
 !scripts/demo/test_demo.py
 !cmd/sysc-greet/border_registry_test.go
